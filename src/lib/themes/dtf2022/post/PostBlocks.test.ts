@@ -66,10 +66,12 @@ describe('PostBlocks DTF link handling', () => {
 		expect(svelteContent).not.toMatch(/^\s*\.post-block\s+:global\(a\)/m);
 	});
 
-	it('не использует srcset и sizes у img, чтобы не удерживать оторванный слой в Blink', () => {
-		const svelteContent = fs.readFileSync(path.join(__dirname, 'PostBlocks.svelte'), 'utf8');
+	it('нигде в src нет img с srcset и sizes: Blink удерживает по ним оторванный слой поста', () => {
+		const src = path.resolve(__dirname, '../../../..');
+		const offenders = (fs.readdirSync(src, { recursive: true }) as string[])
+			.filter((file) => file.endsWith('.svelte'))
+			.filter((file) => /(srcset|sizes)=/.test(fs.readFileSync(path.join(src, file), 'utf8')));
 
-		expect(svelteContent).not.toContain('srcset=');
-		expect(svelteContent).not.toContain('sizes=');
+		expect(offenders).toEqual([]);
 	});
 });
