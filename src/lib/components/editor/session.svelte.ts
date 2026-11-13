@@ -34,6 +34,14 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 	let saveTimer: ReturnType<typeof setTimeout> | null = null;
 	let maxWaitTimer: ReturnType<typeof setTimeout> | null = null;
 
+	// Правки считаются номерами: несохранённое есть, пока номер последней правки больше номера сохранённой
+	let changes = 0;
+	let savedChanges = 0;
+	/** Последнее содержимое редактора: к закрытию экрана сам редактор уже уничтожен и save() не вызвать */
+	let snapshot: OutputData | undefined;
+	/** Сохранения идут по очереди: иначе у новой записи два запроса подряд создали бы два черновика */
+	let saveQueue: Promise<unknown> = Promise.resolve();
+
 	const DEBOUNCE_MS = 10000;
 	const MAX_WAIT_MS = 120000;
 	let isFirstRender = true;
@@ -67,14 +75,20 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 		if (repostId) repostOf = await api.getPost(repostId).catch(() => undefined);
 	}
 
+	/** Экран закрывается: не отправленные правки уходят сразу, а не ждут таймера, которого уже не будет */
 	function destroy() {
 		if (saveTimer) clearTimeout(saveTimer);
 		if (maxWaitTimer) clearTimeout(maxWaitTimer);
+		saveTimer = maxWaitTimer = null;
+		if (changes > savedChanges) performSave(false, snapshot ?? initialData ?? { blocks: [] });
 	}
 
 	function queueSave() {
 		if (!editorInstance) return;
-		
+
+		changes++;
+		editorInstance.save().then((data: OutputData) => (snapshot = data), () => {});
+
 		if (saveTimer) clearTimeout(saveTimer);
 		
 		saveTimer = setTimeout(() => {
@@ -88,19 +102,27 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 		}
 	}
 
-	async function performSave(isPublishing: boolean = false) {
+	function performSave(isPublishing: boolean = false, content?: OutputData) {
+		const run = saveQueue.then(() => save(isPublishing, content));
+		saveQueue = run.catch(() => {});
+		return run;
+	}
+
+	/** `content` — готовое содержимое, когда редактора уже нет */
+	async function save(isPublishing: boolean, content?: OutputData) {
 		if (!isPublishing) {
 			if (saveTimer) clearTimeout(saveTimer);
 			if (maxWaitTimer) clearTimeout(maxWaitTimer);
 			saveTimer = null;
 			maxWaitTimer = null;
 		}
-		
-		if (!editorInstance) return;
-		
+
+		if (!content && !editorInstance) return;
+
 		try {
-			const data = await editorInstance.save();
-			
+			const reached = changes;
+			const data = content ?? await editorInstance.save();
+
 			if (!repostId && title.trim() === '' && (!data.blocks || data.blocks.length === 0)) {
 				if (isPublishing) saveMessage = 'Ошибка: Содержимое поста пусто';
 				return;
@@ -119,7 +141,8 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 			});
 			
 			const result = await api.saveDraft(dtfEntry);
-			
+			savedChanges = Math.max(savedChanges, reached);
+
 			if (!postId && result && result.id) {
 				postId = result.id;
 			}
