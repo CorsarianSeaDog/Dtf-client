@@ -9,6 +9,7 @@
 	let { ondone }: { ondone: () => void } = $props();
 
 	const ORG_REPO = 'https://github.com/re-dtf/.github';
+	const FIRST_RUN_SETUP = false; // false: после приветствия сразу открыть ленту
 	let leaving = $state(false);
 	let step = $state<'welcome' | 'preferences' | 'ready'>('welcome');
 	const reducedMotion = new MediaQuery('(prefers-reduced-motion: reduce)');
@@ -48,7 +49,7 @@
 				out:fly={{ y: -18, duration: reducedMotion.current ? 0 : 260, easing: cubicIn }}
 			>
 				{#if current === 'welcome'}
-					<button class="start" onclick={() => (step = 'preferences')} {@attach (el) => el.focus({ preventScroll: true })}>Начать</button>
+					<button class="start" onclick={() => FIRST_RUN_SETUP ? (step = 'preferences') : finish()} {@attach (el) => el.focus({ preventScroll: true })}>Начать</button>
 					<p class="legal">
 						Нажимая эту кнопку, вы принимаете наши
 						<a href="{ORG_REPO}/blob/main/PRIVACY.md" target="_blank" rel="noopener">политику конфиденциальности</a>,
