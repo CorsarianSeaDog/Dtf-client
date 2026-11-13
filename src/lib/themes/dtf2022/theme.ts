@@ -3,6 +3,7 @@ import { defineTheme } from '../types';
 export default defineTheme({
 	id: 'dtf2022',
 	name: 'DTF 2022',
+	hidden: true,
 	description: 'Копия дизайна DTF начала 2023 года',
 	palettes: {
 		default: 'light',
