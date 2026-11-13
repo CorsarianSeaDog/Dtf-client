@@ -39,8 +39,10 @@ export async function getEditorConfig(): Promise<{ tools: EditorConfig['tools'],
 	return {
 		tunes: ['spoiler', 'anchor'],
 		tools: {
-			header: Header,
-			list: CustomList,
+			// На DTF только h2 и h3
+			header: { class: Header, config: { levels: [2, 3], defaultLevel: 2 } },
+			// Список на DTF плоский: вложенность при сохранении пропала бы
+			list: { class: CustomList as any, config: { maxLevel: 1 } },
 			quote: Quote,
 			delimiter: Delimiter,
 			code: Code,

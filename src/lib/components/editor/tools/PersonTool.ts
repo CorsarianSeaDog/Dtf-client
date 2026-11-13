@@ -18,6 +18,10 @@ export default class PersonTool {
 
 	constructor({ data }: { data: any }) {
 		this.data = data || { title: '', description: '', image: null };
+		// Из сохранённого поста приходит только uuid
+		if (this.data.image?.uuid && !this.data.image.url) {
+			this.data.image = { ...this.data.image, url: getLeonardoUrl(this.data.image.uuid) };
+		}
 		this.wrapper = document.createElement('div');
 		this.imagePreview = document.createElement('img');
 	}

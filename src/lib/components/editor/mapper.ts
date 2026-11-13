@@ -68,10 +68,15 @@ const editorJsToDtfRegistry: Record<string, EditorJsToDtfMapper> = {
 		data: {
 			title: block.data.title,
 			description: block.data.description,
-			image: block.data.image ? { type: 'image', data: block.data.image } : undefined
+			image: block.data.image ? { type: 'image', data: withoutUrl(block.data.image) } : undefined
 		}
 	})
 };
+
+/** `url` нужен только превью в редакторе, на сервер он не уходит */
+function withoutUrl({ url, ...image }: any) {
+	return image;
+}
 
 const dtfToEditorJsRegistry: Record<string, DtfToEditorJsMapper> = {
 	text: (block) => ({
@@ -120,7 +125,8 @@ const dtfToEditorJsRegistry: Record<string, DtfToEditorJsMapper> = {
 		}
 	}),
 	media: (block) => {
-		if (block.data.items && block.data.items.length > 0) {
+		// Галерея и всё, что редактор не умеет показывать, уходит обратно нетронутым
+		if (block.data.items?.length === 1) {
 			const item = block.data.items[0];
 			if (item.image?.data?.uuid) {
 				const isVideo = item.image.type === 'movie' || item.image.data.type === 'mp4' || item.image.data.type === 'movie';
@@ -142,9 +148,14 @@ const dtfToEditorJsRegistry: Record<string, DtfToEditorJsMapper> = {
 				};
 			}
 		}
-		return null;
+		return preserved(block);
 	}
 };
+
+/** Блок, который редактор не рисует: хранится как заглушка и уходит на сервер как был */
+function preserved(block: DtfEditorBlock): Pick<OutputBlockData, 'type' | 'data'> {
+	return { type: 'raw', data: { ...block.data, _isFallback: true, _originalType: block.type } };
+}
 
 export function editorJsToDtf(editorData: OutputData, originalEntry?: Partial<DtfEditorEntry>): DtfEditorEntry {
 	const blocks: DtfEditorBlock[] = editorData.blocks.map(convertEditorJsBlockToDtf).filter(Boolean) as DtfEditorBlock[];
@@ -172,9 +183,10 @@ function convertEditorJsBlockToDtf(block: OutputBlockData): DtfEditorBlock | nul
 	if (!mapper) {
 		// Fallback for unknown blocks that were preserved
 		if (block.data && (block.data as any)._isFallback) {
+			const { _isFallback, _originalType, ...data } = block.data as any;
 			return {
-				type: (block.data as any)._originalType,
-				data: block.data,
+				type: _originalType,
+				data,
 				cover: false,
 				hidden: block.tunes?.spoiler?.hidden || false,
 				anchor: block.tunes?.anchor?.id || ''
@@ -215,15 +227,7 @@ function convertDtfBlockToEditorJs(block: DtfEditorBlock): OutputBlockData | nul
 	if (mapper) {
 		mapped = mapper(block);
 	} else {
-		// Fallback for unknown blocks so they don't get lost
-		mapped = {
-			type: 'raw', // Can use 'raw' as a fallback to just store JSON, or invent an 'unknown' type
-			data: {
-				...block.data,
-				_isFallback: true,
-				_originalType: block.type
-			}
-		};
+		mapped = preserved(block);
 	}
 
 	if (!mapped) return null;
