@@ -3,14 +3,14 @@
 	import { openOverlay } from '$lib/navigation';
 	import { authStorage } from '$lib/storage/auth.svelte';
 	import NetworkErrorState from '$lib/components/NetworkErrorState.svelte';
-	import { formatTime } from './format';
+	import PostCard from './post/PostCard.svelte';
 	import { loadOnVisible } from './loadOnVisible';
 	import { Button, Preloader } from './ui';
 
 	/*
 	 * Страница черновиков. У DTF она открывается по /u/me/drafts, в архиве 2023 года её нет (нужен вход),
-	 * поэтому вид собран из карточек ленты: белая карточка со временем, заголовком и началом текста.
-	 * Клик открывает черновик в редакторе.
+	 * поэтому черновики рисуются карточками ленты. Сами карточки неактивны (оценки, закладки и меню сервер
+	 * на черновике не принимает), а открыть черновик можно кнопками под ним: «Смотреть» и «Редактировать».
 	 */
 	let {
 		posts,
@@ -20,7 +20,7 @@
 		hasMore,
 		loadMore,
 		onretry,
-		onopen
+		onedit
 	}: {
 		posts: Post[];
 		loaded: boolean;
@@ -29,14 +29,8 @@
 		hasMore: boolean;
 		loadMore: () => void;
 		onretry: () => void;
-		onopen: (post: Post) => void;
+		onedit: (post: Post) => void;
 	} = $props();
-
-	/** Начало текста черновика: первый текстовый блок без разметки */
-	function preview(post: Post): string {
-		const html = post.blocks.find((block) => block.type === 'text' && block.data?.text)?.data.text ?? '';
-		return new DOMParser().parseFromString(html, 'text/html').body.textContent?.trim() ?? '';
-	}
 </script>
 
 <div class="drafts-page">
@@ -49,17 +43,7 @@
 		<NetworkErrorState {error} title="Не удалось загрузить черновики" {onretry} />
 	{:else}
 		{#each posts as post (post.id)}
-			{@const text = preview(post)}
-			<button type="button" class="draft" onclick={() => onopen(post)}>
-				<span class="draft__meta">
-					<span class="draft__label">Черновик</span>
-					<time datetime={post.createdAt}>{formatTime(post.createdAt, true)}</time>
-				</span>
-				<span class={['draft__title', { 'draft__title--empty': !post.title }]}>{post.title || 'Без заголовка'}</span>
-				{#if text}
-					<span class="draft__text">{text}</span>
-				{/if}
-			</button>
+			<PostCard {post} {onedit} />
 		{/each}
 
 		{#if loaded && posts.length === 0}
@@ -82,63 +66,9 @@
 		color: var(--text-primary);
 	}
 
-	.draft {
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-		box-sizing: border-box;
-		width: 100%;
-		margin-top: 28px;
-		padding: 20px;
-		border-radius: 8px;
-		background: var(--bg-card);
-		color: inherit;
-		font: inherit;
-		text-align: left;
-		cursor: pointer;
-	}
-
-	.draft:first-child {
+	/* Над первой карточкой отступа нет: заголовка у страницы нет */
+	.drafts-page :global(.feed-item:first-child) {
 		margin-top: 0;
-	}
-
-	.draft:hover {
-		background: var(--bg-card-hover);
-	}
-
-	.draft__meta {
-		display: flex;
-		gap: 8px;
-		color: var(--text-muted);
-		font-size: 13px;
-		line-height: 20px;
-	}
-
-	.draft__label {
-		font-weight: 500;
-	}
-
-	.draft__title {
-		font-size: 22px;
-		font-weight: 500;
-		line-height: 30px;
-		overflow-wrap: anywhere;
-	}
-
-	.draft__title--empty {
-		color: var(--text-muted);
-	}
-
-	.draft__text {
-		display: -webkit-box;
-		overflow: hidden;
-		color: var(--text-secondary);
-		font-size: 17px;
-		line-height: 26px;
-		overflow-wrap: anywhere;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 3;
-		line-clamp: 3;
 	}
 
 	.drafts-empty {
@@ -161,17 +91,6 @@
 	@media (max-width: 859px) {
 		.drafts-page {
 			padding: 0 0 16px;
-		}
-
-		.draft {
-			margin-top: 20px;
-			border-radius: 0;
-		}
-	}
-
-	@media (max-width: 639px) {
-		.draft {
-			padding: 16px;
 		}
 	}
 </style>

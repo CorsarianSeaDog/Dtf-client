@@ -35,6 +35,8 @@
 	let iconSize = $derived(arrows ? 22 : 20);
 	let onreact = $derived(post.sourceId === 'dtf' ? (id: number) => reactToPost(post, id) : undefined);
 	let showReposts = $state(false);
+	// Черновик открывается по id, пока сессия авторизована, но оценки, закладки и репосты сервер на нём не принимает
+	let draft = $derived(post.isDraft === true);
 
 	function scrollToComments(e: MouseEvent) {
 		e.preventDefault();
@@ -54,7 +56,7 @@
 			<PostBlocks title={post.title} editorial={post.isEditorial} warning={post.warning} blocks={blocks.slice(0, leadEnd)} variant="page" postId={post.id} sourceId={post.sourceId} {evictMedia} />
 
 			{#if showActions}
-				<div class={['post-actions', { 'post-actions--arrows': arrows }]}>
+				<div class={['post-actions', { 'post-actions--arrows': arrows, 'post-inactive': draft }]} inert={draft}>
 					<PostButton kind="comments" title="Комментарии" href="#comments" {iconSize} value={post.commentsCount} onclick={scrollToComments} />
 					<PostButton kind="bookmark" title="В закладки" {iconSize} active={post.isFavorited} onclick={() => toggleFavoritePost(post)} />
 					{#if arrows}
@@ -76,10 +78,12 @@
 			{/if}
 
 			{#if votes === 'reactions'}
-				<Reactions reactions={post.reactions} {onreact} />
+				<div class={{ 'post-inactive': draft }} inert={draft}>
+					<Reactions reactions={post.reactions} {onreact} />
+				</div>
 			{/if}
 
-			<div class={['post-footer', { 'post-footer--arrows': arrows, 'post-footer--arrows-left': arrowsLeft }]}>
+			<div class={['post-footer', { 'post-footer--arrows': arrows, 'post-footer--arrows-left': arrowsLeft, 'post-inactive': draft }]} inert={draft}>
 				<div class="post-footer__controls">
 					{#if votes === 'likes'}
 						<PostButton
@@ -181,6 +185,10 @@
 
 	.post-actions__views {
 		margin-left: auto;
+	}
+
+	.post-inactive {
+		opacity: 0.4;
 	}
 
 	.post-footer {

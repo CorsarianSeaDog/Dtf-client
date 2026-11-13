@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Post } from '$lib/api/types';
 	import { resolve } from '$app/paths';
-	import { getPostPath, openPost } from '$lib/navigation';
+	import { getPostPath, openOverlay, openPost } from '$lib/navigation';
 	import { preloadIntent } from '$lib/actions/preloadIntent';
 	import { nearViewport } from '$lib/actions/nearViewport';
 	import { nsfwBlur } from '$lib/nsfwBlur.svelte';
@@ -24,7 +24,8 @@
 		post: source,
 		embed = false,
 		subscribe = !embed,
-		onoverlaychange
+		onoverlaychange,
+		onedit
 	}: {
 		post: Post;
 		/** Встроенный пост на странице другого поста — без футера */
@@ -32,11 +33,19 @@
 		/** Кнопка «Подписаться» в шапке (в профиле не нужна) */
 		subscribe?: boolean;
 		onoverlaychange?: (open: boolean) => void;
+		/** Для черновика: открыть в редакторе (кнопка «Редактировать») */
+		onedit?: (post: Post) => void;
 	} = $props();
 
 	let post = $derived(withActions(source));
 	let score = $derived(votesOf(post));
-	let blocks = $derived(post.blocks.filter((b) => b.cover));
+	// Черновик: карточка как у поста, но неактивная. Сервер не принимает реакции, закладки и жалобы на неопубликованное
+	let draft = $derived(post.isDraft === true && !embed);
+	// Обложка у черновика может быть не размечена (её ставит сервер при публикации): тогда показываем первый блок
+	let blocks = $derived.by(() => {
+		const cover = post.blocks.filter((b) => b.cover);
+		return draft && cover.length === 0 ? post.blocks.slice(0, 1) : cover;
+	});
 	let votes = $derived(themeSettings.votes);
 	// Стрелочная оценка — осень 2022: иконки футера крупнее (22px)
 	let arrows = $derived(votes === 'rating');
@@ -78,7 +87,7 @@
 			<RepostLabel />
 		{/if}
 
-		<PostHeader {post} variant="card" {subscribe} onoverlaychange={(v) => { headerOverlay = v; if (embed) onoverlaychange?.(v); }} />
+		<PostHeader {post} variant="card" subscribe={subscribe && !draft} onoverlaychange={(v) => { headerOverlay = v; if (embed) onoverlaychange?.(v); }} />
 
 		<div class={['post-content', { 'post-content--blur': blurred }]}>
 			<PostBlocks title={post.title} editorial={post.isEditorial} {blocks} variant={embed ? 'embed' : 'card'} postId={post.id} sourceId={post.sourceId} evictMedia={!near} />
@@ -99,7 +108,11 @@
 				</div>
 			{/if}
 			<!-- Ссылка поверх превью: клик в любом месте открывает пост -->
-			<a class="post-link" href={postPath} aria-label={post.title || undefined} onclick={(e) => openPost(e, post)} use:preloadIntent={post}></a>
+			{#if draft}
+				<div class="post-link"></div>
+			{:else}
+				<a class="post-link" href={postPath} aria-label={post.title || undefined} onclick={(e) => openPost(e, post)} use:preloadIntent={post}></a>
+			{/if}
 		</div>
 
 		{#if post.repost?.original && !embed}
@@ -110,12 +123,12 @@
 
 		{#if !embed}
 			{#if votes === 'reactions'}
-				<div class="post-block">
+				<div class={['post-block', { 'post-inactive': draft }]} inert={draft}>
 					<Reactions reactions={post.reactions} {onreact} onopenchange={(v) => (pickerOpen = v)} />
 				</div>
 			{/if}
 
-			<div class={['post-footer post-block', { 'post-footer--arrows': arrows, 'post-footer--arrows-left': arrowsLeft }]}>
+			<div class={['post-footer post-block', { 'post-footer--arrows': arrows, 'post-footer--arrows-left': arrowsLeft, 'post-inactive': draft }]} inert={draft}>
 				<div class="post-footer__controls">
 					{#if votes === 'likes'}
 						<PostButton
@@ -176,6 +189,13 @@
 					</div>
 				{/if}
 			</div>
+
+			{#if draft}
+				<div class="post-block post-draft">
+					<Button label="Смотреть" icon="v_eye" iconSize={20} onclick={() => openOverlay({ type: 'post', data: { postId: post.id, sourceId: post.sourceId } })} />
+					<Button label="Редактировать" icon="v_pencil" iconSize={20} onclick={() => onedit?.(post)} />
+				</div>
+			{/if}
 		{/if}
 	</div>
 
@@ -298,6 +318,23 @@
 		max-width: var(--content-width);
 		padding-left: var(--island-offset-x, 16px);
 		padding-right: var(--island-offset-x, 16px);
+	}
+
+	/* Черновик: кнопки оценок и закладок на виду, но не нажимаются */
+	.post-inactive {
+		opacity: 0.4;
+	}
+
+	/* Кнопки по ширине содержимого: значок слева от подписи, а не поверх неё, как в кнопках на всю ширину */
+	.post-draft {
+		--btn-height: 40px;
+		--btn-offset: 12px;
+		--btn-icon-size: 20px;
+		--btn-icon-margin-right: 0;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 12px;
+		padding-bottom: 16px;
 	}
 
 	.post-footer {

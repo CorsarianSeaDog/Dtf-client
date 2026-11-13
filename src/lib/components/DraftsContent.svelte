@@ -8,7 +8,7 @@
 	import Reveal from './Reveal.svelte';
 
 	/*
-	 * Черновики вошедшего пользователя: постранично по смещению, открываются в редакторе.
+	 * Черновики вошедшего пользователя: постранично по смещению; редактируются в редакторе, смотрятся как обычный пост.
 	 * Разметку рисует компонент темы DraftsPage.
 	 */
 	const PAGE_SIZE = 20;
@@ -57,7 +57,7 @@
 			{hasMore}
 			loadMore={() => load(true)}
 			onretry={() => load()}
-			onopen={(post: Post) => openOverlay({ type: 'editor', data: { postId: post.id } })}
+			onedit={(post: Post) => openOverlay({ type: 'editor', data: { postId: post.id } })}
 		/>
 	</Reveal>
 </div>

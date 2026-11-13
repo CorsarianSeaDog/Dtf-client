@@ -93,7 +93,7 @@ export interface ThemeComponents {
 		loadMore: () => void;
 		onretry: () => void;
 	};
-	/** Черновики вошедшего пользователя; открывают их в редакторе */
+	/** Черновики вошедшего пользователя; карточки неактивны, под каждой кнопки «Смотреть» и «Редактировать» (`onedit` открывает редактор) */
 	DraftsPage: {
 		posts: Post[];
 		loaded: boolean;
@@ -102,7 +102,7 @@ export interface ThemeComponents {
 		hasMore: boolean;
 		loadMore: () => void;
 		onretry: () => void;
-		onopen: (post: Post) => void;
+		onedit: (post: Post) => void;
 	};
 	LoginModal: {};
 	NetworkErrorModal: {

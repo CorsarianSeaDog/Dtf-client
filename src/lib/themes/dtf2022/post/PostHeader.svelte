@@ -17,7 +17,7 @@
 		subscribe = false,
 		onoverlaychange
 	}: {
-		post: Pick<Post, 'id' | 'sourceId' | 'author' | 'subsite' | 'createdAt' | 'isPinned'>;
+		post: Pick<Post, 'id' | 'sourceId' | 'author' | 'subsite' | 'createdAt' | 'isPinned' | 'isDraft'>;
 		/** card — карточка в ленте и встроенный пост, page — страница поста */
 		variant?: 'card' | 'page';
 		/** Кнопка «Подписаться» справа */
@@ -53,6 +53,8 @@
 		...(others ? [{ value: 'complain' as const, label: 'Пожаловаться', icon: 'v_flag' }] : [])
 	]);
 	let showMenu = $derived(menuItems.length > 0);
+	// Черновик виден только автору: время не ведёт на страницу, меню «⋯» выключено (на действия с черновиком сервер отвечает ошибкой)
+	let draft = $derived(post.isDraft === true);
 
 	async function copyLink() {
 		const url = getPostShareUrl(post);
@@ -116,7 +118,7 @@
 			</div>
 		{/if}
 
-		<a class="post-header__item post-header-time" href={resolve(getPostPath(post) as any)} onclick={(e) => openPost(e, post)}>
+		{#snippet times()}
 			{#if variant === 'page'}
 				<!-- Как у DTF: на узких экранах время в дате не показываем -->
 				<time class="time time--full" datetime={post.createdAt} title={formatFullDate(post.createdAt)}>
@@ -130,7 +132,13 @@
 					{formatTime(post.createdAt)}
 				</time>
 			{/if}
-		</a>
+		{/snippet}
+
+		{#if draft}
+			<div class="post-header__item post-header-time">{@render times()}</div>
+		{:else}
+			<a class="post-header__item post-header-time" href={resolve(getPostPath(post) as any)} onclick={(e) => openPost(e, post)}>{@render times()}</a>
+		{/if}
 
 		{#if post.isPinned}
 			<div class="post-header__item post-header-pin" title="Закреплено">
@@ -167,7 +175,7 @@
 				width="max-content"
 				label="Действия с постом"
 			>
-				<button type="button" class="post-header__etc-button" title="Больше" aria-expanded={menuOpen} onclick={() => setMenuOpen(!menuOpen)}>
+				<button type="button" class="post-header__etc-button" title="Больше" disabled={draft} aria-expanded={menuOpen} onclick={() => setMenuOpen(!menuOpen)}>
 					<svg class="icon" width="16" height="20" aria-hidden="true">
 						<use href="/icons.svg#v_etc"></use>
 					</svg>
@@ -228,6 +236,11 @@
 		align-items: center;
 		color: var(--text-muted);
 		cursor: pointer;
+	}
+
+	.post-header__etc-button:disabled {
+		opacity: 0.4;
+		cursor: default;
 	}
 
 	.post-header__etc-button[aria-expanded='true'] {
@@ -378,11 +391,11 @@
 	}
 
 	@media (hover: hover) {
-		.post-header__etc-button:hover {
+		.post-header__etc-button:not(:disabled):hover {
 			color: var(--text-primary);
 		}
 
-		.post-header-time:hover {
+		a.post-header-time:hover {
 			color: var(--text-link);
 		}
 	}

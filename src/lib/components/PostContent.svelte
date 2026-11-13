@@ -171,7 +171,9 @@
 
 	{#if post && postShown}
 		{@const loaded = post}
-		{#if depth <= 1}
+		{#if loaded.isDraft}
+			<!-- У черновика нет комментариев и рекомендаций: сервер на них отвечает ошибкой -->
+		{:else if depth <= 1}
 			{#await commentsTurn then}
 				<div class="comments-container" bind:this={commentsBox} {@attach (commentId === undefined && !toComments ? appear('feedIn') : undefined)}>
 					<ThemeLoader componentName="Comments" postId={loaded.id} sourceId={loaded.sourceId} commentsCount={loaded.commentsCount} subscribed={loaded.isSubscribedToComments} postAuthorId={loaded.author.id} commentEditor={loaded.commentEditor} focusCommentId={commentId} {focusNonce} />
