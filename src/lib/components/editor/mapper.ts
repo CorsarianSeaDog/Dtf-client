@@ -43,22 +43,13 @@ const editorJsToDtfRegistry: Record<string, EditorJsToDtfMapper> = {
 	image: (block) => ({
 		type: 'media',
 		data: {
-			items: [{
-				title: block.data.caption || '',
-				image: {
-					type: block.data.file.type === 'movie' ? 'movie' : 'image',
-					data: {
-						uuid: block.data.file.uuid || block.data.file.url,
-						width: block.data.file.width || 1000,
-						height: block.data.file.height || 1000,
-						type: block.data.file.type || 'jpg',
-						size: block.data.file.size || 0,
-						color: block.data.file.color || '000000'
-					}
-				}
-			}]
+			items: [{ title: block.data.caption || '', image: fileToImage(block.data.file) }]
 		}
 	}),
+	gallery: (block) =>
+		block.data.items?.length
+			? { type: 'media', data: { items: block.data.items.map((item: any) => ({ title: item.caption || '', image: fileToImage(item.file) })) } }
+			: null,
 	quiz: (block) => ({
 		type: 'quiz',
 		data: { hash: block.data.hash, title: block.data.title, items: block.data.items }
@@ -125,32 +116,53 @@ const dtfToEditorJsRegistry: Record<string, DtfToEditorJsMapper> = {
 		}
 	}),
 	media: (block) => {
-		// Галерея и всё, что редактор не умеет показывать, уходит обратно нетронутым
-		if (block.data.items?.length === 1) {
-			const item = block.data.items[0];
-			if (item.image?.data?.uuid) {
-				const isVideo = item.image.type === 'movie' || item.image.data.type === 'mp4' || item.image.data.type === 'movie';
-				const extension = isVideo ? 'mp4' : 'webp';
-				return {
-					type: 'image',
-					data: {
-						file: {
-							url: getLeonardoUrl(item.image.data.uuid, { format: extension }),
-							uuid: item.image.data.uuid,
-							width: item.image.data.width,
-							height: item.image.data.height,
-							type: item.image.data.type || (isVideo ? 'movie' : 'image'),
-							size: item.image.data.size,
-							color: item.image.data.color
-						},
-						caption: item.title || ''
-					}
-				};
-			}
-		}
-		return preserved(block);
+		const items: any[] = block.data.items ?? [];
+		// Блок без картинок редактор не рисует: он уходит обратно нетронутым
+		if (!items.length || items.some((item) => !item.image?.data?.uuid)) return preserved(block);
+		const toItem = (item: any) => ({ file: imageToFile(item.image), caption: item.title || '' });
+		return items.length === 1
+			? { type: 'image', data: toItem(items[0]) }
+			: { type: 'gallery', data: { items: items.map(toItem) } };
 	}
 };
+
+/** Адрес для превью в редакторе. Блок картинки считает файл видео, только если адрес кончается на `.mp4`: пустой фрагмент это обеспечивает */
+export function editorMediaUrl(uuid: string, isVideo: boolean) {
+	return isVideo ? `${getLeonardoUrl(uuid, { format: 'mp4' })}#.mp4` : getLeonardoUrl(uuid, { format: 'webp' });
+}
+
+/** Картинка DTF → файл блока в редакторе. Гифка у DTF — видео (`isVideo`) */
+function imageToFile(image: any) {
+	const data = image.data;
+	const isVideo = !!data.isVideo || image.type === 'movie' || ['mp4', 'movie', 'gif'].includes(data.type);
+	return {
+		url: editorMediaUrl(data.uuid, isVideo),
+		uuid: data.uuid,
+		width: data.width,
+		height: data.height,
+		type: data.type || (isVideo ? 'movie' : 'image'),
+		kind: image.type,
+		size: data.size,
+		color: data.color,
+		...(isVideo && { isVideo: true, duration: data.duration, has_audio: data.has_audio })
+	};
+}
+
+/** Файл блока в редакторе → картинка DTF */
+function fileToImage(file: any) {
+	return {
+		type: file.kind ?? (file.type === 'movie' ? 'movie' : 'image'),
+		data: {
+			uuid: file.uuid || file.url,
+			width: file.width || 1000,
+			height: file.height || 1000,
+			type: file.type || 'jpg',
+			size: file.size || 0,
+			color: file.color || '000000',
+			...(file.isVideo && { isVideo: true, duration: file.duration ?? null, has_audio: file.has_audio ?? false })
+		}
+	};
+}
 
 /** Блок, который редактор не рисует: хранится как заглушка и уходит на сервер как был */
 function preserved(block: DtfEditorBlock): Pick<OutputBlockData, 'type' | 'data'> {

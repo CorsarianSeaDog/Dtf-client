@@ -570,7 +570,10 @@ export const dtfApiProvider = {
 			height: uploaded.height,
 			size: uploaded.size,
 			type: resultItem.type === 'movie' ? 'movie' : uploaded.type,
-			color: uploaded.color
+			color: uploaded.color,
+			isVideo: uploaded.isVideo,
+			duration: uploaded.duration,
+			has_audio: uploaded.has_audio
 		};
 	},
 

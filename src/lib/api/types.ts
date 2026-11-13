@@ -313,6 +313,10 @@ export interface UploadResult {
 	size?: number;
 	type?: string;
 	color?: string;
+	/** Гифка и видео: их длина и звук нужны плееру */
+	isVideo?: boolean;
+	duration?: number;
+	has_audio?: boolean;
 }
 
 export interface PostHistoryVersion {

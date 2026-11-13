@@ -21,6 +21,26 @@ describe('editor mapper', () => {
 		expect(JSON.stringify([g, t])).not.toContain('_isFallback');
 	});
 
+	it('галерея открывается блоком и уходит обратно с теми же картинками', () => {
+		const image = (uuid: string) => ({ type: 'image', data: { uuid, width: 2, height: 1, size: 3, type: 'png', color: '000000' } });
+		const media = block('media', { items: [1, 2, 3].map((n) => ({ title: `${n}`, image: image(`u${n}`) })) });
+		expect(dtfToEditorJs(entryOf([media])).blocks[0].type).toBe('gallery');
+		expect(roundTrip([media])[0].data).toEqual(media.data);
+	});
+
+	it('гифка остаётся видео: isVideo и длительность не теряются', () => {
+		const gif = { uuid: 'g', width: 360, height: 362, size: 4, type: 'gif', color: '040404', isVideo: true, duration: 9.8, has_audio: false };
+		const media = block('media', { items: [{ title: '', image: { type: 'image', data: gif } }] });
+		const [out] = roundTrip([media]);
+		expect((out.data as any).items[0].image).toEqual({ type: 'image', data: gif });
+		expect((dtfToEditorJs(entryOf([media])).blocks[0].data as any).file.url).toMatch(/format\/mp4\/#\.mp4$/);
+	});
+
+	it('инлайн-теги текста проходят без изменений', () => {
+		const text = '<p>Инлайн: <b>жирный</b>, <i>курсив</i>, <a href="http://example.com">ссылка</a></p>';
+		expect(roundTrip([block('text', { text })])[0].data).toEqual({ text });
+	});
+
 	it('url превью персоны не уходит на сервер', () => {
 		const image = { uuid: 'u', width: 1, height: 1 };
 		const out = editorJsToDtf({

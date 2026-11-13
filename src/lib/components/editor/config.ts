@@ -1,10 +1,10 @@
 import type { EditorConfig } from '@editorjs/editorjs';
-import { api } from '$lib/api/index.svelte';
-import { getLeonardoUrl } from '$lib/api/utils';
+import { uploadToFile } from './upload';
 import SpoilerTune from './tools/SpoilerTune';
 import AnchorTune from './tools/AnchorTune';
 import QuizTool from './tools/QuizTool';
 import PersonTool from './tools/PersonTool';
+import GalleryTool from './tools/GalleryTool';
 
 function createCustomList(List: any) {
 	return class CustomList extends List {
@@ -57,22 +57,7 @@ export async function getEditorConfig(): Promise<{ tools: EditorConfig['tools'],
 					uploader: {
 						async uploadByFile(file: File) {
 							try {
-								const result = await api.uploadMedia(file);
-								const isVideo = result.type === 'movie' || result.type === 'video/mp4' || result.type === 'video/webm' || result.type === 'mp4' || file.type.startsWith('video/');
-								const extension = isVideo ? 'mp4' : 'webp';
-								
-								return {
-									success: 1,
-									file: {
-										url: getLeonardoUrl(result.uuid, { format: extension }),
-										uuid: result.uuid,
-										width: result.width,
-										height: result.height,
-										type: result.type || (isVideo ? 'movie' : 'image'),
-										size: result.size,
-										color: result.color
-									}
-								};
+								return { success: 1, file: await uploadToFile(file) };
 							} catch (e: any) {
 								console.error('Upload failed:', e);
 								return {
@@ -84,6 +69,7 @@ export async function getEditorConfig(): Promise<{ tools: EditorConfig['tools'],
 					}
 				}
 			},
+			gallery: GalleryTool,
 			spoiler: SpoilerTune,
 			anchor: AnchorTune,
 			quiz: {
