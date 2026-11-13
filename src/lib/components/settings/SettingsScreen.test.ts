@@ -277,10 +277,11 @@ describe('SettingsScreen', () => {
 
 	it('рендерит раздел Моя лента с рейтингом и группой настроек DTF при авторизации', () => {
 		authStorage.session = {
+			type: 'Bearer',
 			accessToken: 'test-token',
 			refreshToken: 'test-refresh',
-			userId: 1,
-			userHash: 'test'
+			accessExpTimestamp: 0,
+			refreshExpTimestamp: 0
 		};
 
 		const { body } = render(SettingsScreen, {
