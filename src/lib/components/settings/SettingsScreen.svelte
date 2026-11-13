@@ -84,7 +84,7 @@
 		type: 'radio',
 		title: 'Выбор темы',
 		default: DEFAULT_THEME,
-		options: themes.map((theme) => ({ value: theme.id, title: theme.name, description: theme.description }))
+		options: themes.filter((theme) => !theme.hidden).map((theme) => ({ value: theme.id, title: theme.name, description: theme.description }))
 	};
 
 	const hapticsField: ToggleField = {

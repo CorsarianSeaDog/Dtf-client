@@ -29,4 +29,20 @@ describe('SettingsScreen: режим разработчика в продакш�
 		expect(body).toContain('Разработка');
 		expect(body).toContain('Диагностический отчёт');
 	});
+
+	it('скрывает тему из обычного выбора, но оставляет её активной и доступной в дебаге', () => {
+		const previousTheme = settings.value.theme;
+		try {
+			settings.patch({ devMode: true, theme: 'dtf2022' });
+			const choice = render(SettingsScreen, { props: { onclose: () => {}, page: 'theme-select' } }).body;
+			const debug = render(SettingsScreen, { props: { onclose: () => {}, page: 'debug' } }).body;
+
+			expect(choice).not.toContain('value="dtf2022"');
+			expect(debug).toMatch(/value="dtf2022"[^>]*checked/);
+			expect(debug).toContain('Скрыта из выбора темы');
+			expect(settings.value.theme).toBe('dtf2022');
+		} finally {
+			settings.patch({ theme: previousTheme });
+		}
+	});
 });

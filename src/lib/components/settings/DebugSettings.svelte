@@ -4,6 +4,10 @@
 	import SettingsRow from './SettingsRow.svelte';
 	import SettingsSwitch from './SettingsSwitch.svelte';
 	import SettingsButton from './SettingsButton.svelte';
+	import FieldControl from './FieldControl.svelte';
+	import { activeTheme, themes } from '$lib/themes/index.svelte';
+	import { DEFAULT_THEME } from '$lib/storage/settings.svelte';
+	import type { ChoiceField } from '$lib/themes/types';
 	import { settings } from '$lib/storage/settings.svelte';
 	import { isNative } from '$lib/capacitor';
 	import { otaUpdater, shellUpdater } from '$lib/capacitor/updater.svelte';
@@ -11,6 +15,13 @@
 	import { dev } from '$app/env';
 
 	let { ondisable }: { ondisable?: () => void } = $props();
+	const themeField: ChoiceField = {
+		key: 'debug-theme',
+		type: 'radio',
+		title: 'Темы',
+		default: DEFAULT_THEME,
+		options: themes.map((theme) => ({ value: theme.id, title: theme.name, description: theme.hidden ? 'Скрыта из выбора темы' : theme.description }))
+	};
 
 	let topPx = $state(0);
 	let bottomPx = $state(0);
@@ -126,6 +137,7 @@
 </script>
 
 <div class="settings-cards">
+	<FieldControl field={themeField} value={activeTheme.id} onchange={(value) => activeTheme.set(String(value))} />
 	<SettingsGroup title="Визуальная отладка">
 		<SettingsRow
 			title="Подсветка Safe Area и панелей"
