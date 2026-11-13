@@ -69,6 +69,12 @@
 	let maxDepth = $derived(isAutopan ? 50 : logic.maxVisualDepth);
 	let rows = $derived(flattenComments(logic.comments, maxDepth));
 
+	/** Оценка или закладка: меняем узел и только его строку, а не пересобираем весь список */
+	function patchRow(key: string, patch: Partial<Comment>) {
+		const next = logic.patchComment(key, patch);
+		if (next) rows = rows.map((row) => (row.key === key ? { ...row, comment: next } : row));
+	}
+
 	const CHUNK_SIZE = 40;
 	let renderedCount = $state(CHUNK_SIZE);
 	let renderedRows = $derived(rows.slice(0, renderedCount));
@@ -319,7 +325,7 @@
 	// Комментарий из реактивного дерева, как у строки списка: в карте лежат копии, правка по ним не видна
 	const withComment = (key: string, act: (comment: Comment, onpatch: (patch: Partial<Comment>) => void) => void) => {
 		const comment = rows.find((row) => row.key === key)?.comment;
-		if (comment) act(comment, (patch) => logic.patchComment(key, patch));
+		if (comment) act(comment, (patch) => patchRow(key, patch));
 	};
 	let swipeActions = $derived.by((): SwipeAction[] => {
 		const extra: SwipeAction[] =
@@ -439,7 +445,7 @@
 						onlineclick={collapseBranch}
 						onexpand={() => collapsed.delete(row.key)}
 						onparent={scrollToTarget}
-						onpatch={(patch) => logic.patchComment(row.key, patch)}
+						onpatch={(patch) => patchRow(row.key, patch)}
 						{editor}
 					/>
 				{/each}

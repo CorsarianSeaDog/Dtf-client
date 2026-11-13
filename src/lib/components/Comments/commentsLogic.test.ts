@@ -33,15 +33,16 @@ describe('CommentsLogic ($state.raw)', () => {
 		await logic.loadComments();
 	});
 
-	it('patchComment меняет ссылку на дерево, карту и целевой узел', () => {
+	it('patchComment заменяет узел в дереве и карте, не пересобирая список', () => {
 		const prevRoots = logic.comments;
 		const prevNode = logic.comments[0].children[0];
 
-		logic.patchComment('dtf_2', { isFavorited: true });
+		const returned = logic.patchComment('dtf_2', { isFavorited: true });
 
-		expect(logic.comments).not.toBe(prevRoots);
+		expect(logic.comments).toBe(prevRoots);
 		const nextNode = logic.comments[0].children[0];
 		expect(nextNode).not.toBe(prevNode);
+		expect(nextNode).toBe(returned);
 		expect(nextNode.isFavorited).toBe(true);
 		expect(logic.allCommentsMap.get('dtf_2')).toBe(nextNode);
 	});

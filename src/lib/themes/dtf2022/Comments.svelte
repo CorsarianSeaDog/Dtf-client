@@ -2,7 +2,7 @@
 	import { scrollBehavior } from '$lib/motion';
 	import { tick, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import type { CommentEditorState, CommentMedia } from '$lib/api/types';
+	import type { Comment, CommentEditorState, CommentMedia } from '$lib/api/types';
 	import { api } from '$lib/api/index.svelte';
 	import { CommentsLogic } from '$lib/components/Comments/commentsLogic.svelte';
 	import { ensureLogin } from './actions.svelte';
@@ -55,6 +55,12 @@
 	/** Свёрнутые ветки: ключи комментариев, чьи ответы скрыты */
 	const collapsed = new SvelteSet<string>();
 	let rows = $derived(flattenComments(logic.comments, logic.maxVisualDepth));
+
+	/** Оценка или закладка: меняем узел и только его строку, а не пересобираем весь список */
+	function patchRow(key: string, patch: Partial<Comment>) {
+		const next = logic.patchComment(key, patch);
+		if (next) rows = rows.map((row) => (row.key === key ? { ...row, comment: next } : row));
+	}
 
 	const CHUNK_SIZE = 40;
 	let renderedCount = $state(CHUNK_SIZE);
@@ -389,7 +395,7 @@
 					onlineclick={collapseBranch}
 					onexpand={() => collapsed.delete(row.key)}
 					onparent={scrollToTarget}
-					onpatch={(patch) => logic.patchComment(row.key, patch)}
+					onpatch={(patch) => patchRow(row.key, patch)}
 					{editor}
 				/>
 			{/each}

@@ -104,8 +104,11 @@ export class CommentsLogic {
 		}
 	}
 
-	/** Точечно обновляет узел в $state.raw-дереве и триггерит пересчёт плоских строк */
-	patchComment(key: string, patch: Partial<CommentTreeItem>) {
+	/**
+	 * Заменяет узел в $state.raw-дереве и карте, не пересобирая плоский список: пересборка на 1000+ комментариях
+	 * перерисовала бы каждую строку. Строку списка обновляет вызывающий по возвращённому узлу.
+	 */
+	patchComment(key: string, patch: Partial<CommentTreeItem>): CommentTreeItem | undefined {
 		const path = this.pathTo(key);
 		if (!path) return;
 		const idx = path.length - 1;
@@ -114,7 +117,7 @@ export class CommentsLogic {
 		const pos = siblings.indexOf(path[idx]);
 		if (pos !== -1) siblings[pos] = next;
 		this.allCommentsMap.set(key, next);
-		this.comments = [...this.comments];
+		return next;
 	}
 
 	/** Вставляет только что отправленный комментарий в дерево, не пересобирая его: локальные правки остальных не теряются */
@@ -132,6 +135,7 @@ export class CommentsLogic {
 			parent.children = [...parent.children, item];
 			for (const node of path) node._totalReplies = (node._totalReplies ?? 0) + 1;
 			this.patchComment(`${parent.sourceId}_${parent.id}`, {});
+			this.comments = [...this.comments];
 		}
 
 		cacheComments(this.postId, this.sourceId, this.sorting, {
@@ -145,6 +149,7 @@ export class CommentsLogic {
 	updateComment(comment: Comment) {
 		this.flatComments = this.flatComments.map((c) => (c.sourceId === comment.sourceId && c.id === comment.id ? comment : c));
 		this.patchComment(`${comment.sourceId}_${comment.id}`, { content: comment.content, media: comment.media });
+		this.comments = [...this.comments];
 
 		cacheComments(this.postId, this.sourceId, this.sorting, {
 			flatComments: this.flatComments,
