@@ -124,48 +124,6 @@
 	{/if}
 {/snippet}
 
-<!-- Параметры фильтрации -->
-<SettingsGroup title="Параметры фильтрации" description="Настройка поведения клиентского скрытия нежелательного контента.">
-	<SettingsRow
-		title="Режим скрытия"
-		subtitle={filterSettings.value.mode === 'soft'
-			? 'Мягкий: скрывает под плашку с кнопкой «Показать»'
-			: 'Жёсткий: полностью вырезает элементы из ленты'}
-	>
-		<SettingsSegmented
-			options={[
-				{ value: 'soft', title: 'Мягкий' },
-				{ value: 'hard', title: 'Жёсткий' }
-			]}
-			value={filterSettings.value.mode}
-			label="Режим скрытия"
-			onchange={(mode) => filterSettings.patch({ mode })}
-		/>
-	</SettingsRow>
-	<SettingsRow
-		title="Фильтровать посты"
-		subtitle="Скрывать посты в ленте по тегам и фразам"
-		tag="label"
-	>
-		<SettingsSwitch
-			checked={filterSettings.value.filterPosts}
-			label="Фильтровать посты"
-			onchange={(filterPosts) => filterSettings.patch({ filterPosts })}
-		/>
-	</SettingsRow>
-	<SettingsRow
-		title="Фильтровать комментарии"
-		subtitle="Скрывать комментарии под постами по тегам и фразам"
-		tag="label"
-	>
-		<SettingsSwitch
-			checked={filterSettings.value.filterComments}
-			label="Фильтровать комментарии"
-			onchange={(filterComments) => filterSettings.patch({ filterComments })}
-		/>
-	</SettingsRow>
-</SettingsGroup>
-
 <!-- Локальные фильтры (клиентский ЧС) -->
 <SettingsGroup title="Локальные фильтры" description="Скрытие контента в приложении по тегам, фразам и авторам без авторизации на DTF.">
 	<div class="filter-card">
@@ -247,26 +205,6 @@
 	</div>
 
 	<div class="filter-card filter-card--top-border">
-		<span class="filter-label">Скрытые пользователи: их записи, комментарии и уведомления от них не показываются</span>
-		{#if filterSettings.value.users.length > 0}
-			<div class="chips-container" aria-label="Скрытые пользователи">
-				{#each filterSettings.value.users as user (user.id)}
-					<span class="chip">
-						<span class="chip__label">{user.name}</span>
-						<button class="chip__remove" type="button" aria-label="Показывать {user.name}" onclick={() => unhideUser(user.id)}>
-							<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-								<path d="M4 4l8 8M12 4l-8 8" />
-							</svg>
-						</button>
-					</span>
-				{/each}
-			</div>
-		{:else}
-			<p class="empty-hint">Нет скрытых пользователей. Скрыть можно из меню «⋯» у записи, комментария или в профиле.</p>
-		{/if}
-	</div>
-
-	<div class="filter-card filter-card--top-border">
 		<span class="filter-label">Пресеты ключевых слов</span>
 		<div class="presets-list">
 			{#each KEYWORD_PRESETS as preset (preset.id)}
@@ -309,8 +247,72 @@
 	</div>
 </SettingsGroup>
 
+<!-- Параметры фильтрации -->
+<SettingsGroup>
+	<SettingsRow
+		title="Режим скрытия"
+		subtitle={filterSettings.value.mode === 'soft'
+			? 'Мягкий: скрывает под плашку с кнопкой «Показать»'
+			: 'Жёсткий: полностью вырезает элементы из ленты'}
+	>
+		<SettingsSegmented
+			options={[
+				{ value: 'soft', title: 'Мягкий' },
+				{ value: 'hard', title: 'Жёсткий' }
+			]}
+			value={filterSettings.value.mode}
+			label="Режим скрытия"
+			onchange={(mode) => filterSettings.patch({ mode })}
+		/>
+	</SettingsRow>
+	<SettingsRow
+		title="Фильтровать посты"
+		subtitle="Скрывать посты в ленте по тегам и фразам"
+		tag="label"
+	>
+		<SettingsSwitch
+			checked={filterSettings.value.filterPosts}
+			label="Фильтровать посты"
+			onchange={(filterPosts) => filterSettings.patch({ filterPosts })}
+		/>
+	</SettingsRow>
+	<SettingsRow
+		title="Фильтровать комментарии"
+		subtitle="Скрывать комментарии под постами по тегам и фразам"
+		tag="label"
+	>
+		<SettingsSwitch
+			checked={filterSettings.value.filterComments}
+			label="Фильтровать комментарии"
+			onchange={(filterComments) => filterSettings.patch({ filterComments })}
+		/>
+	</SettingsRow>
+</SettingsGroup>
+
+<SettingsGroup>
+	<div class="filter-card filter-card--top-border">
+		<span class="filter-label">Скрытые пользователи: их записи, комментарии и уведомления от них не показываются</span>
+		{#if filterSettings.value.users.length > 0}
+			<div class="chips-container" aria-label="Скрытые пользователи">
+				{#each filterSettings.value.users as user (user.id)}
+					<span class="chip">
+						<span class="chip__label">{user.name}</span>
+						<button class="chip__remove" type="button" aria-label="Показывать {user.name}" onclick={() => unhideUser(user.id)}>
+							<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+								<path d="M4 4l8 8M12 4l-8 8" />
+							</svg>
+						</button>
+					</span>
+				{/each}
+			</div>
+		{:else}
+			<p class="empty-hint">Нет скрытых пользователей. Скрыть можно из меню «⋯» у записи, комментария или в профиле.</p>
+		{/if}
+	</div>
+</SettingsGroup>
+
 <!-- Серверный ЧС DTF -->
-<h3 class="section-title">Скрытые на DTF</h3>
+<h3 class="section-title">Чёрный список на DTF</h3>
 <AccountGate>
 	{#if items}
 		{@render list('Пользователи', users)}
