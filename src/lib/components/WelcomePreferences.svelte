@@ -19,7 +19,7 @@
 	let width = $derived(fields.find((field) => field.key === 'contentWidth' && isFieldVisible(field, {}, fields, device)));
 </script>
 
-<div class="preferences">
+<div class="preferences" {@attach () => { document.getElementById('splash')?.setAttribute('data-preferences', ''); }}>
 	{#if votes?.type === 'radio' || votes?.type === 'select'}
 		<div class="choice-field">
 			<SettingsGroup>

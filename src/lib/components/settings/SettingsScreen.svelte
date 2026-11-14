@@ -1624,7 +1624,7 @@
 		pointer-events: none;
 	}
 
-	:global(:is(.window, .window *):has(.slider):not(.group, .group *) > :not(:has(.slider), .slider)) {
+	.window :global([data-slider-peer]) {
 		transition: opacity var(--fade);
 	}
 
@@ -1638,7 +1638,7 @@
 		scrollbar-color: transparent transparent;
 	}
 
-	:global(.window[data-slider-drag]:has(.slider) > :not(:has(.slider), .slider), .window[data-slider-drag] :has(.slider):not(.group, .group *) > :not(:has(.slider), .slider)) {
+	.window:global([data-slider-drag] [data-slider-peer]) {
 		opacity: 0;
 		pointer-events: none;
 	}

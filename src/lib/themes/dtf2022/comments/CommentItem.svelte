@@ -896,8 +896,8 @@
 		cursor: pointer;
 	}
 
-	.comment-item__time:has(+ .comment-item__time-badge) {
-		margin-right: 4px;
+	.comment-item__time + .comment-item__time-badge {
+		margin-left: calc(4px - var(--gap-details));
 	}
 
 	/* Плашка «Автор» стоит в строке времени, как в оригинале: просто синий текст, не ссылка */

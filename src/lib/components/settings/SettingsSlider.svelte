@@ -14,12 +14,40 @@
 	let index = $derived(Math.max(0, steps.indexOf(value)));
 	let last = $derived(steps.length - 1);
 
+	function markPeers(node: HTMLElement) {
+		const root = node.closest('.window, .welcome');
+		if (!root) return;
+		for (const el of root.querySelectorAll('[data-slider-peer]')) el.removeAttribute('data-slider-peer');
+		let el: HTMLElement | null = node.closest('.group') ?? node;
+		while (el && el !== root) {
+			for (const sibling of el.parentElement?.children ?? []) {
+				if (sibling !== el) sibling.setAttribute('data-slider-peer', '');
+			}
+			el = el.parentElement;
+		}
+	}
+
+	function attachSlider(node: HTMLElement) {
+		markPeers(node);
+		document.documentElement.setAttribute('data-slider-ready', '');
+		return () => {
+			if (!document.querySelector('.slider')) document.documentElement.removeAttribute('data-slider-ready');
+		};
+	}
+
 	function preview(input: HTMLInputElement, active: boolean) {
-		input.closest('.window, .welcome')?.toggleAttribute('data-slider-drag', active);
+		if (active) markPeers(input);
+		const root = input.closest('.window, .welcome');
+		root?.toggleAttribute('data-slider-drag', active);
+		if (root?.classList.contains('welcome')) {
+			const splash = document.getElementById('splash');
+			splash?.setAttribute('data-preferences', '');
+			splash?.toggleAttribute('data-slider-drag', active);
+		}
 	}
 </script>
 
-<div class="slider">
+<div class="slider" {@attach attachSlider}>
 	<div class="slider__field" style:--ratio={index / last}>
 		<input
 			class="slider__input"

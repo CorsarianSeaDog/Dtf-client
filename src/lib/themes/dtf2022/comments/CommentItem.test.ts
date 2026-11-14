@@ -21,12 +21,12 @@ describe('CommentItem thread lines hitbox', () => {
 		expect(svelteContent).toContain('.comment-item__thread-line--empty');
 	});
 
-	it('поднимает строку с меню реакций, поповером и редактором ответа и не использует :has(:global(...))', () => {
+	it('поднимает строку с меню реакций, поповером и редактором ответа и не использует :has()', () => {
 		const svelteContent = fs.readFileSync(path.join(__dirname, 'CommentItem.svelte'), 'utf8');
 
 		expect(svelteContent).toContain("'comment-item--elevated': replying || menuOpen || pickerOpen");
 		expect(svelteContent).toContain('.comment-item--elevated');
-		expect(svelteContent).not.toContain(':has(:global(');
+		expect(svelteContent).not.toContain(':has(');
 		expect(svelteContent).toContain('z-index: 20');
 	});
 
