@@ -55,6 +55,7 @@
 
 	// Комментарии (тысячи узлов) строятся, когда пост уже показан и его анимация закончилась
 	let postShown = $state(false);
+	let pendingRefresh: Post | undefined;
 	let commentsBox = $state<HTMLElement>();
 	let lastCommentsHeight = $state<number>(0);
 
@@ -80,9 +81,12 @@
 		}
 	}
 
-	function showPost() {
-		if ((commentId === undefined && !toComments && !anchor) || postShown) return;
+	function onReveal() {
 		postShown = true;
+		if (pendingRefresh && pendingRefresh !== post) {
+			post = pendingRefresh;
+			pendingRefresh = undefined;
+		}
 		if (toComments || commentId !== undefined) {
 			if (post?.isDraft || post?.commentsDisabled) return;
 			commentsTurn.then(tick).then(() => {
@@ -134,7 +138,11 @@
 		}
 		postPromise
 			.then((loaded) => {
-				post = loaded;
+				if (cached && !postShown) {
+					if (loaded !== post) pendingRefresh = loaded;
+				} else {
+					post = loaded;
+				}
 				trackPostLoaded(loaded);
 				onLoaded?.(loaded.title);
 			})
@@ -152,7 +160,7 @@
 </script>
 
 <div class="post-screen">
-	<Reveal ready={post !== undefined || error !== undefined} anim="contentIn" onshow={showPost} onreveal={() => (postShown = true)}>
+	<Reveal ready={post !== undefined || error !== undefined} anim="contentIn" onreveal={onReveal}>
 		{#snippet children()}
 			{#if post}
 				{@const loaded = post}
