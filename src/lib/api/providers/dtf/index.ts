@@ -566,8 +566,9 @@ export const dtfApiProvider = {
 		return ((await response.json()).result?.items || []).map(mapProfileListItem);
 	},
 
-	async getProfileComments(id: number, cursor?: CursorData): Promise<PaginatedResult<Comment>> {
-		const response = await fetchWithAuth(`${apiV('2.5')}/comments?subsiteId=${id}&sorting=new&page=0${cursorQuery(cursor)}`);
+	async getProfileComments(id: number, sorting: ProfileSorting = 'new', cursor?: CursorData): Promise<PaginatedResult<Comment>> {
+		const dtfSorting = sorting === 'popular' ? 'hotness' : 'new';
+		const response = await fetchWithAuth(`${apiV('2.5')}/comments?subsiteId=${id}&sorting=${dtfSorting}&page=0${cursorQuery(cursor)}`);
 		const result = (await response.json()).result;
 
 		return {

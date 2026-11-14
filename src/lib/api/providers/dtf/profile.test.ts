@@ -38,3 +38,16 @@ describe('getRecommendations', () => {
 		expect(next.cursor).toBeUndefined();
 	});
 });
+
+describe('getProfileComments', () => {
+	it('передаёт сортировку new и hotness в /v2.5/comments и курсор пагинации', async () => {
+		const raw = { id: 10, text: 'Коммент', author: { id: 1, name: 'A' }, entry: { id: 42 } };
+		vi.mocked(fetchWithAuth).mockResolvedValueOnce(Response.json({ result: { items: [raw], lastId: 10, lastSortingValue: 1700000000 } }));
+		await dtfApiProvider.getProfileComments(125515, 'new');
+		expect(fetchWithAuth).toHaveBeenLastCalledWith('https://api.dtf.ru/v2.5/comments?subsiteId=125515&sorting=new&page=0');
+
+		vi.mocked(fetchWithAuth).mockResolvedValueOnce(Response.json({ result: { items: [raw], lastId: 10, lastSortingValue: 73.5 } }));
+		await dtfApiProvider.getProfileComments(125515, 'popular', { lastId: 10, lastSortingValue: 73.5 });
+		expect(fetchWithAuth).toHaveBeenLastCalledWith('https://api.dtf.ru/v2.5/comments?subsiteId=125515&sorting=hotness&page=0&lastId=10&lastSortingValue=73.5');
+	});
+});

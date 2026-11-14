@@ -508,7 +508,7 @@ export interface ApiProvider {
 	getProfilePosts?(id: number, sorting: ProfileSorting, cursor?: CursorData): Promise<PaginatedResult<Post>>;
 	getProfileSubscribers?(id: number, cursor?: CursorData): Promise<PaginatedResult<ProfileListItem>>;
 	getProfileSubscriptions?(id: number): Promise<ProfileListItem[]>;
-	getProfileComments?(id: number, cursor?: CursorData): Promise<PaginatedResult<Comment>>;
+	getProfileComments?(id: number, sorting?: ProfileSorting, cursor?: CursorData): Promise<PaginatedResult<Comment>>;
 
 	// Репосты (ответы на пост)
 	getReposts?(postId: number): Promise<Post[]>;
