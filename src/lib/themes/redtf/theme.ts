@@ -1,5 +1,6 @@
 import { ease, fluent, type ThemeMotion } from '$lib/motion';
 import { defineTheme } from '../types';
+import { extendsTheme, palettes } from './palettes';
 
 function defaultTransparency(): boolean {
 	if (typeof window === 'undefined') return true;
@@ -202,21 +203,13 @@ function getMotion(): ThemeMotion {
 
 export default defineTheme({
 	// Форк
-	extends: 'dtf2022',
+	extends: extendsTheme,
 
 	id: 'redtf',
 	name: 'Re:DTF',
 	gestures: true,
 	description: 'Основная тема. Вдохновлена DTF 2022-23 года, но с адаптацией под современность.',
-	palettes: {
-		default: 'light',
-		system: { light: 'light', dark: 'dark' },
-		options: [
-			{ id: 'light', title: 'Светлая', mode: 'light', background: '#f2f2f2', themeColor: '#D9F5FF' },
-			{ id: 'dark', title: 'Тёмная', mode: 'dark', background: '#141414', themeColor: '#202022' },
-			{ id: 'amoled', title: 'AMOLED', mode: 'dark', background: '#000000', themeColor: '#000000' }
-		]
-	},
+	palettes,
 	settings: [
 		{
 			key: 'votes',

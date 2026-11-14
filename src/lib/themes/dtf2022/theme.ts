@@ -1,4 +1,5 @@
 import { defineTheme } from '../types';
+import { palettes } from './palettes';
 
 // Колонка «Комментарии» ждёт вебсокет DTF (см. live/source.ts): без него у неё нет данных.
 // Пока флаг true, её настройки скрыты, а сама колонка выключена. Когда вебсокет подключат, флаг убрать.
@@ -9,13 +10,7 @@ export default defineTheme({
 	name: 'DTF 2022',
 	hidden: true,
 	description: 'Копия дизайна DTF начала 2023 года',
-	palettes: {
-		default: 'light',
-		system: { light: 'light', dark: 'light' },
-		options: [
-			{ id: 'light', title: 'Светлая', mode: 'light', background: '#f2f2f2', themeColor: '#D9F5FF' }
-		]
-	},
+	palettes,
 	settings: [
 		{
 			key: 'votes',
