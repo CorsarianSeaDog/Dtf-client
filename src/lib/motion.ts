@@ -32,6 +32,10 @@ export interface ThemeMotion {
 	feedIn?: Anim;
 	/** Картинка или видео в посте догрузились: проявляются поверх цветной заглушки, а не выскакивают */
 	mediaIn?: Anim;
+	/** Появление слота или индикатора загрузки медиа */
+	uploadIn?: Anim;
+	/** Уход оверлея прогресса после завершения загрузки или при отмене */
+	uploadOut?: Anim;
 	/** Страницу закрыли: она остаётся на месте поверх слоя под ней и уходит, пока тот возвращается (`pageBack`) */
 	pageOut?: Anim;
 	/** Слой под закрытой страницей (лента или прежняя страница) возвращается на экран; без неё берётся `pageIn` */
@@ -62,6 +66,8 @@ export type AnimKey =
 	| 'contentIn'
 	| 'feedIn'
 	| 'mediaIn'
+	| 'uploadIn'
+	| 'uploadOut'
 	| 'pageIn'
 	| 'pageOut'
 	| 'pageBack'
@@ -112,6 +118,16 @@ export const fluent: ThemeMotion = {
 		keyframes: [{ opacity: 0, transform: 'translateY(24px)' }, { opacity: 1, transform: 'none' }],
 		duration: 480,
 		easing: ease.out
+	},
+	uploadIn: {
+		keyframes: [{ opacity: 0, transform: 'scale(0.92)' }, { opacity: 1, transform: 'none' }],
+		duration: 260,
+		easing: ease.smooth
+	},
+	uploadOut: {
+		keyframes: [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(0.92)' }],
+		duration: 200,
+		easing: ease.smooth
 	},
 	recede: {
 		keyframes: [

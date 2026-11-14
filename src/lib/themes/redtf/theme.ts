@@ -85,6 +85,34 @@ function getMotion(): ThemeMotion {
 					duration: 250,
 					easing: ease.out
 			  },
+		uploadIn: blur
+			? {
+					keyframes: [
+						{ opacity: 0, transform: 'scale(0.9)', filter: 'blur(6px)' },
+						{ opacity: 1, transform: 'none', filter: 'blur(0px)' }
+					],
+					duration: 320,
+					easing: ease.smooth
+			  }
+			: {
+					keyframes: [{ opacity: 0, transform: 'scale(0.94)' }, { opacity: 1, transform: 'none' }],
+					duration: 220,
+					easing: ease.smooth
+			  },
+		uploadOut: blur
+			? {
+					keyframes: [
+						{ opacity: 1, transform: 'none', filter: 'blur(0px)' },
+						{ opacity: 0, transform: 'scale(0.92)', filter: 'blur(6px)' }
+					],
+					duration: 240,
+					easing: ease.smooth
+			  }
+			: {
+					keyframes: [{ opacity: 1 }, { opacity: 0 }],
+					duration: 180,
+					easing: ease.smooth
+			  },
 		feedIn: { keyframes: [{ opacity: 0, transform: 'translateY(32px) scale(0.99)' }, { opacity: 1, transform: 'none' }], duration: 650, easing: ease.out },
 
 		// Универсальный переход между страницами:
