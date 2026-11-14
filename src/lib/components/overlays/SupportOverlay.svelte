@@ -1,11 +1,23 @@
 <script lang="ts">
 	import { closeOverlay } from '$lib/navigation';
 
+	type Method = {
+		id: string;
+		title: string;
+		description: string;
+		href: string;
+		tint: string;
+		mono?: boolean;
+		path: string;
+		viewBox?: string;
+		filled?: boolean;
+	};
+
 	/*
 	 * Окно «Поддержать reDTF»: три способа на выбор. Одно и то же окно открывают сайдбар,
 	 * плашка в ленте и страница «Хочу помочь» в настройках.
 	 */
-	const METHODS = [
+	const METHODS: Method[] = [
 		{
 			id: 'cloudtips',
 			title: 'CloudTips',
@@ -23,8 +35,10 @@
 			// Чёрно-белый, как у самого сервиса: цвет берётся из текста темы
 			tint: 'var(--text-primary, #111)',
 			mono: true,
-			// Глобус
-			path: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3.5 9h17M3.5 15h17M12 3c2.3 2.4 3.5 5.4 3.5 9s-1.2 6.6-3.5 9c-2.3-2.4-3.5-5.4-3.5-9S9.7 5.4 12 3z'
+			// Внутренняя часть логотипа DALink (цепочка)
+			viewBox: '1.5 1.5 30 30',
+			filled: true,
+			path: 'M8.76953 15.6807C7.62838 16.8218 6.99913 18.3402 6.99902 19.9551C6.99902 21.5702 7.62828 23.0892 8.76953 24.2305C9.91074 25.3715 11.429 26 13.0439 26C14.6589 26 16.176 25.3716 17.3184 24.2305L19.9346 21.6143L18.2559 19.9346L15.6396 22.5488C14.2526 23.9347 11.8365 23.9359 10.4482 22.5488C9.75471 21.8565 9.37402 20.9348 9.37402 19.9551C9.37413 18.9744 9.75494 18.0538 10.4482 17.3604L13.0645 14.7441L11.3857 13.0645L8.76953 15.6807ZM12.0977 19.2227L13.7764 20.9014L20.9023 13.7764L19.2227 12.0977L12.0977 19.2227ZM19.9561 6.99902C18.341 6.99902 16.8231 7.62731 15.6807 8.76855L13.0645 11.3848L14.7441 13.0645L17.3604 10.4502C18.0539 9.75554 18.9752 9.37402 19.9561 9.37402C20.9356 9.37409 21.8573 9.75486 22.5508 10.4482C23.2443 11.1418 23.625 12.0642 23.625 13.0439C23.6249 14.0247 23.2442 14.9452 22.5508 15.6387L19.9346 18.2549L21.6143 19.9346L24.2305 17.3184C25.3716 16.1772 25.9999 14.6589 26 13.0439C26 11.4289 25.3717 9.9098 24.2305 8.76855C23.0893 7.62746 21.571 6.99909 19.9561 6.99902Z'
 		},
 		{
 			id: 'boosty',
@@ -63,8 +77,15 @@
 			<li>
 				<a class={["method", { mono: method.mono }]} href={method.href} target="_blank" rel="noopener noreferrer" style:--tint={method.tint}>
 					<span class="method__icon" aria-hidden="true">
-						<svg viewBox="0 0 24 24" width="24" height="24">
-							<path d={method.path} fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+						<svg viewBox={method.viewBox ?? '0 0 24 24'} width="24" height="24">
+							<path
+								d={method.path}
+								fill={method.filled ? 'currentColor' : 'none'}
+								stroke={method.filled ? 'none' : 'currentColor'}
+								stroke-width="1.8"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							/>
 						</svg>
 					</span>
 					<span class="method__text">
