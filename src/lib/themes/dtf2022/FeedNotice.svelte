@@ -28,11 +28,11 @@
 	<div class="notice__actions">
 		<a href="{resolve('/settings')}?page=help" class="notice__btn notice__btn--primary" onclick={(e) => openSettings(e, 'help')}>Поддержать проект</a>
 		<button class="notice__btn" onclick={share}>
-			<svg class="icon" width="20" height="20" aria-hidden="true"><use href="/icons.svg#v_share"></use></svg>
+			<svg class="icon" width="20" height="20" aria-hidden="true"><use href="#v_share"></use></svg>
 			Рассказать друзьям
 		</button>
 		<a href="https://github.com/re-dtf/client" class="notice__btn" target="_blank" rel="noopener noreferrer">
-			<svg class="icon" width="20" height="20" aria-hidden="true"><use href="/icons.svg#v_star"></use></svg>
+			<svg class="icon" width="20" height="20" aria-hidden="true"><use href="#v_star"></use></svg>
 			Звезда на GitHub
 		</a>
 	</div>

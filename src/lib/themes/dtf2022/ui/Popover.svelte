@@ -97,7 +97,7 @@
 						{#if item.icon}
 							<div class={['popover-item__icon', { 'popover-item__icon--active': item.icon === 'v_bookmark_solid' }]}>
 								<svg class="icon" width="20" height="20" aria-hidden="true">
-									<use href="/icons.svg#{item.icon}"></use>
+									<use href="#{item.icon}"></use>
 								</svg>
 							</div>
 						{/if}

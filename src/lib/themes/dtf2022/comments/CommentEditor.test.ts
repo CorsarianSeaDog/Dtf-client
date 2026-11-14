@@ -52,7 +52,7 @@ describe('CommentEditor', () => {
 			}
 		});
 
-		expect(body).toContain('/icons.svg#v_send');
+		expect(body).toContain('#v_send');
 		expect(body).toContain('aria-label="Ответить"');
 	});
 });

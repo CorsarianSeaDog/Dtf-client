@@ -46,7 +46,7 @@
 				<span>{LABELS[period]}</span>
 				<span class="sorting-filters__toggler">
 					<svg class="icon" width="16" height="16" aria-hidden="true">
-						<use href="/icons.svg#v_chevron_down"></use>
+						<use href="#v_chevron_down"></use>
 					</svg>
 				</span>
 			</button>

@@ -148,7 +148,7 @@
 						<div class="donate-attachment__sum">{formatDonation(donation)}</div>
 						<button type="button" class="donate-attachment__remove" aria-label="Убрать донат" onclick={() => (donation = 0)}>
 							<svg class="icon" width="16" height="16" aria-hidden="true">
-								<use href="/icons.svg#v_close"></use>
+								<use href="#v_close"></use>
 							</svg>
 						</button>
 					</div>
@@ -181,12 +181,12 @@
 						<input bind:this={fileInput} type="file" accept="image/*" multiple hidden onchange={upload} />
 						<button type="button" class="comment-editor-box__attach-btn comment-editor-box__attach-btn--image" aria-label="Прикрепить картинку" disabled={uploading} onclick={() => fileInput?.click()}>
 							<svg class="icon" width="20" height="20" aria-hidden="true">
-								<use href="/icons.svg#v_image"></use>
+								<use href="#v_image"></use>
 							</svg>
 						</button>
 						<button type="button" class="comment-editor-box__attach-btn comment-editor-box__attach-btn--gif" aria-label="Прикрепить GIF" aria-expanded={gifsOpen} onclick={() => (gifsOpen = true)}>
 							<svg class="icon" width="20" height="20" aria-hidden="true">
-								<use href="/icons.svg#v_gif"></use>
+								<use href="#v_gif"></use>
 							</svg>
 						</button>
 						{#if !editing && canDonate}

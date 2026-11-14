@@ -108,12 +108,12 @@
 			<div class="panel-header">
 				<div class="panel-burger" aria-label="Закрыть меню" role="button" tabindex="0" onclick={() => sidebar.close()} onkeydown={clickOnKey}>
 					<svg class="icon" width="24" height="24" aria-hidden="true">
-						<use href="/icons.svg#v_menu"></use>
+						<use href="#v_menu"></use>
 					</svg>
 				</div>
 				<a href={resolve('/')} class="panel-logo" aria-label="re:DTF — на главную" onclick={openFeed}>
 					<svg class="icon" height="50" width="128" aria-hidden="true">
-						<use href="/reIcons.svg#redtf_logo"></use>
+						<use href="#redtf_logo"></use>
 					</svg>
 				</a>
 			</div>
@@ -131,7 +131,7 @@
 							onclick={() => openFeedTab(item.id)}
 						>
 							<svg height="24" width="24" class="icon" aria-hidden="true">
-								<use href="/icons.svg#{item.icon}"></use>
+								<use href="#{item.icon}"></use>
 							</svg>
 							<span class="label">{item.label}</span>
 						</button>

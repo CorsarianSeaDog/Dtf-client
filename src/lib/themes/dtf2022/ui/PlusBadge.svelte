@@ -31,7 +31,7 @@
 			<img src={customUrl} width={size} height={size} alt="" />
 		{:else}
 			<svg class="icon" width={size} height={size} aria-hidden="true">
-				<use href="/icons.svg#ui_badge_plus"></use>
+				<use href="#ui_badge_plus"></use>
 			</svg>
 		{/if}
 	</button>

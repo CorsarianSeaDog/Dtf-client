@@ -126,7 +126,7 @@
 		onclick={() => vote(sign)}
 	>
 		<svg class={['icon', { 'icon--hidden': arrow?.vote === sign }]} aria-hidden="true">
-			<use href="/icons.svg#{sign < 0 ? 'v_arrow_down' : 'v_arrow_up'}"></use>
+			<use href="#{sign < 0 ? 'v_arrow_down' : 'v_arrow_up'}"></use>
 		</svg>
 		{#if custom}
 			<img src={custom.url} class="vote__mini-badge" alt="" />

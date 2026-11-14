@@ -203,7 +203,7 @@
 							{#if more}
 								<span class="media-gallery__more" aria-hidden="true">+{more}</span>
 							{:else if video}
-								<svg class="icon-play" width="48" height="48" aria-hidden="true"><use href="/icons.svg#andropov_play_default"></use></svg>
+								<svg class="icon-play" width="48" height="48" aria-hidden="true"><use href="#andropov_play_default"></use></svg>
 							{/if}
 						</button>
 					{/each}
@@ -237,7 +237,7 @@
 						onclick={() => youtubeId && (playingVideos[youtubeId] = true)}
 					>
 						<svg class="icon-play" width="48" height="48" aria-hidden="true">
-							<use href="/icons.svg#andropov_play_default"></use>
+							<use href="#andropov_play_default"></use>
 						</svg>
 					</button>
 				{/if}
@@ -303,7 +303,7 @@
 	{#if title?.trim()}
 		<div class="post-block post-block--title">
 			{#if editorial}
-				{titleParts.head}<span class="post-block__last-word">{titleParts.last}&nbsp;<span class="post-block__tick" role="img" aria-label="Материал редакции" title="Материал редакции"><svg width="24" height="24" aria-hidden="true"><use href="/icons.svg#v_editorial"></use></svg></span></span>
+				{titleParts.head}<span class="post-block__last-word">{titleParts.last}&nbsp;<span class="post-block__tick" role="img" aria-label="Материал редакции" title="Материал редакции"><svg width="24" height="24" aria-hidden="true"><use href="#v_editorial"></use></svg></span></span>
 			{:else}
 				{title.trim()}
 			{/if}
@@ -327,7 +327,7 @@
 					<div class="post-hidden__inner">
 						<div class="post-hidden__text">Содержание скрыто</div>
 						<button class="post-hidden__button" onclick={() => (revealed[index] = true)}>
-							<svg width="20" height="20" aria-hidden="true"><use href="/icons.svg#v_eye"></use></svg>
+							<svg width="20" height="20" aria-hidden="true"><use href="#v_eye"></use></svg>
 							Показать
 						</button>
 					</div>
@@ -339,7 +339,7 @@
 
 	{#if updating}
 		<div class="post-block post-block--updating">
-			<svg width="16" height="16" aria-hidden="true"><use href="/icons.svg#v_pencil_solid"></use></svg>Дополняется
+			<svg width="16" height="16" aria-hidden="true"><use href="#v_pencil_solid"></use></svg>Дополняется
 		</div>
 	{/if}
 </div>

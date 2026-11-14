@@ -40,7 +40,7 @@
 		>
 			<button type="button" class="tag-head__etc" title="Больше" aria-expanded={menuOpen} onclick={() => (menuOpen = !menuOpen)}>
 				<svg class="icon" width="16" height="20" aria-hidden="true">
-					<use href="/icons.svg#v_etc"></use>
+					<use href="#v_etc"></use>
 				</svg>
 			</button>
 		</Popover>

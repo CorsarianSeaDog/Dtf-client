@@ -118,7 +118,7 @@
 			>
 				{#if 'icon' in clientBadge}
 					<svg class="icon icon--{clientBadge.type}" width="11" height="11" aria-hidden="true">
-						<use href="/icons.svg#{clientBadge.icon}"></use>
+						<use href="#{clientBadge.icon}"></use>
 					</svg>
 				{/if}
 				<span>{clientBadge.label}</span>
@@ -139,7 +139,7 @@
 				}}
 			>
 				<svg class="icon icon--{clientBadge.type}" width="10" height="10" aria-hidden="true">
-					<use href="/icons.svg#{clientBadge.icon}"></use>
+					<use href="#{clientBadge.icon}"></use>
 				</svg>
 			</button>
 		{/if}
@@ -215,7 +215,7 @@
 				onclick={() => toggleCommentFavorite(comment)}
 			>
 				<svg class="icon" width="20" height="20" aria-hidden="true">
-					<use href="/icons.svg#{comment.isFavorited ? 'v_bookmark_solid' : 'v_bookmark'}"></use>
+					<use href="#{comment.isFavorited ? 'v_bookmark_solid' : 'v_bookmark'}"></use>
 				</svg>
 			</button>
 		{/if}
@@ -223,7 +223,7 @@
 		<Popover bind:open={menuOpen} items={menuItems} onselect={selectMenuItem} width="max-content" label="Действия с комментарием">
 			<button type="button" class="profile-comment__etc" title="Больше" aria-expanded={menuOpen} onclick={() => (menuOpen = !menuOpen)}>
 				<svg class="icon" width="14" height="7" aria-hidden="true">
-					<use href="/icons.svg#ui_etc"></use>
+					<use href="#ui_etc"></use>
 				</svg>
 			</button>
 		</Popover>

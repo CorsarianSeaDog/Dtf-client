@@ -117,12 +117,12 @@
 				onkeydown={clickOnKey}
 			>
 				<svg class="icon" width="24" height="24" aria-hidden="true">
-					<use href="/icons.svg#v_menu"></use>
+					<use href="#v_menu"></use>
 				</svg>
 			</div>
 			<a href={resolve('/')} class="header-logo" aria-label="re:DTF — на главную" onclick={openFeed}>
 				<svg class="icon" height="50" width="128" aria-hidden="true">
-					<use href="/reIcons.svg#redtf_logo"></use>
+					<use href="#redtf_logo"></use>
 				</svg>
 			</a>
 		</div>
@@ -172,7 +172,7 @@
 					onkeydown={clickOnKey}
 				>
 					<svg class="icon" width="28" height="28" aria-hidden="true">
-						<use href="/icons.svg#v_search"></use>
+						<use href="#v_search"></use>
 					</svg>
 				</div>
 			{/if}
@@ -191,7 +191,7 @@
 					onkeydown={clickOnKey}
 				>
 					<svg class="icon" width="28" height="28" aria-hidden="true">
-						<use href="/icons.svg#v_bell"></use>
+						<use href="#v_bell"></use>
 					</svg>
 					{#if notifications.unread > 0}
 						<span class="header-notifications__badge">{notifications.unread}</span>
@@ -217,7 +217,7 @@
 							<div class="header-profile__avatar-image" style:background-image={user?.avatarUrl ? `url('${user.avatarUrl}')` : undefined}></div>
 							<span class={['header-profile__arrow', { 'header-profile__arrow--open': isUserMenuOpen }]}>
 								<svg class="icon" width="20" height="20" aria-hidden="true">
-									<use href="/icons.svg#v_chevron_down"></use>
+									<use href="#v_chevron_down"></use>
 								</svg>
 							</span>
 						</button>
@@ -243,7 +243,7 @@
 							onclick={() => (isUserMenuOpen = !isUserMenuOpen)}
 						>
 							<svg class="icon" width="20" height="20" aria-hidden="true">
-								<use href="/icons.svg#v_chevron_down"></use>
+								<use href="#v_chevron_down"></use>
 							</svg>
 						</button>
 					{/if}
@@ -258,7 +258,7 @@
 				<div class="header-user" aria-label="Войти" role="button" tabindex="0" onclick={openLogin} onkeydown={clickOnKey}>
 					<div class="login">
 						<svg class="icon" width="28" height="28" aria-hidden="true">
-							<use href="/icons.svg#v_login"></use>
+							<use href="#v_login"></use>
 						</svg>
 						<span class="login__label">Войти</span>
 					</div>

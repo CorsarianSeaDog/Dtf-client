@@ -306,7 +306,7 @@
 						onclick={() => (sortingOpen = !sortingOpen)}
 					>
 						<svg class="icon" width="20" height="20" aria-hidden="true">
-							<use href="/icons.svg#v_block_set"></use>
+							<use href="#v_block_set"></use>
 						</svg>
 					</button>
 				</Popover>
@@ -318,7 +318,7 @@
 					onclick={toggleCommentsSubscription}
 				>
 					<svg class="icon" width="20" height="20" aria-hidden="true">
-						<use href="/icons.svg#{subscribedToComments ? 'bell_solid' : 'v_bell'}"></use>
+						<use href="#{subscribedToComments ? 'bell_solid' : 'v_bell'}"></use>
 					</svg>
 				</button>
 			</div>
@@ -332,13 +332,13 @@
 					<span class="comment-fake-form__text">Написать комментарий...</span>
 					<span class="comment-fake-form__buttons" aria-hidden="true">
 						<span class="comment-fake-form__button">
-							<svg class="icon" width="20" height="20"><use href="/icons.svg#v_image"></use></svg>
+							<svg class="icon" width="20" height="20"><use href="#v_image"></use></svg>
 						</span>
 						<span class="comment-fake-form__button comment-fake-form__button--gif">
-							<svg class="icon" width="20" height="20"><use href="/icons.svg#v_gif"></use></svg>
+							<svg class="icon" width="20" height="20"><use href="#v_gif"></use></svg>
 						</span>
 						<span class="comment-fake-form__button">
-							<svg class="icon" width="20" height="20"><use href="/icons.svg#v_rouble"></use></svg>
+							<svg class="icon" width="20" height="20"><use href="#v_rouble"></use></svg>
 						</span>
 					</span>
 				</button>
@@ -396,7 +396,7 @@
 									{#if action.image}
 										<img src={action.image} width="24" height="24" alt="" />
 									{:else}
-										<svg class="icon" width="20" height="20"><use href="/icons.svg#{action.icon}"></use></svg>
+										<svg class="icon" width="20" height="20"><use href="#{action.icon}"></use></svg>
 									{/if}
 								</span>
 							{/each}

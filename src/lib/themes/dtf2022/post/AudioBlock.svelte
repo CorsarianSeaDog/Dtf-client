@@ -50,7 +50,7 @@
 </script>
 
 {#snippet icon(id: string, width: number, height: number)}
-	<svg class="icon" {width} {height} aria-hidden="true"><use href="/icons.svg#{id}"></use></svg>
+	<svg class="icon" {width} {height} aria-hidden="true"><use href="#{id}"></use></svg>
 {/snippet}
 
 {#if file?.uuid}

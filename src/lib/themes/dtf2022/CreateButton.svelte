@@ -6,7 +6,7 @@
 <button type="button" class="create" onclick={startWriting}>
 	<span class="create__icon">
 		<svg class="icon" width="20" height="20" aria-hidden="true">
-			<use href="/icons.svg#v_plus"></use>
+			<use href="#v_plus"></use>
 		</svg>
 	</span>
 	<span class="create__label">Создать</span>

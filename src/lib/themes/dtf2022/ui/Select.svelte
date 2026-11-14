@@ -28,7 +28,7 @@
 				<span class="select__placeholder">{placeholder}</span>
 			{/if}
 			<svg class="select__chevron icon" width="20" height="20" aria-hidden="true">
-				<use href="/icons.svg#{open ? 'v_chevron_up' : 'v_chevron_down'}"></use>
+				<use href="#{open ? 'v_chevron_up' : 'v_chevron_down'}"></use>
 			</svg>
 		</button>
 	</Popover>

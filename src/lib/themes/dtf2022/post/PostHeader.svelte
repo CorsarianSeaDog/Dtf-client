@@ -143,7 +143,7 @@
 		{#if post.isPinned}
 			<div class="post-header__item post-header-pin" title="Закреплено">
 				<svg class="icon" width="11" height="11" aria-hidden="true">
-					<use href="/icons.svg#ui_pin"></use>
+					<use href="#ui_pin"></use>
 				</svg>
 			</div>
 		{/if}
@@ -156,7 +156,7 @@
 			<button class="subscribe-button" onclick={() => post.subsite && subscriptions.toggle(post.subsite.id, post.subsite.isSubscribed)}>
 				<span class="subscribe-button__icon">
 					<svg height="20" width="20" class="icon" aria-hidden="true">
-						<use href="/icons.svg#v_follow"></use>
+						<use href="#v_follow"></use>
 					</svg>
 				</span>
 				<span class="subscribe-button__label">Подписаться</span>
@@ -177,7 +177,7 @@
 			>
 				<button type="button" class="post-header__etc-button" title="Больше" disabled={draft} aria-expanded={menuOpen} onclick={() => setMenuOpen(!menuOpen)}>
 					<svg class="icon" width="16" height="20" aria-hidden="true">
-						<use href="/icons.svg#v_etc"></use>
+						<use href="#v_etc"></use>
 					</svg>
 				</button>
 			</Popover>

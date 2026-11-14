@@ -36,7 +36,7 @@
 	<div class="error-island__content">
 		<div class={['error-island__icon-box', `error-island__icon-box--${info.badgeType}`]}>
 			<svg class="icon icon--warning" width="32" height="32" aria-hidden="true">
-				<use href="/icons.svg#notify_warning"></use>
+				<use href="#notify_warning"></use>
 			</svg>
 		</div>
 		<div class="error-island__text">
@@ -57,7 +57,7 @@
 				onclick={handleRetry}
 			>
 				<svg class="icon" width="18" height="18" aria-hidden="true">
-					<use href="/icons.svg#v_refresh"></use>
+					<use href="#v_refresh"></use>
 				</svg>
 				<span>{retrying ? 'Повторяем...' : 'Повторить попытку'}</span>
 			</button>
@@ -67,7 +67,7 @@
 		</button>
 		<button type="button" class="error-btn" onclick={openSettings}>
 			<svg class="icon" width="18" height="18" aria-hidden="true">
-				<use href="/icons.svg#v_gear"></use>
+				<use href="#v_gear"></use>
 			</svg>
 			<span>Настройки</span>
 		</button>

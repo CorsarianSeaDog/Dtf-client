@@ -30,7 +30,7 @@
 		<div class="mobile-bar__link-wrapper">
 			<a href={resolve('/')} class="mobile-bar__link" aria-label="Главная" onclick={handleFeed}>
 				<svg height="28" width="28" class="icon" aria-hidden="true">
-					<use href="/icons.svg#v_home"></use>
+					<use href="#v_home"></use>
 				</svg>
 			</a>
 		</div>
@@ -38,7 +38,7 @@
 		<div class="mobile-bar__link-wrapper">
 			<button class="mobile-bar__link" aria-label="Сообщения" onclick={() => haptics.tick()}>
 				<svg height="28" width="28" class="icon" aria-hidden="true">
-					<use href="/icons.svg#v_messenger"></use>
+					<use href="#v_messenger"></use>
 				</svg>
 			</button>
 		</div>
@@ -46,7 +46,7 @@
 			<!-- На мобильном вместо попапа — страница уведомлений -->
 			<a href={resolve('/notifications')} class="mobile-bar__link mobile-bar__notifications" aria-label="Уведомления" onclick={handleNotifications}>
 				<svg height="28" width="28" class="icon" aria-hidden="true">
-					<use href="/icons.svg#v_bell"></use>
+					<use href="#v_bell"></use>
 				</svg>
 				{#if notifications.unread > 0}
 					<span class="mobile-bar__badge">{notifications.unread}</span>
@@ -56,7 +56,7 @@
 		<div>
 			<button class="mobile-bar__link" aria-label={authStorage.isAuthenticated ? 'Настройки' : 'Войти'} onclick={openAccount}>
 				<svg height="28" width="28" class="icon" aria-hidden="true">
-					<use href="/icons.svg#v_login"></use>
+					<use href="#v_login"></use>
 				</svg>
 			</button>
 		</div>

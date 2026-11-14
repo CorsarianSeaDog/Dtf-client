@@ -1,9 +1,10 @@
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { build, defineConfig } from 'vite';
+import { build, defineConfig, type Plugin } from 'vite';
 import { readFileSync, mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import { buildSvgSpriteDefs, collectUsedSymbolIds, parseSvgSprites } from './src/lib/assets/svgSprite.ts';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 
@@ -38,14 +39,62 @@ function resolveVersion(command?: string): string {
 
 const basePath = process.env.BASE_PATH === '/' ? '' : (process.env.BASE_PATH || '').replace(/\/+$/, '');
 
-function svgIconsPlugin(base: string) {
-	if (!base) return [];
+const VIRTUAL_SPRITE_ID = 'virtual:svg-sprite';
+const RESOLVED_VIRTUAL_SPRITE_ID = `\0${VIRTUAL_SPRITE_ID}`;
+const SPRITE_PLACEHOLDER = '__REDTF_SVG_SPRITE__';
+const SPRITE_FILES = ['src/lib/assets/icons.svg', 'src/lib/assets/reIcons.svg'];
+
+function svgSpritePlugin(): Plugin {
+	const readSprites = () => SPRITE_FILES.map((file) => readFileSync(file, 'utf8'));
+	let isBuild = false;
+
 	return {
-		name: 'svg-icons-base',
-		renderChunk: (code: string) => ({
-			code: code.replace(/(["'`])\/(icons|reIcons)\.svg#/g, `$1${base}/$2.svg#`),
-			map: null
-		})
+		name: 'redtf-svg-sprite',
+		configResolved(config) {
+			isBuild = config.command === 'build';
+		},
+		resolveId(id) {
+			if (id === VIRTUAL_SPRITE_ID) return RESOLVED_VIRTUAL_SPRITE_ID;
+		},
+		load(id, options) {
+			if (id !== RESOLVED_VIRTUAL_SPRITE_ID) return;
+			// В клиентской production-сборке ставим маркер и заполняем обрезанный спрайт в generateBundle по чанкам
+			if (isBuild && !options?.ssr) {
+				return `export default ${JSON.stringify(SPRITE_PLACEHOLDER)};`;
+			}
+			// В dev/SSR/vitest отдаём полный спрайт
+			return `export default ${JSON.stringify(buildSvgSpriteDefs(readSprites()))};`;
+		},
+		handleHotUpdate({ file, server }) {
+			const norm = file.replace(/\\/g, '/');
+			if (SPRITE_FILES.some((f) => norm.endsWith(`/${f}`))) {
+				const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_SPRITE_ID);
+				if (mod) server.moduleGraph.invalidateModule(mod);
+			}
+		},
+		generateBundle(_options, bundle) {
+			const chunks = Object.values(bundle).filter(
+				(item): item is Extract<(typeof bundle)[string], { type: 'chunk' }> => item.type === 'chunk'
+			);
+			const targets = chunks.filter((c) => c.code.includes(SPRITE_PLACEHOLDER));
+			if (targets.length === 0) return;
+
+			const sources = readSprites();
+			const { symbols } = parseSvgSprites(sources);
+			const usedIds = collectUsedSymbolIds(
+				chunks.map((c) => c.code),
+				symbols.keys()
+			);
+			const defs = buildSvgSpriteDefs(sources, usedIds);
+			const literal = JSON.stringify(defs);
+			for (const target of targets) {
+				const next = target.code.replace(/(['"`])__REDTF_SVG_SPRITE__\1/g, () => literal);
+				if (next === target.code) {
+					throw new Error('Не удалось подставить SVG-спрайт в чанк сборки');
+				}
+				target.code = next;
+			}
+		}
 	};
 }
 
@@ -129,7 +178,7 @@ export default defineConfig(async ({ command }) => {
 					if (file.endsWith('/src/app.html') || /\/src\/lib\/(themes|storage)\/.*\.ts$/.test(file)) await writeAppTemplate();
 				}
 			},
-			svgIconsPlugin(basePath)
+			svgSpritePlugin()
 		]
 	};
 });

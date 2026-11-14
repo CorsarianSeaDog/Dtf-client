@@ -111,7 +111,7 @@
 							<span class="search-sorting__full">{currentSorting.label}</span>
 							<span class="search-sorting__short">{currentSorting.short}</span>
 							<svg class="icon" width="16" height="16" aria-hidden="true">
-								<use href="/icons.svg#v_chevron_down"></use>
+								<use href="#v_chevron_down"></use>
 							</svg>
 						</button>
 					</Popover>
@@ -161,13 +161,13 @@
 							<div class="search-simple__footer">
 								<span class="search-simple__stat search-simple__stat--like" title="Оценки">
 									<svg class="icon" width="18" height="18" aria-hidden="true">
-										<use href="/icons.svg#v_like"></use>
+										<use href="#v_like"></use>
 									</svg>
 									{formatNumber(score)}
 								</span>
 								<span class="search-simple__stat" title="Комментарии">
 									<svg class="icon" width="18" height="18" aria-hidden="true">
-										<use href="/icons.svg#v_comments"></use>
+										<use href="#v_comments"></use>
 									</svg>
 									{formatNumber(post.commentsCount)}
 								</span>

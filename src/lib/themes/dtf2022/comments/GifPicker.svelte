@@ -62,7 +62,7 @@
 	<div class="gif-picker">
 		<label class="gif-picker__search">
 			<svg class="icon gif-picker__search-icon" width="20" height="20" aria-hidden="true">
-				<use href="/icons.svg#v_search"></use>
+				<use href="#v_search"></use>
 			</svg>
 			<input type="search" placeholder="Поиск гифок" aria-label="Поиск гифок" bind:value={query} oninput={onInput} />
 		</label>

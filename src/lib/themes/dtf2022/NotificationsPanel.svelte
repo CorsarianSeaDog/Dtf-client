@@ -114,7 +114,7 @@
 						<img src={item.avatarUrl} alt="" loading="lazy" />
 						{#if badge}
 							<div class="u-notification__avatar-icon">
-								<svg class="icon" width="9" height="9" aria-hidden="true"><use href="/icons.svg#{badge}"></use></svg>
+								<svg class="icon" width="9" height="9" aria-hidden="true"><use href="#{badge}"></use></svg>
 							</div>
 						{/if}
 					</div>
@@ -122,7 +122,7 @@
 					<div class="u-notification__image">
 						<div class="u-notification__image-icon">
 							{#if squareIcon}
-								<svg class="icon" width="20" height="20" aria-hidden="true"><use href="/icons.svg#{squareIcon}"></use></svg>
+								<svg class="icon" width="20" height="20" aria-hidden="true"><use href="#{squareIcon}"></use></svg>
 							{/if}
 						</div>
 					</div>

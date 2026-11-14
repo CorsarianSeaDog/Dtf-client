@@ -315,7 +315,7 @@
 				>
 					{#if 'icon' in clientBadge}
 						<svg class="icon" width="11" height="11" aria-hidden="true">
-							<use href="/icons.svg#{clientBadge.icon}"></use>
+							<use href="#{clientBadge.icon}"></use>
 						</svg>
 					{/if}
 					<span>{clientBadge.label}</span>
@@ -340,7 +340,7 @@
 					}}
 				>
 					<svg class="icon icon--{clientBadge.type}" width="10" height="10" aria-hidden="true">
-						<use href="/icons.svg#{clientBadge.icon}"></use>
+						<use href="#{clientBadge.icon}"></use>
 					</svg>
 				</button>
 			{/if}
@@ -395,7 +395,7 @@
 				>
 					{#if 'icon' in clientBadge}
 						<svg class="icon" width="11" height="11" aria-hidden="true">
-							<use href="/icons.svg#{clientBadge.icon}"></use>
+							<use href="#{clientBadge.icon}"></use>
 						</svg>
 					{/if}
 					<span>{clientBadge.label}</span>
@@ -405,13 +405,13 @@
 			{#if row.parent}
 				<a class="comment-item__icon-action" href="#comment-{commentKey(row.parent)}" title="Ответ для {row.parent.author.name}" onclick={scrollToParent}>
 					<svg class="icon" width="14" height="14" aria-hidden="true">
-						<use href="/icons.svg#v_arrow_long_up"></use>
+						<use href="#v_arrow_long_up"></use>
 					</svg>
 				</a>
 			{/if}
 			<button type="button" class="comment-item__icon-action" title="Скопировать ссылку" onclick={copyLink}>
 				<svg class="icon" width="14" height="14" aria-hidden="true">
-					<use href="/icons.svg#v_link"></use>
+					<use href="#v_link"></use>
 				</svg>
 			</button>
 
@@ -439,7 +439,7 @@
 					}}
 				>
 					<svg class="icon icon--{clientBadge.type}" width="10" height="10" aria-hidden="true">
-						<use href="/icons.svg#{clientBadge.icon}"></use>
+						<use href="#{clientBadge.icon}"></use>
 					</svg>
 				</button>
 			{/if}
@@ -473,7 +473,7 @@
 						{#if paragraph.quote}
 							<span class="comment-item__quote">
 								<svg class="icon" width="16" height="12" aria-hidden="true">
-									<use href="/icons.svg#comment_quote"></use>
+									<use href="#comment_quote"></use>
 								</svg>
 								<span class="comment-item__quote-content">{@render lines()}</span>
 							</span>
@@ -565,7 +565,7 @@
 					<Popover bind:open={menuOpen} items={menuItems} onselect={selectMenuItem} width="max-content" align="left" label="Действия с комментарием">
 						<button type="button" class="comment-item__action comment-item__icon-action" title="Больше" aria-expanded={menuOpen} onclick={toggleMenu}>
 							<svg class="icon" width="16" height="20" aria-hidden="true">
-								<use href="/icons.svg#v_etc"></use>
+								<use href="#v_etc"></use>
 							</svg>
 						</button>
 					</Popover>

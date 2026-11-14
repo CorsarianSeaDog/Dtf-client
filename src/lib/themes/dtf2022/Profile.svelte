@@ -266,7 +266,7 @@
 				></button>
 				{#if isMe}
 					<button type="button" class="profile-avatar-change" title="Сменить фото" aria-label="Сменить фото" disabled={busy} onclick={() => avatarInput?.click()}>
-						<svg height="16" width="16" class="icon" aria-hidden="true"><use href="/icons.svg#ui_photo"></use></svg>
+						<svg height="16" width="16" class="icon" aria-hidden="true"><use href="#ui_photo"></use></svg>
 					</button>
 				{/if}
 			</div>
@@ -345,7 +345,7 @@
 			{/if}
 			<a href="{externalUrl}/details" target="_blank" rel="noreferrer" class="profile-stats__details-link" onclick={detailsLink('all')}>
 				<svg height="16" width="16" class="icon" aria-hidden="true">
-					<use href="/icons.svg#ui_info"></use>
+					<use href="#ui_info"></use>
 				</svg>
 				<span>Узнать подробнее</span>
 			</a>

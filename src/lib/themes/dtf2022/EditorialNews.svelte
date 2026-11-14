@@ -17,7 +17,7 @@
 				<a href={commentsHref} class="comments-counter" aria-label="Комментарии: {item.commentsCount}" onclick={(e) => openPost(e, item, { toComments: true })}>
 					<span class="comments-counter__icon">
 						<svg class="icon" width="16" height="16" aria-hidden="true">
-							<use href="/icons.svg#v_comments"></use>
+							<use href="#v_comments"></use>
 						</svg>
 					</span>
 					<span class="comments-counter__number">{formatNumber(item.commentsCount)}</span>
@@ -33,7 +33,7 @@
 					<div class="news-widget__load-more" role="button" tabindex="0" onclick={() => editorialNews.loadMore()} onkeydown={clickOnKey}>
 						<span>Показать ещё</span>
 						<svg height="9" width="10" class="icon" aria-hidden="true">
-							<use href="/icons.svg#v_arrow_down"></use>
+							<use href="#v_arrow_down"></use>
 						</svg>
 					</div>
 				{/if}

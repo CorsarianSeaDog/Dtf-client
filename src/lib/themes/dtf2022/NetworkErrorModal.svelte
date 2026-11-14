@@ -64,7 +64,7 @@
 		<div class="network-error__hero">
 			<div class={['network-error__icon-wrap', `network-error__icon-wrap--${info.badgeType}`]}>
 				<svg class="icon icon--warning" width="36" height="36" aria-hidden="true">
-					<use href="/icons.svg#notify_warning"></use>
+					<use href="#notify_warning"></use>
 				</svg>
 			</div>
 			<div class="network-error__lead">
@@ -98,7 +98,7 @@
 			<summary class="network-error__summary">
 				<span>Технические подробности</span>
 				<svg class="icon details-arrow" width="14" height="14" aria-hidden="true">
-					<use href="/icons.svg#ui_arrow_down"></use>
+					<use href="#ui_arrow_down"></use>
 				</svg>
 			</summary>
 			<div class="network-error__debug">
@@ -121,7 +121,7 @@
 				</div>
 				<button type="button" class="network-error__copy-btn" onclick={copyDetails}>
 					<svg class="icon" width="16" height="16" aria-hidden="true">
-						<use href="/icons.svg#{copied ? 'v_tick' : 'v_copy'}"></use>
+						<use href="#{copied ? 'v_tick' : 'v_copy'}"></use>
 					</svg>
 					<span>{copied ? 'Скопировано в буфер' : 'Скопировать отчёт об ошибке'}</span>
 				</button>

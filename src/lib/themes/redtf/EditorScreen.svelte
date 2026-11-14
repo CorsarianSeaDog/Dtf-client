@@ -18,7 +18,7 @@
 			onclick={() => settings.patch({ editorFullscreen: !fullscreen })}
 		>
 			<svg class="icon" width="24" height="24" aria-hidden="true">
-				<use href="/icons.svg#{fullscreen ? 'v_minimize' : 'v_maximize'}"></use>
+				<use href="#{fullscreen ? 'v_minimize' : 'v_maximize'}"></use>
 			</svg>
 		</button>
 	{/snippet}

@@ -55,7 +55,7 @@
 	<div class="badge-modal">
 		<button type="button" class="badge-modal__close" aria-label="Закрыть" onclick={onclose}>
 			<svg class="icon" width="20" height="20" aria-hidden="true">
-				<use href="/icons.svg#v_close"></use>
+				<use href="#v_close"></use>
 			</svg>
 		</button>
 
@@ -67,14 +67,14 @@
 			{:else if badge.type === 'android'}
 				<div class="badge-modal__badge badge-modal__badge--android">
 					<svg class="icon" width="16" height="16" aria-hidden="true">
-						<use href="/icons.svg#v_android"></use>
+						<use href="#v_android"></use>
 					</svg>
 					<span>Android</span>
 				</div>
 			{:else if badge.type === 'ios'}
 				<div class="badge-modal__badge badge-modal__badge--ios">
 					<svg class="icon" width="16" height="16" aria-hidden="true">
-						<use href="/icons.svg#v_apple"></use>
+						<use href="#v_apple"></use>
 					</svg>
 					<span>iOS</span>
 				</div>
@@ -84,7 +84,7 @@
 						<img src={badge.customUrl} width="16" height="16" alt="" />
 					{:else}
 						<svg class="icon" width="16" height="16" aria-hidden="true">
-							<use href="/icons.svg#ui_badge_plus"></use>
+							<use href="#ui_badge_plus"></use>
 						</svg>
 					{/if}
 					<span>Plus</span>

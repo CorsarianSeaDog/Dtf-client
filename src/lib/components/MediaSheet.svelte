@@ -25,20 +25,20 @@
 			<div class="media-sheet__actions">
 				<button type="button" class="media-sheet__action" onclick={() => mediaSheet.download()}>
 					<svg class="icon" width="20" height="20" aria-hidden="true">
-						<use href="/icons.svg#ui_download"></use>
+						<use href="#ui_download"></use>
 					</svg>
 					<span>{isGif ? 'Сохранить GIF' : 'Сохранить видео'}</span>
 				</button>
 				<button type="button" class="media-sheet__action" onclick={() => mediaSheet.copy()}>
 					<svg class="icon" width="20" height="20" aria-hidden="true">
-						<use href="/icons.svg#v_link"></use>
+						<use href="#v_link"></use>
 					</svg>
 					<span>Копировать ссылку</span>
 				</button>
 				{#if canShare}
 					<button type="button" class="media-sheet__action" onclick={() => mediaSheet.share()}>
 						<svg class="icon" width="20" height="20" aria-hidden="true">
-							<use href="/icons.svg#v_share"></use>
+							<use href="#v_share"></use>
 						</svg>
 						<span>Поделиться</span>
 					</button>

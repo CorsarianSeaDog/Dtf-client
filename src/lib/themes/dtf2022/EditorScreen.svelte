@@ -54,7 +54,7 @@
 	<div class="writing__bar">
 		<button type="button" class="writing__close" aria-label="Закрыть редактор" onclick={session.goBack}>
 			<svg class="icon" width="24" height="24" aria-hidden="true">
-				<use href="/icons.svg#v_close"></use>
+				<use href="#v_close"></use>
 			</svg>
 		</button>
 
@@ -72,7 +72,7 @@
 			>
 				<button type="button" class="writing__icon-button" aria-label="История изменений" onclick={session.toggleHistory}>
 					<svg class="icon" width="24" height="24" aria-hidden="true">
-						<use href="/icons.svg#v_history"></use>
+						<use href="#v_history"></use>
 					</svg>
 				</button>
 			</Popover>

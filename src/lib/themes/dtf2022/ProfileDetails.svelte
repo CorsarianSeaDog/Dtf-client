@@ -99,7 +99,7 @@
 				onclick={() => subscriptions.toggle(person.id, was)}
 			>
 				<span class="subscribe-button__icon">
-					<svg height="24" width="24" class="icon" aria-hidden="true"><use href="/icons.svg#v_follow"></use></svg>
+					<svg height="24" width="24" class="icon" aria-hidden="true"><use href="#v_follow"></use></svg>
 				</span>
 				<span class="subscribe-button__label">{subscribed ? 'Вы подписаны' : 'Подписаться'}</span>
 			</button>
@@ -127,7 +127,7 @@
 				</div>
 				<button type="button" class="subsites__more" onclick={() => onNavigate(target)}>
 					{showAll}
-					<svg height="16" width="16" class="icon" aria-hidden="true"><use href="/icons.svg#v_chevron_right"></use></svg>
+					<svg height="16" width="16" class="icon" aria-hidden="true"><use href="#v_chevron_right"></use></svg>
 				</button>
 			</div>
 		{/if}
@@ -136,11 +136,11 @@
 
 <div class="details-navbar">
 	<button type="button" class="details-navbar__button" aria-label="Назад" onclick={goBack}>
-		<svg height="24" width="24" class="icon" aria-hidden="true"><use href="/icons.svg#v_back"></use></svg>
+		<svg height="24" width="24" class="icon" aria-hidden="true"><use href="#v_back"></use></svg>
 	</button>
 	<div class="details-navbar__name">{profile.name}</div>
 	<button type="button" class="details-navbar__button" aria-label="Закрыть" onclick={onClose}>
-		<svg height="24" width="24" class="icon" aria-hidden="true"><use href="/icons.svg#v_close"></use></svg>
+		<svg height="24" width="24" class="icon" aria-hidden="true"><use href="#v_close"></use></svg>
 	</button>
 </div>
 
@@ -208,7 +208,7 @@
 						onclick={() => onNavigate(item.value)}
 					>
 						<span class="nav-tab__icon">
-							<svg height="24" width="24" class="icon" aria-hidden="true"><use href="/icons.svg#{item.icon}"></use></svg>
+							<svg height="24" width="24" class="icon" aria-hidden="true"><use href="#{item.icon}"></use></svg>
 						</span>
 						<span class="nav-tab__label"><span class="nav-tab__text">{item.label}</span></span>
 					</button>

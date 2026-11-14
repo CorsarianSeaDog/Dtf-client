@@ -29,6 +29,7 @@
 	import DebugHud from '$lib/components/debug/DebugHud.svelte';
 	
 	import '../app.css';
+	import svgSpriteDefs from 'virtual:svg-sprite';
 	import { applyPalette, resolvePalette, paletteSelection } from '$lib/themes/palette';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { play, playChildren, reducedMotion } from '$lib/motion';
@@ -510,6 +511,7 @@
 {/if}
 <ThemeLoader componentName="ReloadPrompt" />
 <MediaSheet />
+<svg width="0" height="0" aria-hidden="true" style="position:absolute;overflow:hidden;pointer-events:none">{@html svgSpriteDefs}</svg>
 
 <style>
 	.app {

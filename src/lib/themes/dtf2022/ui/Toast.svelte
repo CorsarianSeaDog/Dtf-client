@@ -65,7 +65,7 @@
 	onpointermove={swipe}
 >
 	<svg class="notify-item__icon icon" width="24" height="24" aria-hidden="true">
-		<use href="/icons.svg#{type === 'error' ? 'v_cancel' : 'v_success'}"></use>
+		<use href="#{type === 'error' ? 'v_cancel' : 'v_success'}"></use>
 	</svg>
 	<p bind:this={text}>
 		{message}
@@ -85,7 +85,7 @@
 	</p>
 	<button type="button" class="notify-item__close" aria-label="Закрыть" onclick={() => setPhase('hidden')}>
 		<svg class="icon" width="20" height="20" aria-hidden="true">
-			<use href="/icons.svg#v_cross"></use>
+			<use href="#v_cross"></use>
 		</svg>
 	</button>
 </div>

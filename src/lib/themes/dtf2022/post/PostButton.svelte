@@ -14,6 +14,12 @@
 		downvote: 'v_arrow_down'
 	};
 
+	const ACTIVE_ICONS: Partial<Record<PostButtonKind, string>> = {
+		like: 'v_like_active',
+		dislike: 'v_dislike_active',
+		bookmark: 'v_bookmark_solid'
+	};
+
 	const TOGGLES = new Set<PostButtonKind>(['like', 'dislike', 'bookmark', 'upvote', 'downvote']);
 
 	// Lottie-анимации из оригинала (vue-chunk.likes). Грузятся при первом клике, в общий бандл не попадают
@@ -72,10 +78,8 @@
 	let isVoteActive = $derived(active || !!custom);
 	let resolvedTitle = $derived(custom?.name ?? title);
 
-	// В активном состоянии у лайка и дизлайка своя иконка (v_like_active), у закладки — залитая (v_bookmark_solid), а не обводка
-	let iconName = $derived(
-		!isVoteActive ? ICONS[kind] : kind === 'bookmark' ? 'v_bookmark_solid' : kind === 'like' || kind === 'dislike' ? `${ICONS[kind]}_active` : ICONS[kind]
-	);
+	// В активном состоянии у лайка, дизлайка и закладки свои иконки
+	let iconName = $derived(isVoteActive ? (ACTIVE_ICONS[kind] ?? ICONS[kind]) : ICONS[kind]);
 
 	$effect(() => {
 		if (kind === 'like' || kind === 'dislike') preloadLottie(...Object.values(LOTTIE));
@@ -107,7 +111,7 @@
 			<img src={custom.url} width={iconSize} height={iconSize} class="post-button__custom-icon" alt="" />
 		{:else}
 			<svg height={iconSize} width={iconSize} class="icon" aria-hidden="true">
-				<use href="/icons.svg#{iconName}"></use>
+				<use href="#{iconName}"></use>
 			</svg>
 		{/if}
 	</span>

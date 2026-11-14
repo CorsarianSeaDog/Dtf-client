@@ -112,7 +112,7 @@
 				onclick={() => setPicking(!picking)}
 			>
 				<svg height="16" width="16" class="icon" aria-hidden="true">
-					<use href="/icons.svg#v_plus"></use>
+					<use href="#v_plus"></use>
 				</svg>
 			</button>
 		{/if}

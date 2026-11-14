@@ -114,7 +114,7 @@
 <div class={['search', { 'search--active': active, 'search--filled': !!value }]} bind:this={root}>
 	<div class="search__button" role="button" tabindex="0" aria-label="Поиск" aria-expanded={active} onclick={toggle} onkeydown={clickOnKey}>
 		<svg class="icon" width="28" height="28" aria-hidden="true">
-			<use href="/icons.svg#v_search"></use>
+			<use href="#v_search"></use>
 		</svg>
 	</div>
 

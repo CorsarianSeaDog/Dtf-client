@@ -29,7 +29,7 @@
 		Репосты
 		<button type="button" class="reposts__close" aria-label="Закрыть" onclick={onclose}>
 			<svg class="icon" width="24" height="24" aria-hidden="true">
-				<use href="/icons.svg#v_close"></use>
+				<use href="#v_close"></use>
 			</svg>
 		</button>
 	</div>

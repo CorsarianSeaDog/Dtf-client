@@ -90,7 +90,7 @@
 {/snippet}
 
 <section class="hero">
-	<svg class="icon hero__logo" width="123" height="50" aria-label="reDTF"><use href="/reIcons.svg#redtf_logo"></use></svg>
+	<svg class="icon hero__logo" width="123" height="50" aria-label="reDTF"><use href="#redtf_logo"></use></svg>
 	<p class="hero__tagline">Переосмысление клиентского опыта для DTF</p>
 	<p class="hero__description">
 		Лёгкий, быстрый и настраиваемый неофициальный клиент. Без нежеланных редизайнов и шпионских метрик.

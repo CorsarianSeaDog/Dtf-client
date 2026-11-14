@@ -60,7 +60,7 @@
 <div class={['attacher', { 'attacher--active': open && !attached, 'attacher--disabled': attached }]} bind:this={root}>
 	<button type="button" class="attacher__button" aria-label="Прикрепить донат" aria-expanded={open} onclick={() => (open = !open)}>
 		<svg class="icon" width="20" height="20" aria-hidden="true">
-			<use href="/icons.svg#v_rouble"></use>
+			<use href="#v_rouble"></use>
 		</svg>
 	</button>
 

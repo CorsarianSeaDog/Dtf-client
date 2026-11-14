@@ -37,7 +37,7 @@
 	{#if icon}
 		<span class="btn__icon">
 			<svg height={iconSize} width={iconSize} class="icon" aria-hidden="true">
-				<use href="/icons.svg#{icon}"></use>
+				<use href="#{icon}"></use>
 			</svg>
 		</span>
 	{/if}

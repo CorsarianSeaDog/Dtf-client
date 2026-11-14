@@ -195,7 +195,7 @@
 	<!-- обложка окна входа (котик) -->
 	<div class="login-modal__cover" style:background-image="url('{COVER_IMAGE}')">
 		<svg class="icon" width="100" height="16" aria-hidden="true">
-			<use href="/reIcons.svg#redtf_black_logo"></use>
+			<use href="#redtf_black_logo"></use>
 		</svg>
 	</div>
 
@@ -207,7 +207,7 @@
 			onclick={closeModal}
 		>
 			<svg height="24" width="24" class="icon" aria-hidden="true">
-				<use href="/icons.svg#v_close"></use>
+				<use href="#v_close"></use>
 			</svg>
 		</button>
 
@@ -217,7 +217,7 @@
 					<button class="auth__back" type="button" onclick={goBack}>
 						<span class="auth__back-container">
 							<svg height="20" width="20" class="icon" aria-hidden="true">
-								<use href="/icons.svg#v_arrow_left"></use>
+								<use href="#v_arrow_left"></use>
 							</svg>
 							<span>Назад</span>
 						</span>
