@@ -7,7 +7,7 @@
 	import Preloader from '../ui/Preloader.svelte';
 	import { notify } from '../ui/notify.svelte';
 
-	/** Выбор гифки для комментария: сначала избранные, дальше поиск. Список ищет через 400 мс после ввода. */
+	/** Выбор гифки для комментария: сначала избранные, дальше поиск. Список ищет через 750 мс после ввода. */
 	let {
 		onpick,
 		onclose
@@ -48,7 +48,7 @@
 
 	function onInput() {
 		clearTimeout(timer);
-		timer = setTimeout(() => query.trim() !== searchedQuery && load(), 400);
+		timer = setTimeout(() => query.trim() !== searchedQuery && load(), 750);
 	}
 
 	// Первая загрузка — избранное

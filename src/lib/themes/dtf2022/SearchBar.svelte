@@ -21,7 +21,7 @@
 	 * Enter или «Все результаты» открывают страницу поиска.
 	 */
 	const MIN_LENGTH = 2;
-	const DEBOUNCE = 250;
+	const DEBOUNCE = 2000;
 	const SHOWN = 4;
 
 	let value = $state('');
