@@ -271,6 +271,22 @@
 	transition: opacity 0.6s cubic-bezier(0.165, 0.84, 0.44, 1), visibility 0s 0.6s;
 }
 
+/* Firefox (Gecko) анимирует смену filter: blur() на <img>/<video> на ~8-12 FPS: оставляем статичный blur(16px) у ::before поверх и растворяем его по opacity */
+@supports (-moz-orient: inline) {
+	:root[data-theme~="redtf"] .media-placeholder--preview::before {
+		z-index: 2;
+	}
+
+	:root[data-theme~="redtf"] .media-placeholder--preview :is(img, video) {
+		filter: none;
+		z-index: 1;
+		transition:
+			opacity 0.6s cubic-bezier(0.165, 0.84, 0.44, 1),
+			transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1);
+		will-change: opacity, transform;
+	}
+}
+
 /* Без эффектов прозрачности и размытия: отключаем тяжелые фильтры у превью картинок */
 :root[data-theme~="redtf"][data-transparency="false"] .media-placeholder::before {
 	display: none !important;
