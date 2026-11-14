@@ -19,6 +19,10 @@ export const themeSettings = {
 	get arrowsOrder(): 'down-up' | 'up-down' {
 		return (activeThemeSettings().value.arrowsOrder as 'down-up' | 'up-down') ?? 'down-up';
 	},
+	/** Выбор действия свайпа по комментарию: 'list' (выделение по кнопкам) или 'drum' (выбранное в центре, как в Telegram X) */
+	get swipeColumn(): 'list' | 'drum' {
+		return activeThemeSettings().value.swipeColumn === 'drum' ? 'drum' : 'list';
+	},
 	/** Использовать продвинутые эффекты прозрачности и размытия */
 	get transparencyEffects(): boolean {
 		const val = activeThemeSettings().value.transparencyEffects;

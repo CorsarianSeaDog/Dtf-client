@@ -233,6 +233,7 @@
 	const CONTENT_KEYS = new Set(['contentWidth']);
 	const VOTE_KEYS = new Set(['votes', 'arrowsSide', 'arrowsOrder']);
 	const EDITOR_KEYS = new Set(['editorFullscreen']);
+	const COMMENT_KEYS = new Set(['swipeColumn']);
 	const APP_KEYS = new Set(['transparencyEffects']);
 
 	let topBarThemeFields = $derived(themeFields.filter((f) => TOP_BAR_KEYS.has(f.key)));
@@ -240,6 +241,7 @@
 	let contentThemeFields = $derived(themeFields.filter((f) => CONTENT_KEYS.has(f.key)));
 	let votesThemeFields = $derived(themeFields.filter((f) => VOTE_KEYS.has(f.key)));
 	let editorThemeFields = $derived(themeFields.filter((f) => EDITOR_KEYS.has(f.key)));
+	let commentThemeFields = $derived(themeFields.filter((f) => COMMENT_KEYS.has(f.key)));
 	let otherThemeFields = $derived(
 		themeFields.filter(
 			(f) =>
@@ -248,6 +250,7 @@
 				!CONTENT_KEYS.has(f.key) &&
 				!VOTE_KEYS.has(f.key) &&
 				!EDITOR_KEYS.has(f.key) &&
+				!COMMENT_KEYS.has(f.key) &&
 				!APP_KEYS.has(f.key)
 		)
 	);
@@ -261,6 +264,7 @@
 	let visibleContentFields = $derived(contentThemeFields.filter((f) => isFieldVisible(f, themeValues.value, themeFields, currentDevice)));
 	let visibleVotesFields = $derived(votesThemeFields.filter((f) => isFieldVisible(f, themeValues.value, themeFields, currentDevice)));
 	let visibleEditorFields = $derived(editorThemeFields.filter((f) => isFieldVisible(f, themeValues.value, themeFields, currentDevice)));
+	let visibleCommentFields = $derived(commentThemeFields.filter((f) => isFieldVisible(f, themeValues.value, themeFields, currentDevice)));
 	let visibleOtherFields = $derived(otherThemeFields.filter((f) => isFieldVisible(f, themeValues.value, themeFields, currentDevice)));
 
 	// --- Структура навигации Уровня 1 ---
@@ -954,6 +958,13 @@
 									value={settings.value.commentVirtualization}
 									onchange={(value) => settings.patch({ commentVirtualization: value as CommentVirtualization })}
 								/>
+								{#each visibleCommentFields as field (field.key)}
+									<FieldControl
+										{field}
+										value={themeValues.value[field.key] ?? field.default}
+										onchange={(value) => themeValues.patch({ [field.key]: value })}
+									/>
+								{/each}
 								<FieldControl
 									field={clientBadgesField}
 									value={settings.value.clientBadges}

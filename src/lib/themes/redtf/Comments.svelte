@@ -386,20 +386,41 @@
 			{#if activeTheme.gestures}
 				<div class="comment-swipe" bind:this={swipeLayer} aria-hidden="true">
 					{#if swipeView}
-						<div class={['comment-swipe__column', { 'comment-swipe__column--armed': swipeView.armed }]}>
+						{@const view = swipeView}
+						{@const drum = themeSettings.swipeColumn === 'drum'}
+						{#snippet layer(icons: boolean)}
 							{#each swipeActions as action, slot}
+								{@const d = slot - view.slot}
 								<span
-									class={['comment-swipe__action', { 'comment-swipe__action--extra': slot > 0, 'comment-swipe__action--selected': swipeView.armed && slot === swipeView.slot }]}
+									class={[
+										'comment-swipe__action',
+										icons ? 'comment-swipe__action--icon' : 'comment-swipe__action--bg',
+										{
+											'comment-swipe__action--extra': slot > 0,
+											'comment-swipe__action--current': drum && d === 0,
+											'comment-swipe__action--far': Math.abs(d) > 1,
+											'comment-swipe__action--selected': view.armed && d === 0
+										}
+									]}
 									style:--slot={slot}
-									title={action.label}
+									style:--d={d}
+									title={icons ? action.label : undefined}
 								>
-									{#if action.image}
+									{#if icons && action.image}
 										<img src={action.image} width="24" height="24" alt="" />
-									{:else}
+									{:else if icons}
 										<svg class="icon" width="20" height="20"><use href="#{action.icon}"></use></svg>
 									{/if}
 								</span>
 							{/each}
+						{/snippet}
+						<div
+							class={['comment-swipe__column', drum ? 'comment-swipe__column--drum' : 'comment-swipe__column--list', { 'comment-swipe__column--armed': view.armed }]}
+							style:--sel={view.slot}
+						>
+							{@render layer(false)}
+							<span class="comment-swipe__selection"></span>
+							{@render layer(true)}
 						</div>
 					{/if}
 				</div>
@@ -456,6 +477,8 @@
 	}
 
 	.comment-swipe__column {
+		/* Кривая Material 3 (emphasized decelerate): резкий старт, короткая посадка — перескок жёсткий, без «плавания» */
+		--emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
 		position: absolute;
 		top: var(--swipe-y, 0);
 		right: 8px;
@@ -464,6 +487,10 @@
 		transform: translateX(calc((1 - var(--swipe, 0)) * 24px)) scale(calc(0.6 + 0.4 * var(--swipe, 0)));
 	}
 
+	/*
+	 * Кнопка из двух слоёв: под выделением — круг, над ним — значок. Выделение — отдельный круг между слоями:
+	 * оно чуть тянется за пальцем (`--nudge`), а на соседнее действие перескакивает с кривой Material
+	 */
 	.comment-swipe__action {
 		position: absolute;
 		top: calc(var(--slot) * 44px - 18px);
@@ -474,25 +501,81 @@
 		height: 36px;
 		border-radius: 50%;
 		color: var(--text-secondary);
-		background: var(--bg-secondary);
-		box-shadow: var(--shadow-dropdown);
 		transition:
-			opacity var(--duration-base, 0.15s),
-			transform var(--duration-base, 0.15s),
-			background-color var(--duration-base, 0.15s),
-			color var(--duration-base, 0.15s);
+			opacity 0.18s,
+			transform 0.22s var(--emphasized),
+			color 0.2s;
+	}
+
+	.comment-swipe__action--bg {
+		background: var(--bg-secondary);
+		box-shadow: 0 1px 4px rgb(0 0 0 / 0.12);
+	}
+
+	.comment-swipe__action--icon.comment-swipe__action--selected {
+		color: var(--text-on-accent, #fff);
+	}
+
+	.comment-swipe__selection {
+		position: absolute;
+		top: -18px;
+		left: 0;
+		width: 36px;
+		height: 36px;
+		border-radius: 50%;
+		background: var(--color-blue);
+		opacity: 0;
+		transform: translateY(calc(var(--sel) * 44px)) scale(0.6);
+		translate: 0 var(--nudge, 0px);
+		transition:
+			opacity 0.15s,
+			transform 0.22s var(--emphasized);
+	}
+
+	/* Подтяжка идёт за пальцем без задержки, а когда палец перешёл на другое действие, снимается той же кривой, что и перескок */
+	.comment-swipe:global([data-snap]) :is(.comment-swipe__selection, .comment-swipe__action) {
+		transition-property: opacity, transform, translate, color;
+		transition-duration: 0.15s, 0.22s, 0.22s, 0.2s;
+		transition-timing-function: ease, var(--emphasized), var(--emphasized), ease;
+	}
+
+	.comment-swipe__column--armed .comment-swipe__selection {
+		opacity: 1;
+		transform: translateY(calc(var(--sel) * 44px)) scale(1.15);
 	}
 
 	/* Остальные действия показываются, когда ответ готов: палец может уйти к ним вниз */
-	.comment-swipe__column:not(.comment-swipe__column--armed) .comment-swipe__action--extra {
+	.comment-swipe__column--list:not(.comment-swipe__column--armed) .comment-swipe__action--extra {
 		opacity: 0;
 		transform: scale(0.6);
 	}
 
-	.comment-swipe__action--selected {
-		color: var(--text-on-accent, #fff);
-		background: var(--color-blue);
-		transform: scale(1.15);
+	/* Барабан, как в Telegram X: выбранное действие крупно на высоте порога, соседи уменьшены сверху и снизу.
+	   Выделение стоит в центре, а за пальцем чуть тянется сам барабан */
+	.comment-swipe__column--drum .comment-swipe__action {
+		top: -18px;
+		transform: translateY(calc(var(--d) * 42px)) scale(0.8);
+		translate: 0 calc(-1 * var(--nudge, 0px));
+	}
+
+	.comment-swipe__column--drum .comment-swipe__action--current {
+		transform: scale(1.3);
+	}
+
+	.comment-swipe__column--drum .comment-swipe__selection,
+	.comment-swipe__column--drum.comment-swipe__column--armed .comment-swipe__selection {
+		translate: none;
+		transform: scale(1.3);
+	}
+
+	.comment-swipe__column--drum .comment-swipe__action--far,
+	.comment-swipe__column--drum:not(.comment-swipe__column--armed) .comment-swipe__action:not(.comment-swipe__action--current) {
+		opacity: 0;
+		transform: translateY(calc(var(--d) * 32px)) scale(0.5);
+	}
+
+	.comment-swipe__column--drum:not(.comment-swipe__column--armed) .comment-swipe__selection {
+		transform: scale(0.8);
 	}
 
 	.comment-swipe__action img {

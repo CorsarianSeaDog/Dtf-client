@@ -12,10 +12,20 @@ import { EASE, swipe, translate } from '$lib/swipe';
 
 /** Сдвиг, после которого отпускание выполняет действие */
 export const ARM = 64;
+/** Насколько нужно вернуть палец назад, чтобы снять готовность: дрожь у порога не щёлкает туда-обратно */
+export const DISARM = 16;
 /** Шаг пальца по вертикали между действиями колонки */
 export const STEP = 60;
 /** Запас сверх половины шага: дрожь пальца на границе не переключает действие туда-обратно */
 const HYSTERESIS = 10;
+/** На сколько комментарий «перескакивает» вперёд на пороге: видно, что действие готово */
+const DETENT = 14;
+/** Перескок с лёгким перелётом, как у Gboard */
+const SNAP = 'translate 0.26s cubic-bezier(0.34, 1.56, 0.64, 1)';
+/** Насколько выделение действия тянется за пальцем, px */
+const NUDGE = 3;
+/** Сколько длится перескок выделения на соседнее действие, мс (как переход в CSS колонки) */
+const HOP = 220;
 
 /**
  * Действие под пальцем: 0 — ответ, дальше вниз по шагу, за краями колонки — крайнее. `dy` отсчитывается от точки,
@@ -25,6 +35,15 @@ export function slotAt(dy: number, current: number, last: number): number {
 	if (Math.abs(dy - current * STEP) <= STEP / 2 + HYSTERESIS) return current;
 	return Math.min(last, Math.max(0, Math.round(dy / STEP)));
 }
+
+/**
+ * Подтяжка выделения к пальцу, как в Gboard: выделение чуть едет в сторону пальца от середины своего действия
+ * и мягко упирается, не доходя `NUDGE`. `dy` — как у `slotAt`
+ */
+export const nudgeAt = (dy: number, slot: number) => NUDGE * Math.tanh((dy - slot * STEP) / (STEP / 2));
+
+/** Готовность с запасом: включается на пороге, а снимается, только когда палец ушёл назад на `DISARM` */
+export const isArmed = (x: number, armed: boolean) => x >= (armed ? ARM - DISARM : ARM);
 
 /** Сдвиг комментария: до порога за пальцем, дальше туго */
 const pull = (x: number) => (x <= ARM ? x : ARM + (x - ARM) * 0.25);
@@ -55,9 +74,11 @@ export function commentSwipe(options: CommentSwipeOptions): Attachment<HTMLEleme
 	let content: HTMLElement | undefined;
 	let column: HTMLElement | undefined;
 	let startY = 0;
-	// Верх слоя колонки в окне и сдвиг пальца по вертикали, на котором сработал порог
+	// Верх слоя колонки в окне. После первого порога колонка встаёт на место до конца жеста (`armY` — сдвиг пальца
+	// в этот момент): уход пальца назад и снова к порогу не таскает её за пальцем и не сбивает выбор действия
 	let layerTop = 0;
-	let armY = 0;
+	let armY: number | undefined;
+	let hop: ReturnType<typeof setTimeout> | undefined;
 	const tension = createTension('click');
 
 	function render(x: number) {
@@ -75,7 +96,7 @@ export function commentSwipe(options: CommentSwipeOptions): Attachment<HTMLEleme
 			if (!key) return false;
 			item = node;
 			startY = e.clientY;
-			armY = 0;
+			armY = undefined;
 			view = { key, armed: false, slot: 0 };
 			return true;
 		},
@@ -86,6 +107,7 @@ export function commentSwipe(options: CommentSwipeOptions): Attachment<HTMLEleme
 			// У виртуальных комментариев отрисовка обрезана по их рамке: уехавший влево аватар пропал бы
 			item.style.contentVisibility = 'visible';
 			content.style.willChange = 'transform';
+			content.style.transition = reducedMotion() ? '' : SNAP;
 			layerTop = column.getBoundingClientRect().top;
 			column.style.setProperty('--swipe-y', `${startY - layerTop}px`);
 			tension.reset();
@@ -95,27 +117,34 @@ export function commentSwipe(options: CommentSwipeOptions): Attachment<HTMLEleme
 		move(offset, dy) {
 			const x = Math.max(0, -offset);
 			render(x);
-			const armed = x >= ARM;
-			if (!view || !column) return;
+			if (!view || !column || !content) return;
+			const armed = isArmed(x, view.armed);
 			if (!armed && !view.armed) tension.move(x, ARM, false);
-			// До порога колонка идёт за пальцем по вертикали, после — стоит, и палец выбирает в ней действие
-			if (!armed) {
-				column.style.setProperty('--swipe-y', `${startY + dy - layerTop}px`);
-				if (view.armed) {
+			// До первого порога колонка идёт за пальцем по вертикали, потом стоит, и палец выбирает в ней действие
+			if (armY === undefined && !armed) column.style.setProperty('--swipe-y', `${startY + dy - layerTop}px`);
+			if (armed && armY === undefined) armY = dy;
+			// Пока готовность снята, выбранное действие помнится: вернулся к порогу — оно же
+			const slot = armed && armY !== undefined ? slotAt(dy - armY, view.slot, options.count() - 1) : view.slot;
+			const changed = armed !== view.armed || slot !== view.slot;
+			// Смена действия: на время перескока подтяжка снимается с той же кривой, что и сам перескок (переход в CSS по `data-snap`)
+			if (changed) {
+				column.dataset.snap = '';
+				clearTimeout(hop);
+				hop = setTimeout(() => delete column?.dataset.snap, HOP);
+			}
+			column.style.setProperty('--nudge', `${armed && armY !== undefined ? nudgeAt(dy - armY, slot) : 0}px`);
+			if (!changed) return;
+			if (armed !== view.armed) {
+				content.style.translate = armed ? `${-DETENT}px 0` : '';
+				// Отдача — когда действие готово (чёткий щелчок) и когда готовность снята (мягкий)
+				if (armed) {
+					haptics.selectionStart();
+					haptics.click();
+				} else {
 					haptics.soft();
 					haptics.selectionEnd();
 				}
-			} else if (!view.armed) {
-				armY = dy;
-				haptics.selectionStart();
-			}
-			const slot = armed ? slotAt(dy - armY, view.slot, options.count() - 1) : 0;
-			if (armed === view.armed && slot === view.slot) return;
-			// Отдача — когда действие готово (чёткий щелчок) и когда палец сменил слот (микро-тик)
-			if (armed) {
-				if (!view.armed) haptics.click();
-				else haptics.selectionChanged();
-			}
+			} else haptics.selectionChanged();
 			view = { ...view, armed, slot };
 			options.show(view);
 		},
@@ -128,24 +157,30 @@ export function commentSwipe(options: CommentSwipeOptions): Attachment<HTMLEleme
 			if (!shown || !node || !moved || !icons) return;
 			if (v !== null && shown.armed) options.run(shown.key, shown.slot);
 			const x = Math.max(0, -offset);
+			const detent = shown.armed ? DETENT : 0;
 			let settled = false;
 			let animations: Animation[] = [];
 			const done = () => {
 				if (settled) return;
 				settled = true;
 				animations.forEach((anim) => anim.cancel());
-				node.style.contentVisibility = moved.style.transform = moved.style.willChange = '';
+				node.style.contentVisibility = moved.style.transform = moved.style.translate = moved.style.transition = moved.style.willChange = '';
 				icons.style.removeProperty('--swipe');
 				icons.style.removeProperty('--swipe-y');
+				icons.style.removeProperty('--nudge');
+				clearTimeout(hop);
+				delete icons.dataset.snap;
 				view = item = content = column = undefined;
-				armY = 0;
+				armY = undefined;
 				options.show(null);
 			};
 			if (reducedMotion() || x < 1) return done();
-			const timing = { duration: 220, easing: EASE, fill: 'forwards' } as const;
+			// Перескок входит в общий доезд: снимаем его без своей анимации
+			moved.style.transition = moved.style.translate = '';
+			const timing = { duration: 240, easing: EASE, fill: 'forwards' } as const;
 			animations = [
-				moved.animate([{ transform: translate(-pull(x)) }, { transform: translate(0) }], timing),
-				icons.animate([{ opacity: 1 }, { opacity: 0 }], timing)
+				moved.animate([{ transform: translate(-pull(x) - detent) }, { transform: translate(0) }], timing),
+				icons.animate([{ opacity: 1 }, { opacity: 0 }], { ...timing, duration: 180 })
 			];
 			// Отменённая анимация (новое касание уже завершило доезд) отклоняет промис: там делать нечего
 			animations[0].finished.then(done, () => {});

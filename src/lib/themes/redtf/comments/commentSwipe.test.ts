@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STEP, slotAt } from './commentSwipe';
+import { ARM, DISARM, STEP, isArmed, nudgeAt, slotAt } from './commentSwipe';
 
 describe('slotAt', () => {
 	it('действия идут вниз от ответа по шагу, вверх — остаётся ответ', () => {
@@ -33,5 +33,23 @@ describe('slotAt', () => {
 		expect(current).toBe(1);
 		current = slotAt(0, current, 2);
 		expect(current).toBe(0);
+	});
+});
+
+describe('isArmed', () => {
+	it('готовность включается на пороге, а снимается только с запасом', () => {
+		expect(isArmed(ARM - 1, false)).toBe(false);
+		expect(isArmed(ARM, false)).toBe(true);
+		expect(isArmed(ARM - DISARM / 2, true)).toBe(true);
+		expect(isArmed(ARM - DISARM - 1, true)).toBe(false);
+	});
+});
+
+describe('nudgeAt', () => {
+	it('выделение тянется к пальцу и упирается, не доходя до соседнего действия', () => {
+		expect(nudgeAt(STEP, 1)).toBe(0);
+		expect(nudgeAt(STEP + 10, 1)).toBeGreaterThan(0);
+		expect(nudgeAt(STEP - 10, 1)).toBeLessThan(0);
+		expect(nudgeAt(STEP * 10, 1)).toBeLessThanOrEqual(3);
 	});
 });
