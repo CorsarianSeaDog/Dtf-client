@@ -17,7 +17,7 @@ vi.mock('$app/navigation', () => ({
 }));
 
 import { goto } from '$app/navigation';
-import { getPostPath, getPostShareUrl, getSettingsPath, pushSubstate, popSubstate, closeOverlay, resetSubstates, clearSubstates, openPost, openDtfUrl, openDtfLink, openLightbox, takeLightboxOrigin } from './navigation';
+import { getPostPath, getPostShareUrl, getSettingsPath, pushSubstate, popSubstate, closeOverlay, resetSubstates, clearSubstates, openPost, openDtfUrl, openDtfLink, openLightbox, takeLightboxOrigin, overlayReuser } from './navigation';
 import { settings } from './storage/settings.svelte';
 import { embedToPost } from './api/embed';
 import { clearPostCache, peekPost } from './postCache';
@@ -294,5 +294,16 @@ describe('navigation', () => {
 				vi.unstubAllGlobals();
 			}
 		});
+	});
+
+	it('overlayReuser возвращает прежние объекты слоёв, пришедших из истории копией', () => {
+		const reuse = overlayReuser();
+		const profile = { type: 'profile', id: 'p1', presentation: 'page', data: { profileId: 1 } } as App.OverlayState;
+		const post = { type: 'post', id: 'x1', presentation: 'page', data: { postId: 2, sourceId: 'dtf' } } as App.OverlayState;
+		reuse([profile, post]);
+		const [back] = reuse([structuredClone(profile)]);
+		expect(back).toBe(profile);
+		const changed = { ...profile, data: { profileId: 3 } } as App.OverlayState;
+		expect(reuse([changed])[0]).toBe(changed);
 	});
 });

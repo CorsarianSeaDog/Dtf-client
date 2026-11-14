@@ -213,6 +213,27 @@ export function openOverlay(overlay: App.OverlayData) {
 	});
 }
 
+/**
+ * Стек слоёв с устойчивыми объектами: слою, данные которого не изменились, возвращается прежний объект.
+ * При «Назад» состояние приходит из истории копией, и без этого компоненты слоёв под верхним видели новые пропсы
+ * и заново загружали страницу.
+ */
+export function overlayReuser() {
+	let known = new Map<string, { json: string; overlay: App.OverlayState }>();
+	return (overlays: App.OverlayState[]): App.OverlayState[] => {
+		const next = new Map<string, { json: string; overlay: App.OverlayState }>();
+		const result = overlays.map((overlay) => {
+			const json = JSON.stringify(overlay);
+			const prev = known.get(overlay.id);
+			const kept = prev?.json === json ? prev.overlay : overlay;
+			next.set(overlay.id, { json, overlay: kept });
+			return kept;
+		});
+		known = next;
+		return result;
+	};
+}
+
 // Картинка, из которой раскрываем просмотр: в историю её не положить, поэтому передаём через модуль
 let lightboxOrigin: HTMLImageElement | undefined;
 let lightboxOpening = false;

@@ -9,7 +9,7 @@
 	import EditorOverlay from '$lib/components/overlays/EditorOverlay.svelte';
 	import LightboxOverlay from '$lib/components/overlays/LightboxOverlay.svelte';
 	import MediaSheet from '$lib/components/MediaSheet.svelte';
-	import { preloadLightbox } from '$lib/navigation';
+	import { overlayReuser, preloadLightbox } from '$lib/navigation';
 	import ModalShell from '$lib/components/overlays/ModalShell.svelte';
 	import Welcome from '$lib/components/Welcome.svelte';
 	import { dotsAtRest, hideSplash, holdSplash, introDone, showWelcomeBackdrop } from '$lib/splash';
@@ -81,7 +81,11 @@
 		return { duration: anim.duration };
 	}
 
-	let overlays = $derived(page.state.overlays || []);
+	// «Назад» SvelteKit отдаёт копию состояния из истории: у каждого слоя новый объект с теми же данными. Страницы под
+	// ним (профиль, тег) зависят от пропсов через этот объект и заново запускали загрузку: длинная лента строилась с нуля
+	// со спиннером и теряла место. Слою с теми же данными возвращаем прежний объект
+	const reuseOverlays = overlayReuser();
+	let overlays = $derived(reuseOverlays(page.state.overlays || []));
 
 	// Для статистики: где пользователь и какой пост у него открыт (под верхним оверлеем посты не считаются)
 	let statsContext = $derived.by((): TickContext => {
