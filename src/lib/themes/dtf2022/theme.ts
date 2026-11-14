@@ -1,5 +1,9 @@
 import { defineTheme } from '../types';
 
+// Колонка «Комментарии» ждёт вебсокет DTF (см. live/source.ts): без него у неё нет данных.
+// Пока флаг true, её настройки скрыты, а сама колонка выключена. Когда вебсокет подключат, флаг убрать.
+const LIVE_HIDDEN = true;
+
 export default defineTheme({
 	id: 'dtf2022',
 	name: 'DTF 2022',
@@ -48,6 +52,35 @@ export default defineTheme({
 				{ value: 'down-up', title: 'Вниз / вверх', description: 'Стрелка вниз слева, вверх — справа' },
 				{ value: 'up-down', title: 'Вверх / вниз', description: 'Стрелка вверх слева, вниз — справа' }
 			]
+		},
+		{
+			key: 'liveEnabled',
+			type: 'toggle',
+			title: 'Колонка «Комментарии»',
+			description: 'Живая лента комментариев справа от записей, как у DTF в 2022 году. Показывается от 1180px.',
+			default: false,
+			hidden: LIVE_HIDDEN
+		},
+		{
+			key: 'liveContent',
+			type: 'radio',
+			title: 'Что показывать в колонке',
+			default: 'comments',
+			dependsOn: { key: 'liveEnabled', value: true },
+			hidden: LIVE_HIDDEN,
+			options: [
+				{ value: 'comments', title: 'Новые комментарии' },
+				{ value: 'comments-notifications', title: 'Новые комментарии и входящие уведомления', description: 'Ответы, оценки и комментарии к вашим записям появляются плашками среди комментариев' }
+			]
+		},
+		{
+			key: 'liveCollapsed',
+			type: 'toggle',
+			title: 'Свернуть колонку',
+			description: 'Колонка сужается до 80px, заголовок встаёт вдоль неё. Сворачивается и кликом по заголовку.',
+			default: false,
+			dependsOn: { key: 'liveEnabled', value: true },
+			hidden: LIVE_HIDDEN
 		}
 	]
 });

@@ -7,8 +7,16 @@
 	import Toasts from './ui/Toasts.svelte';
 	import { page } from '$app/state';
 	import { pageTransition } from '$lib/pageTransition.svelte';
+	import { themeSettings } from './themeSettings.svelte';
 
 	let { children }: { children?: Snippet } = $props();
+
+	// Свёрнутая колонка Live сужается до 80px: ширину читают и шапка, и сетка страницы, поэтому флаг ставим на корень
+	let liveCollapsed = $derived(themeSettings.liveEnabled && themeSettings.liveCollapsed);
+	$effect(() => {
+		document.documentElement.toggleAttribute('data-live-collapsed', liveCollapsed);
+		return () => document.documentElement.removeAttribute('data-live-collapsed');
+	});
 
 	let isProfile = $derived.by(() => {
 		const overlays = page.state.overlays as App.OverlayState[] | undefined;

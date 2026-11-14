@@ -27,6 +27,18 @@ export const themeSettings = {
 	get createButtonPos(): 'top' | 'sidebar' {
 		return (activeThemeSettings().value.createButtonPos as 'top' | 'sidebar') ?? 'top';
 	},
+	/** Колонка «Комментарии» (Live) справа от ленты включена */
+	get liveEnabled(): boolean {
+		return activeThemeSettings().value.liveEnabled === true;
+	},
+	/** Что показывает колонка: только комментарии или ещё и входящие уведомления */
+	get liveContent(): 'comments' | 'comments-notifications' {
+		return (activeThemeSettings().value.liveContent as 'comments' | 'comments-notifications') ?? 'comments';
+	},
+	/** Колонка Live свёрнута до 80px */
+	get liveCollapsed(): boolean {
+		return activeThemeSettings().value.liveCollapsed === true;
+	},
 	/** Режим строки поиска: 'always' (всегда) или 'button' (скрывать за кнопкой) */
 	get searchBarMode(): 'always' | 'button' {
 		return (activeThemeSettings().value.searchBarMode as 'always' | 'button') ?? 'always';
