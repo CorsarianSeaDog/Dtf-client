@@ -3,7 +3,20 @@
 	import { openFeed, openNotifications, openOverlay } from '$lib/navigation';
 	import { notifications } from '$lib/api/notifications.svelte';
 	import { authStorage } from '$lib/storage/auth.svelte';
+	import { currentUser } from '$lib/api/currentUser.svelte';
+	import { refreshAccount } from '$lib/api/donationAccount.svelte';
+	import { refreshWithIndicator } from '$lib/pullRefresh';
 	import { haptics } from '$lib/haptics';
+	import { page } from '$app/state';
+	import { activeTheme } from '$lib/themes/index.svelte';
+	import { hasThemeComponent } from '$lib/themes/ThemeLoader.svelte';
+	import { scrollBehavior } from '$lib/motion';
+
+	// Тема со страницей аккаунта ведёт на неё (гостю она сама предлагает войти), остальные — в настройки или во вход
+	let hasAccountPage = $derived(hasThemeComponent(activeTheme.chain, 'AccountPage'));
+	// Страница аккаунта сверху: оверлеем или по прямой ссылке /account
+	let accountOpen = $derived(page.state.overlays?.length ? page.state.overlays.at(-1)?.type === 'account' : page.route.id === '/account');
+	let avatarUrl = $derived(authStorage.isAuthenticated ? currentUser.value?.avatarUrl : undefined);
 
 	function handleFeed(e: MouseEvent) {
 		haptics.tick();
@@ -17,7 +30,13 @@
 
 	function openAccount() {
 		haptics.tick();
-		if (authStorage.isAuthenticated) {
+		if (hasAccountPage) {
+			// Повторное нажатие на открытой странице — наверх и обновить данные (с загрузкой, как после жеста), а не ещё один слой
+			if (accountOpen) {
+				window.scrollTo({ top: 0, behavior: scrollBehavior() });
+				if (authStorage.isAuthenticated) refreshWithIndicator(refreshAccount);
+			} else openOverlay({ type: 'account' });
+		} else if (authStorage.isAuthenticated) {
 			openOverlay({ type: 'settings' });
 		} else {
 			openOverlay({ type: 'login' });
@@ -54,10 +73,15 @@
 			</a>
 		</div>
 		<div>
-			<button class="mobile-bar__link" aria-label={authStorage.isAuthenticated ? 'Настройки' : 'Войти'} onclick={openAccount}>
-				<svg height="28" width="28" class="icon" aria-hidden="true">
-					<use href="#v_login"></use>
-				</svg>
+			<button class="mobile-bar__link" aria-label={hasAccountPage ? 'Аккаунт' : authStorage.isAuthenticated ? 'Настройки' : 'Войти'} onclick={openAccount}>
+				<!-- Как у DTF 2023: вошедшему — аватарка, гостю — значок входа; на открытой странице аккаунта — подсветка -->
+				{#if avatarUrl}
+					<span class={['mobile-bar__profile-avatar', { 'mobile-bar__profile-avatar--is-active': accountOpen }]} style:background-image="url('{avatarUrl}')"></span>
+				{:else}
+					<svg height="28" width="28" class={['icon', { 'mobile-bar__account--is-active': accountOpen }]} aria-hidden="true">
+						<use href="#v_login"></use>
+					</svg>
+				{/if}
 			</button>
 		</div>
 	</div>
@@ -102,6 +126,23 @@
 
 	.mobile-bar__notifications {
 		position: relative;
+	}
+
+	.mobile-bar__profile-avatar {
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+		background: var(--border-color) 50% 50% / cover no-repeat;
+	}
+
+	.mobile-bar__profile-avatar--is-active {
+		box-shadow:
+			0 0 0 1px var(--bg-card),
+			0 0 0 3px var(--color-accent);
+	}
+
+	.mobile-bar__account--is-active {
+		color: var(--color-accent);
 	}
 
 	.mobile-bar__badge {
