@@ -24,7 +24,7 @@
 	import { reflow } from './comments/branchMotion';
 	import { slide } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
-	import { reducedMotion } from '$lib/motion';
+	import { reducedMotion, scrollBehavior } from '$lib/motion';
 
 	let {
 		postId,
@@ -246,19 +246,19 @@
 
 	function collapseBranch(owner: string) {
 		highlight = null;
-		// Начало ветки выше экрана или уже вне окна строк: сразу к нему, анимировать там нечего
-		const node = document.getElementById(`comment-${owner}`);
-		if (!node || node.getBoundingClientRect().top < 0) {
+		// Родитель ветки целиком выше экрана или уже вне окна строк: сразу к нему, анимировать там нечего
+		const node = listEl?.children.namedItem(`comment-${owner}`) as HTMLElement | null;
+		if (!node || node.getBoundingClientRect().bottom <= 0) {
 			collapsed.add(owner);
 			virtual.focus(owner, { highlight: false, behavior: 'instant' });
 			return;
 		}
-		const hidden = new Set(shown.filter((row) => row.owners.includes(owner)).map((row) => `comment-${row.key}`));
+		const hidden = new Set(virtual.items.filter((row) => row.owners.includes(owner)).map((row) => `comment-${row.key}`));
 		reflow(listEl, () => collapsed.add(owner), (row) => hidden.has(row.id));
 	}
 
 	/** Ответ раскрылся под комментарием: когда дорос, докручиваем, если он ушёл за край экрана */
-	const revealEditor = (e: Event) => (e.currentTarget as HTMLElement).scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'instant' : 'smooth' });
+	const revealEditor = (e: Event) => (e.currentTarget as HTMLElement).scrollIntoView({ block: 'nearest', behavior: scrollBehavior() });
 
 	/* Свайп влево по комментарию: ответ, а под ним по порядку — оценка или любимые реакции */
 	type SwipeAction = { label: string; icon?: string; image?: string; run: (key: string) => void };
