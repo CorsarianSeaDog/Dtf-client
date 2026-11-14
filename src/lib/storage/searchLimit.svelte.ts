@@ -1,18 +1,28 @@
 /*
- * Ограничение частоты запросов поиска в веб-версии: не более 5 запросов за 20 минут.
+ * Ограничение частоты запросов поиска в веб-версии: не более 5 запросов в минуту и не более 30 запросов в час.
  * Хранится в localStorage (слой cache).
  */
 import { persistedState } from './persisted.svelte';
 import { isNative } from '$lib/capacitor';
 import { ApiError } from '$lib/api/errors';
 
-export const SEARCH_RATE_LIMIT_MAX = 5;
-export const SEARCH_RATE_LIMIT_WINDOW_MS = 20 * 60 * 1000; // 20 минут
+export const SEARCH_RATE_LIMITS = [
+	{ max: 5, windowMs: 60 * 1000, label: '5 запросов в минуту' },
+	{ max: 30, windowMs: 60 * 60 * 1000, label: '30 запросов в час' }
+] as const;
+
+const MAX_WINDOW_MS = Math.max(...SEARCH_RATE_LIMITS.map((r) => r.windowMs));
 
 export const searchRateLimit = persistedState<number[]>(
 	'redtf:cache:search-rate-limit',
 	[]
 );
+
+function formatWait(remainingMs: number): string {
+	const remainingSec = Math.max(1, Math.ceil(remainingMs / 1000));
+	if (remainingSec < 60) return `${remainingSec} сек.`;
+	return `${Math.ceil(remainingSec / 60)} мин.`;
+}
 
 /**
  * Проверяет клиентский лимит поиска.
@@ -26,15 +36,23 @@ export function checkAndConsumeSearchLimit(options?: { now?: number; forceCheck?
 
 	const now = options?.now ?? Date.now();
 	const active = (searchRateLimit.value || []).filter(
-		(t) => typeof t === 'number' && now - t < SEARCH_RATE_LIMIT_WINDOW_MS
+		(t) => typeof t === 'number' && now - t < MAX_WINDOW_MS
 	);
 
-	if (active.length >= SEARCH_RATE_LIMIT_MAX) {
-		const oldest = Math.min(...active);
-		const remainingMs = oldest + SEARCH_RATE_LIMIT_WINDOW_MS - now;
-		const remainingMin = Math.max(1, Math.ceil(remainingMs / 60_000));
+	let blockedBy: { remainingMs: number; label: string } | null = null;
+	for (const rule of SEARCH_RATE_LIMITS) {
+		const inWindow = active.filter((t) => now - t < rule.windowMs);
+		if (inWindow.length >= rule.max) {
+			const remainingMs = Math.min(...inWindow) + rule.windowMs - now;
+			if (!blockedBy || remainingMs > blockedBy.remainingMs) {
+				blockedBy = { remainingMs, label: rule.label };
+			}
+		}
+	}
+
+	if (blockedBy) {
 		throw new ApiError(
-			`Лимит поиска в веб-версии исчерпан (не более ${SEARCH_RATE_LIMIT_MAX} запросов за 20 минут). Попробуйте через ${remainingMin} мин. или воспользуйтесь приложением reDTF.`,
+			`Лимит поиска в веб-версии исчерпан (не более ${blockedBy.label}). Попробуйте через ${formatWait(blockedBy.remainingMs)} или воспользуйтесь приложением reDTF, там лимитов поиска нет.`,
 			{ status: 429 }
 		);
 	}

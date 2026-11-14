@@ -400,10 +400,10 @@ async function fetchSearchProxy(cleanPath: string): Promise<Response> {
 }
 
 /**
- * Запрос к API поиска DTF (/search/posts, /search/subsites).
+ * Запрос к API поиска DTF (/search/posts, /search/subsites, /search/comments).
  * - В нативном приложении (Capacitor): напрямую через CapacitorHttp (минуя ограничения CORS в WebView).
  * - В dev-режиме: напрямую через fetchWithAuth (localhost входит в белый список DTF).
- * - В веб-версии: через CORS-прокси с клиентским лимитом 5 запросов за 20 минут.
+ * - В веб-версии: через CORS-прокси с клиентским лимитом до 5 запросов в минуту и до 30 в час.
  */
 export async function fetchSearch(path: string): Promise<Response> {
 	const cleanPath = path.startsWith('/') ? path : `/${path}`;
