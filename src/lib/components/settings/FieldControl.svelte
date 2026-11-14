@@ -21,7 +21,7 @@
 </script>
 
 {#if field.type === 'radio'}
-	<SettingsGroup title={field.title} description={field.description}>
+	<SettingsGroup settingKey={field.key} title={field.title} description={field.description}>
 		{#each field.options as option (option.value)}
 			<SettingsRow tag="label" title={option.title} subtitle={option.description}>
 				<input
@@ -39,7 +39,7 @@
 		{/each}
 	</SettingsGroup>
 {:else if field.type === 'select'}
-	<SettingsGroup>
+	<SettingsGroup settingKey={field.key}>
 		<SettingsRow title={field.title} subtitle={field.description}>
 			<SettingsSelect
 				id="{uid}-{field.key}"
@@ -51,13 +51,13 @@
 		</SettingsRow>
 	</SettingsGroup>
 {:else if field.type === 'slider'}
-	<SettingsGroup>
+	<SettingsGroup settingKey={field.key}>
 		<SettingsRow title={field.title} subtitle={field.description}>
 			<SettingsSlider steps={field.steps} value={Number(value)} unit={field.unit} label={field.title} onchange={onchange} />
 		</SettingsRow>
 	</SettingsGroup>
 {:else}
-	<SettingsGroup>
+	<SettingsGroup settingKey={field.key}>
 		<SettingsRow tag="label" title={field.title} subtitle={field.description}>
 			<SettingsSwitch checked={value === true} {onchange} />
 		</SettingsRow>

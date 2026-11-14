@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import AboutSettings from './AboutSettings.svelte';
 	import AccountSettings from './AccountSettings.svelte';
 	import AppIconSettings from './AppIconSettings.svelte';
@@ -29,7 +30,14 @@
 	import type { ChoiceField, SettingField, ToggleField, SettingDevice } from '$lib/themes/types';
 	import { paletteSelection } from '$lib/themes/palette';
 	import { pushSubstate, popSubstate } from '$lib/navigation';
+	import { isNative } from '$lib/capacitor';
 	import { dev } from '$app/env';
+	import {
+		buildSettingsSearchIndex,
+		scrollAndHighlightSetting,
+		searchSettings,
+		type SettingsSearchItem
+	} from './settingsSearch';
 
 	/*
 	 * Окно настроек в духе libadwaita с двухуровневой навигацией:
@@ -462,10 +470,104 @@
 	let windowEl = $state<HTMLElement>();
 	let faded = $state(false);
 	let peeking = $state(false);
+	let searchQuery = $state('');
+	let searchInputEl = $state<HTMLInputElement>();
+	let hasSearch = $derived(searchQuery.trim().length > 0);
+	let cancelPendingHighlight: (() => void) | undefined;
+
+	// Единый индекс для поиска: пересобирается при смене темы, устройства, режима разработчика или зависимых полей
+	const PAGE_KEYWORDS: Record<string, string> = {
+		notifications: 'оповещения ответы комментарии лайки почта push',
+		'theme-select': 'оформление внешний вид скин палитра светлая тёмная amoled',
+		supporters: 'спонсоры донатеры благодарности',
+		network: 'прокси proxy cors failover вход',
+		stats: 'статистика время посты графики',
+		debug: 'отладка дебаг safe area hud'
+	};
+
+	let searchIndex = $derived.by(() => {
+		const navPages = [
+			...rootNavigation.flatMap((group) =>
+				group.items
+					.filter((item) => item.type === 'page')
+					.map((item) => ({
+						pageId: item.id,
+						icon: item.icon,
+						path: group.title,
+						title: item.title,
+						keywords: PAGE_KEYWORDS[item.id],
+						devOnly: item.id === 'debug'
+					}))
+			),
+			...INTERFACE_SUBNAV.flatMap((group) =>
+				group.items.map((item) => ({
+					pageId: item.id,
+					folderId: 'interface',
+					icon: item.icon,
+					path: `Персонализация › ${group.title}`,
+					title: item.title,
+					keywords: PAGE_KEYWORDS[item.id],
+					device: item.device
+				}))
+			)
+		];
+
+		const commentFields: SettingField[] = [
+			autoUpvoteCommentsField,
+			nestingField,
+			virtualizationField,
+			...visibleCommentFields,
+			clientBadgesField,
+			...(settings.value.clientBadges === 'all' ? [mobileBadgesPositionField] : [])
+		];
+
+		return buildSettingsSearchIndex({
+			navPages,
+			fieldGroups: [
+				{ pageId: 'theme-select', icon: 'theme-select', path: 'Персонализация › Выбор темы', fields: [themeField, paletteField] },
+				{
+					pageId: 'app',
+					icon: 'app',
+					path: 'Персонализация › Приложение',
+					fields: [hapticsField, transparencyField, watermarkField, useSharePreviewField]
+				},
+				{ pageId: 'interface-top-bar', folderId: 'interface', icon: 'top-bar', path: 'Интерфейс › Верхняя панель', fields: visibleTopBarFields },
+				{
+					pageId: 'interface-mobile-bar',
+					folderId: 'interface',
+					icon: 'mobile-bar',
+					path: 'Интерфейс › Мобильная панель',
+					fields: [disableMobileTopBarField, ...visibleMobileBarFields]
+				},
+				{
+					pageId: 'interface-content',
+					folderId: 'interface',
+					icon: 'content',
+					path: 'Интерфейс › Лента и контент',
+					fields: [...visibleContentFields, recommendationsField, plusBadgesField, animatedAvatarsField, ...visibleOtherFields]
+				},
+				{ pageId: 'interface-votes', folderId: 'interface', icon: 'votes', path: 'Интерфейс › Оценки', fields: visibleVotesFields },
+				{ pageId: 'interface-comments', folderId: 'interface', icon: 'comments', path: 'Интерфейс › Комментарии', fields: commentFields },
+				{
+					pageId: 'interface-editor',
+					folderId: 'interface',
+					icon: 'editor',
+					path: 'Интерфейс › Редактор',
+					fields: [smartTypographyField, ...visibleEditorFields]
+				}
+			],
+			currentDevice,
+			isDevVisible,
+			isNativePlatform: isNative(),
+			hasGestures: Boolean(activeTheme.gestures)
+		});
+	});
+
+	let searchResults = $derived(hasSearch ? searchSettings(searchIndex, searchQuery) : []);
 
 	// Получение заголовка текущей папки Уровня 2
 	let folderTitle = $derived(
-		activeFolderId === 'interface' ? 'Интерфейс' : 'Настройки'
+		hasSearch ? 'Настройки' : activeFolderId === 'interface' ? 'Интерфейс' : 'Настройки'
 	);
 
 	// Заголовок текущей страницы
@@ -501,6 +603,7 @@
 
 	// Клик по элементу Уровня 1
 	function handleRootItemClick(item: RootNavItem) {
+		cancelPendingHighlight?.();
 		activeSection = undefined;
 		resetSolo();
 		if (item.type === 'folder') {
@@ -521,6 +624,7 @@
 
 	// Клик по сабпункту Уровня 2
 	function handleSubItemClick(item: SubNavItem) {
+		cancelPendingHighlight?.();
 		activeSection = undefined;
 		resetSolo();
 		selectedPageId = item.id;
@@ -528,6 +632,31 @@
 		scroller?.scrollTo({ top: 0 });
 		if (currentDevice === 'mobile') {
 			pushSubstate(performMobileBack);
+		}
+	}
+
+	// Клик по результату поиска: открываем страницу, на мобилке уходим в неё, затем скроллим и подсвечиваем
+	async function handleSearchResultClick(item: SettingsSearchItem) {
+		cancelPendingHighlight?.();
+		activeSection = undefined;
+		resetSolo();
+		activeFolderId = item.folderId ?? null;
+		selectedPageId = item.pageId;
+		openedByUser = true;
+		if (currentDevice === 'mobile') {
+			pushSubstate(performMobileBack);
+		}
+		await tick();
+		cancelPendingHighlight = scrollAndHighlightSetting(scroller, item);
+	}
+
+	function handleSearchKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape' && searchQuery) {
+			e.stopPropagation();
+			searchQuery = '';
+		} else if (e.key === 'Enter' && searchResults.length > 0) {
+			e.preventDefault();
+			handleSearchResultClick(searchResults[0].item);
 		}
 	}
 
@@ -666,7 +795,7 @@
 		<nav class="sidebar" aria-label="Разделы настроек">
 			<header class="side-bar">
 				<h2 class="side-title">{folderTitle}</h2>
-				{#if activeFolderId}
+				{#if activeFolderId && !hasSearch}
 					<button
 						class="icon-button folder-back"
 						type="button"
@@ -680,9 +809,40 @@
 				{/if}
 			</header>
 
+			<div class="search-box">
+				<svg class="search-box__icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<circle cx="7" cy="7" r="4.5" />
+					<path d="M10.5 10.5L13.5 13.5" />
+				</svg>
+				<input
+					bind:this={searchInputEl}
+					class="search-box__input"
+					type="search"
+					aria-label="Поиск по настройкам"
+					placeholder="Поиск по настройкам"
+					bind:value={searchQuery}
+					onkeydown={handleSearchKeydown}
+				/>
+				{#if searchQuery}
+					<button
+						class="search-box__clear"
+						type="button"
+						aria-label="Очистить поиск"
+						onclick={() => {
+							searchQuery = '';
+							searchInputEl?.focus();
+						}}
+					>
+						<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+							<path d="M4 4l8 8M12 4l-8 8" />
+						</svg>
+					</button>
+				{/if}
+			</div>
+
 			<div class="nav-container">
 				<!-- Уровень 1: Главное меню -->
-				<div class={['nav-layer', { 'nav-layer--hidden': activeFolderId !== null }]}>
+				<div class={['nav-layer', { 'nav-layer--hidden': activeFolderId !== null || hasSearch }]}>
 					<div class="nav">
 						{#each rootNavigation as group (group.title)}
 							<section class="nav__section">
@@ -711,7 +871,7 @@
 				</div>
 
 				<!-- Уровень 2: Подменю выбранной папки -->
-				<div class={['nav-layer', { 'nav-layer--hidden': activeFolderId === null }]}>
+				<div class={['nav-layer', { 'nav-layer--hidden': activeFolderId === null || hasSearch }]}>
 					<div class="nav">
 						{#if activeFolderId === 'interface'}
 							{#each INTERFACE_SUBNAV as group (group.title)}
@@ -737,6 +897,35 @@
 						{/if}
 					</div>
 				</div>
+
+				<!-- Результаты поиска в стиле Android (пункт / найденный сеттинг) -->
+				{#if hasSearch}
+					<div class="nav-layer search-layer">
+						<div class="nav search-results">
+							{#if searchResults.length > 0}
+								<div class="nav__list search-results__list">
+									{#each searchResults as match (match.item.id)}
+										<button
+											class="search-result"
+											type="button"
+											onclick={() => handleSearchResultClick(match.item)}
+										>
+											<SettingsIcon name={match.item.icon} />
+											<span class="search-result__body">
+												<span class="search-result__path">
+													{match.item.path}{#if match.matchedOption} · {match.matchedOption}{/if}
+												</span>
+												<span class="search-result__title">{match.item.title}</span>
+											</span>
+										</button>
+									{/each}
+								</div>
+							{:else}
+								<p class="search-empty">Ничего не найдено</p>
+							{/if}
+						</div>
+					</div>
+				{/if}
 			</div>
 		</nav>
 
@@ -1196,6 +1385,137 @@
 		}
 	}
 
+	/* Поле поиска в сайдбаре */
+	.search-box {
+		position: relative;
+		display: flex;
+		align-items: center;
+		flex: none;
+		margin: 5px 10px 10px;
+	}
+
+	.search-box__icon {
+		position: absolute;
+		left: 11px;
+		color: var(--st-muted);
+		pointer-events: none;
+	}
+
+	.search-box__input {
+		width: 100%;
+		min-width: 0;
+		height: 34px;
+		padding: 0 30px 0 32px;
+		border: 1px solid transparent;
+		border-radius: 10px;
+		background: var(--st-field);
+		color: var(--st-text);
+		font: inherit;
+		font-size: 13px;
+		outline: none;
+		appearance: none;
+		transition: border-color var(--duration-base), background-color var(--duration-base);
+	}
+
+	.search-box__input::-webkit-search-cancel-button {
+		appearance: none;
+	}
+
+	.search-box__input::placeholder {
+		color: var(--st-muted);
+	}
+
+	.search-box__input:focus {
+		border-color: var(--st-accent);
+		background: var(--st-card);
+	}
+
+	.search-box__clear {
+		position: absolute;
+		right: 6px;
+		display: grid;
+		place-items: center;
+		width: 22px;
+		height: 22px;
+		border-radius: 50%;
+		color: var(--st-muted);
+		cursor: pointer;
+		transition: background-color var(--duration-base), color var(--duration-base);
+	}
+
+	.search-box__clear:hover {
+		background: var(--st-button);
+		color: var(--st-text);
+	}
+
+	.search-box__clear:focus-visible {
+		outline: 2px solid var(--st-accent);
+		outline-offset: 1px;
+	}
+
+	.search-results {
+		padding-top: 2px;
+	}
+
+	.search-result {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		width: 100%;
+		padding: 9px 12px;
+		border-radius: 10px;
+		color: var(--st-text);
+		text-align: left;
+		cursor: pointer;
+		transition: background-color var(--duration-base);
+	}
+
+	.search-result:hover {
+		background: color-mix(in srgb, currentColor 6%, transparent);
+	}
+
+	.search-result:active {
+		background: color-mix(in srgb, currentColor 14%, transparent);
+	}
+
+	.search-result:focus-visible {
+		outline: 2px solid var(--st-accent);
+		outline-offset: -2px;
+	}
+
+	.search-result__body {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		min-width: 0;
+		gap: 1px;
+	}
+
+	.search-result__path {
+		overflow: hidden;
+		color: var(--st-muted);
+		font-size: 11px;
+		line-height: 15px;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.search-result__title {
+		overflow: hidden;
+		font-size: 13.5px;
+		font-weight: 500;
+		line-height: 18px;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.search-empty {
+		margin: 24px 12px;
+		color: var(--st-muted);
+		font-size: 13px;
+		text-align: center;
+	}
+
 	/* Контейнер слоев навигации */
 	.nav-container {
 		position: relative;
@@ -1560,6 +1880,37 @@
 			border-top: 1px solid var(--st-separator);
 		}
 
+		.search-box {
+			margin: 4px 16px 4px;
+		}
+
+		.search-box__input {
+			height: 38px;
+			border-radius: 12px;
+			font-size: 14px;
+		}
+
+		.search-result {
+			min-height: 54px;
+			padding: 10px 16px;
+			border-radius: 0;
+		}
+
+		.search-result:not(:first-child) {
+			border-top: 1px solid var(--st-separator);
+		}
+
+		.search-result__path {
+			font-size: 12px;
+			line-height: 16px;
+		}
+
+		.search-result__title {
+			font-size: 15px;
+			line-height: 20px;
+			white-space: normal;
+		}
+
 		.nav__arrow--folder {
 			display: block;
 			opacity: 0.7;
@@ -1681,5 +2032,29 @@
 	.window:global([data-slider-drag] [data-slider-peer]) {
 		opacity: 0;
 		pointer-events: none;
+	}
+
+	/* Вспышка подсветки при переходе из поиска */
+	.window :global(.setting-search-highlight) {
+		animation: settingFlash 1.8s var(--ease-smooth, cubic-bezier(0.2, 0, 0, 1));
+	}
+
+	@keyframes settingFlash {
+		0% {
+			background-color: transparent;
+			box-shadow: inset 0 0 0 2px transparent;
+		}
+		15% {
+			background-color: color-mix(in srgb, var(--st-accent) 16%, transparent);
+			box-shadow: inset 0 0 0 2px var(--st-accent);
+		}
+		60% {
+			background-color: color-mix(in srgb, var(--st-accent) 10%, transparent);
+			box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--st-accent) 55%, transparent);
+		}
+		100% {
+			background-color: transparent;
+			box-shadow: inset 0 0 0 2px transparent;
+		}
 	}
 </style>

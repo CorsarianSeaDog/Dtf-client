@@ -5,10 +5,10 @@
 	 * Группа настроек в духе libadwaita: заголовок, пояснение и белая карточка со строками на мягкой тени.
 	 * Цвета берутся из переменных окна (SettingsScreen).
 	 */
-	let { id, title, description, children }: { id?: string; title?: string; description?: string; children: Snippet } = $props();
+	let { id, settingKey, title, description, children }: { id?: string; settingKey?: string; title?: string; description?: string; children: Snippet } = $props();
 </script>
 
-<section {id} class="group">
+<section {id} data-setting-key={settingKey} class="group">
 	{#if title}
 		<h3 class="group__title">{title}</h3>
 	{/if}
