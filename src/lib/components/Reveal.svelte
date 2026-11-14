@@ -3,9 +3,10 @@
 	import { cubicOut } from 'svelte/easing';
 	import ThemeLoader from '$lib/themes/ThemeLoader.svelte';
 	import { activeTheme } from '$lib/themes/index.svelte';
-	import { assetsReady } from '$lib/ready';
+	import { assetsReady, nextPaint } from '$lib/ready';
 	import { grow, playClipped, reducedMotion, type AnimKey } from '$lib/motion';
 	import { incomingReady, pageTransition } from '$lib/pageTransition.svelte';
+	import { resumeLazyVideos } from '$lib/actions/lazyVideo';
 
 	/*
 	 * Блок, который сперва показывает заглушку загрузки темы, а когда данные пришли — содержимое.
@@ -100,6 +101,7 @@
 			if (stage && anim) await playClipped(stage, activeTheme.motion?.[anim])?.finished.catch(() => {});
 			if (!live) return;
 			onreveal?.();
+			nextPaint().then(resumeLazyVideos);
 		});
 		return () => (live = false);
 	});

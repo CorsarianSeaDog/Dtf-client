@@ -8,6 +8,8 @@
 
 import { activeTheme } from '$lib/themes/index.svelte';
 import { fluent, play, playClipped, reducedMotion, type Anim } from '$lib/motion';
+import { resumeLazyVideos } from '$lib/actions/lazyVideo';
+import { nextPaint } from '$lib/ready';
 import { tick } from 'svelte';
 
 export interface ClickOrigin {
@@ -126,6 +128,7 @@ export function startTransition(fromId: string, toId: string, screenEl: HTMLElem
 	outgoingScreen = screenEl;
 	hadHoldBlur = false;
 	transitionStartTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+	if (typeof document !== 'undefined') document.documentElement.setAttribute('data-transitioning', '');
 
 	const headerEl = typeof document !== 'undefined' ? (document.querySelector('header.header') ?? document.querySelector('header')) : null;
 	const headerBottom = headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 0;
@@ -339,6 +342,11 @@ function cleanup() {
 	if (unfreezeOutgoing) {
 		unfreezeOutgoing();
 		unfreezeOutgoing = null;
+	}
+	if (typeof document !== 'undefined') {
+		document.documentElement.removeAttribute('data-transitioning');
+		// Видео стартуют кадром позже, чтобы не совпасть с монтированием комментариев
+		nextPaint().then(resumeLazyVideos);
 	}
 	outgoingScreen = null;
 	active = false;
