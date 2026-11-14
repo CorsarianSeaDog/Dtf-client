@@ -1,0 +1,59 @@
+<script lang="ts">
+	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
+	import ThemeLoader, { preloadThemeComponent } from '$lib/themes/ThemeLoader.svelte';
+	import { activeTheme } from '$lib/themes/index.svelte';
+	import { openSettings } from '$lib/navigation';
+	import { pullRefresh } from '$lib/pullRefresh';
+	import { refreshAccount } from '$lib/api/donationAccount.svelte';
+	import { authStorage } from '$lib/storage/auth.svelte';
+	import Reveal from './Reveal.svelte';
+
+	/*
+	 * Страница аккаунта (оверлей account). Разметку рисует тема (AccountPage); у темы без неё,
+	 * например после смены темы с открытой страницей, остаётся ссылка в настройки.
+	 * Данные тема грузит сама (`loadAccount`); экран показывается, когда загружен компонент, иначе переход страниц показал бы спиннер.
+	 */
+	let shown = $state(false);
+	preloadThemeComponent(activeTheme.chain, 'AccountPage').then(() => (shown = true));
+
+	// Потянуть страницу вниз от самого верха — перечитать данные аккаунта (если тема рисует этот жест)
+	const pull = pullRefresh({
+		enabled: () => authStorage.isAuthenticated && (page.state.overlays?.length ? page.state.overlays.at(-1)?.type === 'account' : page.route.id === '/account'),
+		refresh: refreshAccount
+	});
+</script>
+
+<div class="account-screen" {@attach pull}>
+	<Reveal ready={shown} anim="contentIn">
+		<ThemeLoader componentName="AccountPage">
+			<p class="account-fallback">
+				В этой теме нет страницы аккаунта. Всё нужное есть в <a href={resolve('/settings')} onclick={openSettings}>настройках</a>.
+			</p>
+		</ThemeLoader>
+	</Reveal>
+</div>
+
+<style>
+	/* До низа экрана: страница короткая, а потянуть её можно и за пустое место под содержимым */
+	.account-screen {
+		display: flex;
+		flex-grow: 1;
+		justify-content: center;
+		width: 100%;
+	}
+
+	.account-screen > :global(.reveal) {
+		width: 100%;
+		max-width: var(--content-width);
+	}
+
+	.account-fallback {
+		padding: 24px 16px;
+		color: var(--text-secondary);
+	}
+
+	.account-fallback a {
+		color: var(--text-link);
+	}
+</style>

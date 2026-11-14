@@ -18,6 +18,7 @@ declare global {
 			| { type: 'tag'; data: { tag: string } }
 			| { type: 'search'; data: { query: string } }
 			| { type: 'drafts' }
+			| { type: 'account' }
 			| { type: 'login' }
 			| { type: 'support' }
 			| { type: 'editor'; data?: { postId?: number | null; repostId?: number } }

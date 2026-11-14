@@ -6,6 +6,7 @@
 	import TagContent from '$lib/components/TagContent.svelte';
 	import SearchContent from '$lib/components/SearchContent.svelte';
 	import DraftsContent from '$lib/components/DraftsContent.svelte';
+	import AccountContent from '$lib/components/AccountContent.svelte';
 	import EditorOverlay from '$lib/components/overlays/EditorOverlay.svelte';
 	import LightboxOverlay from '$lib/components/overlays/LightboxOverlay.svelte';
 	import SupportOverlay from '$lib/components/overlays/SupportOverlay.svelte';
@@ -432,6 +433,8 @@
 		<SearchContent {...overlay.data} />
 	{:else if overlay.type === 'drafts'}
 		<DraftsContent />
+	{:else if overlay.type === 'account'}
+		<AccountContent />
 	{:else if overlay.type === 'login'}
 		<ThemeLoader componentName="LoginModal" />
 	{:else if overlay.type === 'support'}

@@ -27,6 +27,7 @@ const PRESENTATION: Record<App.OverlayData['type'], App.OverlayState['presentati
 	tag: 'page',
 	search: 'page',
 	drafts: 'page',
+	account: 'page',
 	login: 'modal',
 	support: 'modal',
 	editor: 'modal',
@@ -108,6 +109,8 @@ function overlayPath(overlay: Exclude<App.OverlayData, { type: 'lightbox' }>): s
 			return getSearchPath(overlay.data.query);
 		case 'drafts':
 			return '/drafts';
+		case 'account':
+			return '/account';
 		case 'login':
 			return '/login';
 		case 'support':

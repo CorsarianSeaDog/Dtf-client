@@ -10,7 +10,7 @@ export type SearchTab = 'posts' | 'blogs' | 'topics';
  *
  * Обязательные: Header, EditorialNews, FeedTabs, Post, Comments, Profile, Notifications, TagPage, SearchPage, DraftsPage, LoginModal, NetworkErrorModal, EditorScreen, Spinner, ReloadPrompt.
  * Необязательные (если нет, ядро обходится без них): MainLayout.
- * Необязательные, которых без темы просто нет на экране: FeedNotice, Recommendations.
+ * Необязательные, которых без темы просто нет на экране: FeedNotice, Recommendations, AccountPage.
  * Форк темы (`extends`) может не иметь ничего из этого и взять недостающее у основы.
  */
 export interface ThemeComponents {
@@ -104,6 +104,8 @@ export interface ThemeComponents {
 		onretry: () => void;
 		onedit: (post: Post) => void;
 	};
+	/** Страница аккаунта (оверлей account): профиль, черновики, донаты, вход в настройки, выход. Без неё нижняя панель ведёт в настройки */
+	AccountPage: {};
 	LoginModal: {};
 	NetworkErrorModal: {
 		error: unknown;
