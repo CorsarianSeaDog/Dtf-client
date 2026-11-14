@@ -4,7 +4,7 @@
 	import ThemeLoader from '$lib/themes/ThemeLoader.svelte';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { assetsReady } from '$lib/ready';
-	import { grow, play, reducedMotion, type AnimKey } from '$lib/motion';
+	import { grow, playClipped, reducedMotion, type AnimKey } from '$lib/motion';
 	import { incomingReady, pageTransition } from '$lib/pageTransition.svelte';
 
 	/*
@@ -78,6 +78,7 @@
 				// Экран участвует в переходе: передаем управление фазе Approach на весь экран слоя сразу
 				revealed = true;
 				await tick();
+				if (!live) return;
 				const layerEl = box?.closest('[data-layer]');
 				const screenEl = (layerEl?.firstElementChild as HTMLElement) ?? stage;
 				if (screenEl) await incomingReady(currentLayer, screenEl);
@@ -92,15 +93,11 @@
 
 			revealed = true;
 			await tick();
+			if (!live) return;
 
 			// Обычный показ (без перехода между страницами)
 			onshow?.();
-			if (stage && anim) {
-				const motion = activeTheme.motion;
-				// ponytail: размытие на слое выше шести экранов рвёт кадры, такому содержимому хватает проявления
-				const tall = stage.offsetHeight > innerHeight * 6;
-				await play(stage, tall ? motion?.pageIn : motion?.[anim])?.finished.catch(() => {});
-			}
+			if (stage && anim) await playClipped(stage, activeTheme.motion?.[anim])?.finished.catch(() => {});
 			if (!live) return;
 			onreveal?.();
 		});

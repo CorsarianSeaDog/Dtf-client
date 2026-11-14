@@ -245,6 +245,26 @@ export function play(el: Element, anim?: Anim, fill: FillMode = 'none') {
 }
 
 /**
+ * Как play, но на время анимации обрезает элемент по низу окна (`overflow: clip`): размытие и трансформация
+ * считаются по одному экрану, а не по всему длинному посту. Запас 10% — под масштаб, который поднимает нижний край.
+ * Пока анимация идёт, на элементе стоит `data-animating`: под ним не стартуют видео (см. lazyVideo).
+ */
+export function playClipped(el: HTMLElement, anim?: Anim, fill: FillMode = 'none') {
+	const top = el.getBoundingClientRect().top;
+	const animation = play(el, anim, fill);
+	if (!animation) return;
+	const { maxHeight, overflow } = el.style;
+	Object.assign(el.style, { maxHeight: `${Math.round(Math.max(100, (innerHeight - top) * 1.1))}px`, overflow: 'clip' });
+	el.setAttribute('data-animating', '');
+	const restore = () => {
+		Object.assign(el.style, { maxHeight, overflow });
+		el.removeAttribute('data-animating');
+	};
+	animation.finished.then(restore, restore);
+	return animation;
+}
+
+/**
  * Проиграть анимацию на детях элемента. Если у ребёнка `display: contents`,
  * анимируются его непосредственные потомки (обёртка `display: contents` не имеет геометрии).
  */

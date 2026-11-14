@@ -7,7 +7,7 @@
  */
 
 import { activeTheme } from '$lib/themes/index.svelte';
-import { fluent, play, reducedMotion, type Anim } from '$lib/motion';
+import { fluent, play, playClipped, reducedMotion, type Anim } from '$lib/motion';
 import { tick } from 'svelte';
 
 export interface ClickOrigin {
@@ -208,7 +208,7 @@ export async function incomingReady(layerId: string, incomingScreen: HTMLElement
 		incomingScreen.style.zIndex = '30';
 		incomingScreen.style.position = 'relative';
 		incomingScreen.style.transformOrigin = `50% ${originY}px`;
-		incomingScreen.style.willChange = 'transform, opacity, filter';
+		incomingScreen.style.willChange = 'transform, opacity';
 
 		let keyframes: Keyframe[] = approachAnim.keyframes.map((kf) => ({ ...kf }));
 		if (!isInstantTransition && hadHoldBlur) {
@@ -225,26 +225,11 @@ export async function incomingReady(layerId: string, incomingScreen: HTMLElement
 			easing: approachAnim.easing
 		};
 
-		currentIncomingAnim = play(incomingScreen, anim, 'forwards');
-		if (currentIncomingAnim) {
-			promises.push(
-				currentIncomingAnim.finished
-					.then(() => {
-						incomingScreen.style.removeProperty('z-index');
-						incomingScreen.style.removeProperty('position');
-						incomingScreen.style.removeProperty('transform-origin');
-						incomingScreen.style.removeProperty('will-change');
-						incomingScreen.style.removeProperty('filter');
-					})
-					.catch(() => {
-						incomingScreen.style.removeProperty('z-index');
-						incomingScreen.style.removeProperty('position');
-						incomingScreen.style.removeProperty('transform-origin');
-						incomingScreen.style.removeProperty('will-change');
-						incomingScreen.style.removeProperty('filter');
-					})
-			);
-		}
+		currentIncomingAnim = playClipped(incomingScreen, anim, 'forwards');
+		const restore = () => {
+			for (const p of ['z-index', 'position', 'transform-origin', 'will-change', 'filter']) incomingScreen.style.removeProperty(p);
+		};
+		if (currentIncomingAnim) promises.push(currentIncomingAnim.finished.then(restore, restore));
 	}
 
 	// Делаем входящий экран видимым: он уже начал анимацию с 0-го кадра, исключая вспышку
