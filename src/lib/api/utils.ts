@@ -1,5 +1,21 @@
 import type { Comment } from './types';
 
+/** Уникальный ключ записи для списков и дедупликации */
+export const postKey = (post: { sourceId: string; id: number }) => `${post.sourceId}_${post.id}`;
+
+/** Дописывает элементы без повторов по ключу (убирает дубли и внутри новой страницы, и между страницами) */
+export function appendUnique<T>(existing: readonly T[], incoming: readonly T[], keyOf: (item: T) => string | number): T[] {
+	const seen = new Set(existing.map(keyOf));
+	const fresh: T[] = [];
+	for (const item of incoming) {
+		const key = keyOf(item);
+		if (seen.has(key)) continue;
+		seen.add(key);
+		fresh.push(item);
+	}
+	return existing.length ? [...existing, ...fresh] : fresh;
+}
+
 /** Вместо текста сервер отдаёт заглушку: комментарий удалён, автор заморожен или комментарий скрыт баном */
 export function isStubComment(c: Comment): boolean {
 	return !!(c.isRemoved || c.author.isFrozen || c.isHiddenByBan);

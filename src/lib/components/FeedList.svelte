@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { api } from '$lib/api/index.svelte';
 	import type { PaginatedResult, Post } from '$lib/api/types';
+	import { appendUnique, postKey } from '$lib/api/utils';
 	import ThemeLoader, { hasThemeComponent, preloadThemeComponent } from '$lib/themes/ThemeLoader.svelte';
 	import { feedNotice, NOTICE_AFTER_POST } from '$lib/feedNotice.svelte';
 	import Reveal from '$lib/components/Reveal.svelte';
@@ -127,7 +128,7 @@
 				loadingMore = true;
 				const next = await api.getPosts({ pageName: name, sorting: sortingOf(name, period), cursors: feedResult.cursors });
 				if (id !== requestId || !feedResult) return false;
-				feedResult = { items: [...feedResult.items, ...next.items], cursors: next.cursors };
+				feedResult = { items: appendUnique(feedResult.items, next.items, postKey), cursors: next.cursors };
 				const promise = chunks.run();
 				loadingMore = false;
 				return await promise;

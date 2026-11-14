@@ -3,6 +3,7 @@
 	import { api } from '$lib/api/index.svelte';
 	import { authStorage } from '$lib/storage/auth.svelte';
 	import type { Post } from '$lib/api/types';
+	import { appendUnique, postKey } from '$lib/api/utils';
 	import { openOverlay } from '$lib/navigation';
 	import ThemeLoader from '$lib/themes/ThemeLoader.svelte';
 	import Reveal from './Reveal.svelte';
@@ -26,7 +27,7 @@
 		error = undefined;
 		try {
 			const page = await api.getDrafts(more ? posts.length : 0);
-			posts = more ? [...posts, ...page] : page;
+			posts = appendUnique(more ? posts : [], page, postKey);
 			hasMore = page.length >= PAGE_SIZE;
 		} catch (e) {
 			error = e;

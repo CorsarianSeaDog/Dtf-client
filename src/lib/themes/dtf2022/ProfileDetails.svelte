@@ -5,6 +5,7 @@
 <script lang="ts">
 	import type { CursorData, Profile, ProfileListItem } from '$lib/api/types';
 	import { api } from '$lib/api/index.svelte';
+	import { appendUnique } from '$lib/api/utils';
 	import { resolve } from '$app/paths';
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import { getProfilePath, openProfile } from '$lib/navigation';
@@ -61,7 +62,7 @@
 		subscribersError = null;
 		try {
 			const result = await api.getProfileSubscribers(profile.id, subscribersCursor);
-			subscribers = [...subscribers, ...result.items];
+			subscribers = appendUnique(subscribers, result.items, (u) => u.id);
 			subscribersHasMore = result.items.length > 0 && result.lastId !== undefined;
 			subscribersCursor = subscribersHasMore ? { lastId: result.lastId!, lastSortingValue: result.lastSortingValue ?? 0 } : undefined;
 		} catch (e) {

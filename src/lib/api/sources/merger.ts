@@ -1,5 +1,5 @@
 import type { Post, PaginatedResult, CursorData, Comment, CommentPatch } from '../types';
-import { isStubComment } from '../utils';
+import { appendUnique, isStubComment, postKey } from '../utils';
 
 export type CommentMergeMode = 'append' | 'replace' | 'restore';
 
@@ -60,7 +60,7 @@ export function mergePosts(
 		mapped.sort((a, b) => b.time - a.time);
 		
 		return {
-			items: mapped.map(m => m.item),
+			items: appendUnique([], mapped.map(m => m.item), postKey),
 			cursors
 		};
 	} else {
@@ -81,7 +81,7 @@ export function mergePosts(
 		}
 
 		return {
-			items: allItems,
+			items: appendUnique([], allItems, postKey),
 			cursors
 		};
 	}

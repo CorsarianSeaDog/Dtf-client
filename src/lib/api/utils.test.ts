@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+	appendUnique,
+	postKey,
 	getAudioUrl,
 	getLeonardoUrl,
 	getLeonardoOriginalUrl,
@@ -11,6 +13,17 @@ import {
 } from './utils';
 
 describe('api/utils', () => {
+	describe('appendUnique', () => {
+		it('убирает повторы внутри одной страницы и при догрузке следующих, сохраняя порядок и разные источники', () => {
+			const p = (id: number, sourceId = 'dtf', title = `${sourceId}:${id}`) => ({ id, sourceId, title });
+			const first = appendUnique([], [p(1), p(2), p(1, 'dtf', 'dup'), p(1, 'archive')], postKey);
+			expect(first.map((x) => `${postKey(x)}:${x.title}`)).toEqual(['dtf_1:dtf:1', 'dtf_2:dtf:2', 'archive_1:archive:1']);
+
+			const next = appendUnique(first, [p(2, 'dtf', 'dup'), p(3), p(3, 'dtf', 'dup2')], postKey);
+			expect(next.map(postKey)).toEqual(['dtf_1', 'dtf_2', 'archive_1', 'dtf_3']);
+		});
+	});
+
 	describe('getLeonardoUrl', () => {
 		it('возвращает пустую строку для пустого uuid', () => {
 			expect(getLeonardoUrl('')).toBe('');

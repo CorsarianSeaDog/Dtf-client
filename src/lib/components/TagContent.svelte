@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import { api } from '$lib/api/index.svelte';
 	import type { Post } from '$lib/api/types';
+	import { appendUnique, postKey } from '$lib/api/utils';
 	import ThemeLoader from '$lib/themes/ThemeLoader.svelte';
 	import Reveal from './Reveal.svelte';
 	import NetworkErrorState from './NetworkErrorState.svelte';
@@ -24,7 +25,7 @@
 		error = undefined;
 		try {
 			const result = await api.getTagPosts(tag);
-			if (id === requestId) posts = result;
+			if (id === requestId) posts = appendUnique([], result, postKey);
 		} catch (e) {
 			if (id === requestId) error = e;
 		} finally {

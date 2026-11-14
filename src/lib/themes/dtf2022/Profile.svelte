@@ -18,7 +18,7 @@
 	import { fromAction } from 'svelte/attachments';
 	import { lazyVideo } from '$lib/actions/lazyVideo';
 	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
-	import { getAnimatedVideoUrl } from '$lib/api/utils';
+	import { appendUnique, getAnimatedVideoUrl } from '$lib/api/utils';
 
 	let {
 		profile,
@@ -162,7 +162,7 @@
 		try {
 			const result = await api.getProfileComments(profile.id, sortingForRequest, commentsCursor);
 			if (requestId !== commentsRequestId) return;
-			comments = [...comments, ...result.items];
+			comments = appendUnique(comments, result.items, (c) => c.id);
 			commentsHasMore = result.items.length > 0 && result.lastId !== undefined;
 			commentsCursor = commentsHasMore ? { lastId: result.lastId!, lastSortingValue: result.lastSortingValue ?? 0 } : undefined;
 		} catch (e) {

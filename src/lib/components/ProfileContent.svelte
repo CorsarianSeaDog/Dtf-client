@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { CursorData, Post, Profile, ProfileListItem, ProfileSorting as Sorting } from '$lib/api/types';
 	import { api } from '$lib/api/index.svelte';
+	import { appendUnique, postKey } from '$lib/api/utils';
 	import Reveal from './Reveal.svelte';
 	import NetworkErrorState from './NetworkErrorState.svelte';
 	import ThemeLoader from '$lib/themes/ThemeLoader.svelte';
@@ -71,7 +72,7 @@
 			try {
 				const result = await api.getProfilePosts(currentId, sorting, cursor);
 				if (id !== requestId) return false;
-				allPosts = [...allPosts, ...result.items];
+				allPosts = appendUnique(allPosts, result.items, postKey);
 				hasMore = result.items.length > 0 && result.lastId !== undefined;
 				cursor = hasMore ? { lastId: result.lastId!, lastSortingValue: result.lastSortingValue ?? 0 } : undefined;
 				const promise = chunks.run();

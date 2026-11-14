@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import { api } from '$lib/api/index.svelte';
 	import type { CursorData, Post, SearchFilters, SearchSorting, SearchSubsite } from '$lib/api/types';
+	import { appendUnique, postKey } from '$lib/api/utils';
 	import type { SearchTab } from '$lib/themes/contract';
 	import ThemeLoader from '$lib/themes/ThemeLoader.svelte';
 	import Reveal from './Reveal.svelte';
@@ -63,24 +64,33 @@
 		}
 		try {
 			if (targetTab === 'posts') {
-				const result = await api.searchPosts(query, sorting, $state.snapshot(filters), postsTab.cursor);
+				const prevCursor = postsTab.cursor;
+				const result = await api.searchPosts(query, sorting, $state.snapshot(filters), prevCursor);
 				if (id !== postsTab.reqId) return false;
-				postsTab.items = more ? [...postsTab.items, ...result.items] : result.items;
+				const prev = more ? postsTab.items : [];
+				const next = appendUnique(prev, result.items, postKey);
+				postsTab.items = next;
 				postsTab.total = result.total;
-				postsTab.hasMore = result.items.length > 0 && result.lastId !== undefined;
+				const cursorMoved =
+					result.lastId !== undefined &&
+					(!more ||
+						!prevCursor ||
+						result.lastId !== prevCursor.lastId ||
+						(result.lastSortingValue ?? 0) !== prevCursor.lastSortingValue);
+				postsTab.hasMore = result.items.length > 0 && cursorMoved;
 				postsTab.cursor = postsTab.hasMore
 					? { lastId: result.lastId!, lastSortingValue: result.lastSortingValue ?? 0 }
 					: undefined;
 				postsTab.loaded = true;
-				return result.items.length > 0;
+				return next.length > prev.length;
 			}
 			const subsiteTab = st as TabState<SearchSubsite>;
 			const result = await api.searchSubsites(query, targetTab === 'topics');
 			if (id !== subsiteTab.reqId) return false;
-			subsiteTab.items = result.items;
+			subsiteTab.items = appendUnique([], result.items, (s) => s.id);
 			subsiteTab.total = result.total;
 			subsiteTab.loaded = true;
-			return result.items.length > 0;
+			return subsiteTab.items.length > 0;
 		} catch (e) {
 			if (id === st.reqId) {
 				st.error = e;
