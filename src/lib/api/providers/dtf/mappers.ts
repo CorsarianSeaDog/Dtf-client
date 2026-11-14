@@ -1,4 +1,4 @@
-import type { Badge, Comment, CommentEditorState, CurrentUser, IgnoredSubsite, Likes, Notification, NotificationPart, Post, Profile, ProfileListItem, QuizResult, Reactions, SearchSubsite, User } from '../../types';
+import type { Badge, Comment, CommentEditorState, CurrentUser, DonationAccount, IgnoredSubsite, Likes, Notification, NotificationPart, Post, Profile, ProfileListItem, QuizResult, Reactions, SearchSubsite, User } from '../../types';
 import { getLeonardoUrl } from '../../utils';
 import { embedToPost } from '../../embed';
 import { extractWatermark } from '$lib/watermark';
@@ -282,6 +282,12 @@ export function mapProfile(subsite: any): Profile {
 		createdAt: subsite.created ? new Date(subsite.created * 1000).toISOString() : undefined,
 		url: subsite.url
 	};
+}
+
+/** Без подключённых донатов DTF отвечает пустым массивом вместо объекта */
+export function mapDonationAccount(result: any): DonationAccount | null {
+	if (!result || Array.isArray(result)) return null;
+	return { balance: Number(result.balance) || 0, isConfirmed: !!result.isConfirmed };
 }
 
 // /subsite/me отдаёт тот же объект подсайта, что и профиль: обложку и счётчики берём тем же разбором

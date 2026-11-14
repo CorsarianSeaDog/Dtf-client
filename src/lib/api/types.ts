@@ -375,6 +375,14 @@ export interface CurrentUser {
 	subscriptionsCount?: number;
 }
 
+/** Счёт донатов вошедшего (выплаты через CloudTips). Телефон из ответа DTF сюда не берётся */
+export interface DonationAccount {
+	/** Рубли */
+	balance: number;
+	/** Счёт подтверждён: донаты подключены */
+	isConfirmed: boolean;
+}
+
 /** Настройки аккаунта DTF: блог (имя, био) и ленты. Значения те же, что принимает `subsite/update` */
 export interface AccountSettings {
 	id: number;
@@ -513,6 +521,8 @@ export interface ApiProvider {
 	login?(email: string, password: string): Promise<Session>;
 	loginByToken?(token: string): Promise<Session>;
 	getMe?(): Promise<CurrentUser>;
+	/** Счёт донатов; null, если донаты не подключали */
+	getDonationAccount?(): Promise<DonationAccount | null>;
 	updateBio?(description: string, userId: number): Promise<void>;
 	getAccountSettings?(): Promise<AccountSettings>;
 	updateAccountSettings?(userId: number, patch: Partial<AccountSettings>): Promise<void>;

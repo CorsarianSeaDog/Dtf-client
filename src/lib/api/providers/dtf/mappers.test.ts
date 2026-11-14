@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { REDTF_WATERMARK } from '$lib/watermark';
-import { mapAvatarUrl, mapBadges, mapUser, mapComment, mapCurrentUser, mapEntryToPost, mapIgnoredSubsite, mapLikes, mapNotification, mapQuizResult, mapSearchSnippet, parseNotificationHtml } from './mappers';
+import { mapAvatarUrl, mapBadges, mapUser, mapComment, mapCurrentUser, mapDonationAccount, mapEntryToPost, mapIgnoredSubsite, mapLikes, mapNotification, mapQuizResult, mapSearchSnippet, parseNotificationHtml } from './mappers';
 
 describe('mapQuizResult', () => {
 	it('неизвестный hash приходит пустым массивом — это пустой опрос', () => {
@@ -207,6 +207,13 @@ describe('mapCurrentUser', () => {
 		const me = mapCurrentUser({ id: 1, rating: 42, counters: { subscribers: 3, subscriptions: 5 }, coverY: 30, cover: { data: { uuid: 'cov' } } });
 		expect(me).toMatchObject({ rating: 42, subscribersCount: 3, subscriptionsCount: 5, coverY: 30 });
 		expect(me.coverUrl).toContain('/cov/');
+	});
+});
+
+describe('mapDonationAccount', () => {
+	it('берёт баланс без телефона, пустой массив значит «донаты не подключены»', () => {
+		expect(mapDonationAccount({ phoneNumber: '+70000000000', isConfirmed: true, isFrozen: false, balance: 150 })).toEqual({ balance: 150, isConfirmed: true });
+		expect(mapDonationAccount([])).toBeNull();
 	});
 });
 

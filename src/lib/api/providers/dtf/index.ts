@@ -8,6 +8,7 @@ import type {
 	CommentPermission,
 	CurrentUser,
 	CursorData,
+	DonationAccount,
 	DtfEditorEntry,
 	GetPostsOptions,
 	GifResult,
@@ -39,7 +40,7 @@ import { untrack } from 'svelte';
 import { addWatermark } from '$lib/watermark';
 import { settings } from '$lib/storage/settings.svelte';
 import { login, loginByToken } from './auth';
-import { mapBadges, mapComment, mapCurrentUser, mapEntryToPost, mapIgnoredSubsite, mapNotification, mapProfile, mapProfileListItem, mapQuizResult, mapReactions, mapSearchSnippet, mapSearchSubsite } from './mappers';
+import { mapBadges, mapComment, mapCurrentUser, mapDonationAccount, mapEntryToPost, mapIgnoredSubsite, mapNotification, mapProfile, mapProfileListItem, mapQuizResult, mapReactions, mapSearchSnippet, mapSearchSubsite } from './mappers';
 
 /** Загружает файл в хранилище DTF; возвращает запись как есть (`{ type, data }`): в таком виде её принимают поля вроде avatar и cover */
 async function uploadItem(file: File, options?: UploadOptions): Promise<any> {
@@ -110,6 +111,12 @@ export const dtfApiProvider = {
 		if (!json.result?.id) throw new Error('Не удалось получить профиль пользователя');
 
 		return mapCurrentUser(json.result);
+	},
+
+	async getDonationAccount(): Promise<DonationAccount | null> {
+		requireAuth();
+		const response = await fetchWithAuth(`${apiV('2.5')}/donations/account`);
+		return mapDonationAccount((await response.json()).result);
 	},
 
 	async updateBio(description: string, userId: number): Promise<void> {

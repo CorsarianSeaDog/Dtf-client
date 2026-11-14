@@ -69,6 +69,7 @@ export const api = {
 	},
 
 	getMe: () => dtfApiProvider.getMe(),
+	getDonationAccount: () => dtfApiProvider.getDonationAccount(),
 	updateBio: (description: string, userId: number) => dtfApiProvider.updateBio(description, userId),
 	getAccountSettings: dtfApiProvider.getAccountSettings,
 	updateAccountSettings: dtfApiProvider.updateAccountSettings,
