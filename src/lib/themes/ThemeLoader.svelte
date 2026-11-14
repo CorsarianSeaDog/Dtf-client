@@ -1,8 +1,16 @@
 <script lang="ts" module>
 	import type { Component } from 'svelte';
+	import availablePaths from 'virtual:theme-components';
 
-	// Только компоненты в корне папки темы (./dtf2022/Post.svelte), вложенные папки — внутренности темы
-	const modules = import.meta.glob<{ default: Component<any> }>('./*/*.svelte');
+	// Загрузчики лежат в отдельном динамическом модуле, чтобы не тащить CSS обеих тем в <head> каждой страницы
+	let modulesPromise: Promise<Record<string, () => Promise<{ default: Component<any> }>>> | undefined;
+	const loadModules = () =>
+		(modulesPromise ??= import('./themeComponents')
+			.then((m) => m.themeComponentModules)
+			.catch((err) => {
+				modulesPromise = undefined;
+				throw err;
+			}));
 
 	// Уже загруженные компоненты: следующие ThemeLoader рисуют их сразу, без спиннера
 	const loaded = new Map<string, Component<any>>();
@@ -11,7 +19,16 @@
 
 	/** Путь компонента: у самой темы или, если там нет, у её основы */
 	function findPath(chain: string[], name: string): string | undefined {
-		return chain.map((id) => `./${id}/${name}.svelte`).find((path) => path in modules);
+		return chain.map((id) => `./${id}/${name}.svelte`).find((path) => availablePaths.has(path));
+	}
+
+	async function importComponent(path: string): Promise<Component<any>> {
+		const modules = await loadModules();
+		const loader = modules[path];
+		if (!loader) throw new Error(`Компонент "${path}" не найден в реестре`);
+		const module = await loader();
+		loaded.set(path, module.default);
+		return module.default;
 	}
 
 	function load(path: string): Promise<Component<any>> {
@@ -19,16 +36,12 @@
 		if (!promise) {
 			promise = (async () => {
 				try {
-					const module = await modules[path]();
-					loaded.set(path, module.default);
-					return module.default;
+					return await importComponent(path);
 				} catch (firstErr) {
 					// В dev-режиме Vite или при кратковременном сбое сети даём второй шанс
 					try {
 						await new Promise((r) => setTimeout(r, 200));
-						const module = await modules[path]();
-						loaded.set(path, module.default);
-						return module.default;
+						return await importComponent(path);
 					} catch {
 						loading.delete(path);
 						throw firstErr;

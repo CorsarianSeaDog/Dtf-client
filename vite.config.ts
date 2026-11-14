@@ -1,7 +1,7 @@
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { build, defineConfig, type Plugin } from 'vite';
-import { readFileSync, mkdirSync, writeFileSync } from 'fs';
+import { readFileSync, readdirSync, mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import { buildSvgSpriteDefs, collectUsedSymbolIds, parseSvgSprites } from './src/lib/assets/svgSprite.ts';
@@ -38,6 +38,48 @@ function resolveVersion(command?: string): string {
 }
 
 const basePath = process.env.BASE_PATH === '/' ? '' : (process.env.BASE_PATH || '').replace(/\/+$/, '');
+
+const VIRTUAL_THEME_COMPONENTS_ID = 'virtual:theme-components';
+const RESOLVED_VIRTUAL_THEME_COMPONENTS_ID = `\0${VIRTUAL_THEME_COMPONENTS_ID}`;
+
+function themeComponentPathsPlugin(): Plugin {
+	let themesDir = path.resolve('src/lib/themes');
+	const isRootThemeComponent = (file: string) => {
+		const rel = path.relative(themesDir, file);
+		if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return false;
+		const parts = rel.split(path.sep);
+		return parts.length === 2 && !parts[0].startsWith('.') && parts[1].endsWith('.svelte');
+	};
+	return {
+		name: 'redtf-theme-component-paths',
+		configResolved(config) {
+			themesDir = path.resolve(config.root, 'src/lib/themes');
+		},
+		resolveId(id) {
+			if (id === VIRTUAL_THEME_COMPONENTS_ID) return RESOLVED_VIRTUAL_THEME_COMPONENTS_ID;
+		},
+		load(id) {
+			if (id !== RESOLVED_VIRTUAL_THEME_COMPONENTS_ID) return;
+			const paths: string[] = [];
+			for (const entry of readdirSync(themesDir, { withFileTypes: true })) {
+				if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+				for (const file of readdirSync(path.join(themesDir, entry.name))) {
+					if (file.endsWith('.svelte')) paths.push(`./${entry.name}/${file}`);
+				}
+			}
+			return `export default new Set(${JSON.stringify(paths)});`;
+		},
+		configureServer(server) {
+			const invalidate = (file: string) => {
+				if (!isRootThemeComponent(file)) return;
+				const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_THEME_COMPONENTS_ID);
+				if (mod) server.moduleGraph.invalidateModule(mod);
+			};
+			server.watcher.on('add', invalidate);
+			server.watcher.on('unlink', invalidate);
+		}
+	};
+}
 
 const VIRTUAL_SPRITE_ID = 'virtual:svg-sprite';
 const RESOLVED_VIRTUAL_SPRITE_ID = `\0${VIRTUAL_SPRITE_ID}`;
@@ -178,7 +220,8 @@ export default defineConfig(async ({ command }) => {
 					if (file.endsWith('/src/app.html') || /\/src\/lib\/(themes|storage)\/.*\.ts$/.test(file)) await writeAppTemplate();
 				}
 			},
-			svgSpritePlugin()
+			svgSpritePlugin(),
+			themeComponentPathsPlugin()
 		]
 	};
 });
