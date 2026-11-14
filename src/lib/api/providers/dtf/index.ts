@@ -24,6 +24,8 @@ import type {
 	QuizResult,
 	Reactions,
 	RecommendationsCursor,
+	SearchCommentsOptions,
+	SearchCommentsResult,
 	SearchFilters,
 	SearchSorting,
 	SearchSubsite,
@@ -296,6 +298,44 @@ export const dtfApiProvider = {
 		const result = (await response.json()).result;
 
 		return { items: (result?.items || []).map((item: any) => mapSearchSubsite(item.data || item)), total: result?.total ?? 0 };
+	},
+
+	/** Поиск по комментариям (`/v2.51/search/comments`): поддерживает текст, сортировку, точное совпадение, фильтр по автору и 1-indexed `page` */
+	async searchComments(options: SearchCommentsOptions = {}): Promise<SearchCommentsResult> {
+		const page = Math.max(1, options.page ?? 1);
+		const params = new URLSearchParams({
+			sorting: options.sorting ?? 'relevance',
+			page: String(page)
+		});
+		if (options.query) params.set('q', options.query);
+		if (options.strict !== undefined) params.set('strict', String(options.strict));
+		if (options.authorId !== undefined) params.set('author', String(options.authorId));
+
+		const response = await fetchSearch(`/v2.51/search/comments?${params}`);
+		const result = (await response.json()).result;
+		const items: Comment[] = (result?.items || []).flatMap((item: any) => {
+			const data = item.data || item;
+			if (data?.id === undefined) return [];
+			const comment = mapComment(data, data.entry?.id ?? 0);
+			if (typeof item.meta?.highlight === 'string' && item.meta.highlight) {
+				comment.searchSnippet = item.meta.highlight;
+			}
+			if (typeof data.entry?.subsite_id === 'number') {
+				comment.postSubsiteId = data.entry.subsite_id;
+			}
+			return [comment];
+		});
+		const total = result?.total ?? 0;
+		const hasMore = items.length > 0 && (page - 1) * 12 + items.length < total;
+
+		return {
+			items,
+			total,
+			page,
+			hasMore,
+			lastId: result?.lastId,
+			lastSortingValue: result?.lastSortingValue
+		};
 	},
 
 	/** Черновики вошедшего пользователя; постранично по `offset` (на странице 20) */

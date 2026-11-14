@@ -207,6 +207,27 @@ export interface SearchFilters {
 	strict: boolean;
 }
 
+/** Параметры поиска по комментариям (`GET /v2.51/search/comments`) */
+export interface SearchCommentsOptions {
+	/** Текст запроса (необязателен, если указан `authorId`) */
+	query?: string;
+	sorting?: SearchSorting;
+	strict?: boolean;
+	authorId?: number;
+	/** Номер страницы, начиная с 1 */
+	page?: number;
+}
+
+/** Результат поиска по комментариям */
+export interface SearchCommentsResult {
+	items: Comment[];
+	total: number;
+	page: number;
+	hasMore: boolean;
+	lastId?: number;
+	lastSortingValue?: number;
+}
+
 export interface ProfileListItem {
 	id: number;
 	name: string;
@@ -270,8 +291,12 @@ export interface Comment {
 	isFavorited?: boolean;
 	isReplaced?: boolean;
 	originalSourceId?: string;
-	/** Заголовок поста: приходит в списке комментариев профиля */
+	/** Заголовок поста: приходит в списке комментариев профиля и в поиске */
 	postTitle?: string;
+	/** ID подсайта поста: приходит в выдаче поиска комментариев */
+	postSubsiteId?: number;
+	/** Фрагмент текста из поиска с тегами `<mark>` вокруг совпадений */
+	searchSnippet?: string;
 	/** Комментарий отправлен или отредактирован через клиент reDTF */
 	isRedtf?: boolean;
 	/** Платформа/приложение по данным DTF (например, 'android-app', 'ios-app') */
@@ -494,6 +519,7 @@ export interface ApiProvider {
 	getTagPosts?(tag: string): Promise<Post[]>;
 	searchPosts?(query: string, sorting: SearchSorting, filters: SearchFilters, cursor?: CursorData): Promise<PaginatedResult<Post> & { total?: number }>;
 	searchSubsites?(query: string, communities: boolean): Promise<{ items: SearchSubsite[]; total: number }>;
+	searchComments?(options?: SearchCommentsOptions): Promise<SearchCommentsResult>;
 	getDrafts?(offset?: number): Promise<Post[]>;
 
 	// Редактор

@@ -318,6 +318,7 @@ export const api = {
 		return res;
 	},
 	searchSubsites: dtfApiProvider.searchSubsites,
+	searchComments: dtfApiProvider.searchComments,
 	getDrafts: dtfApiProvider.getDrafts,
 
 	// --- Редактор (только DTF) ---
