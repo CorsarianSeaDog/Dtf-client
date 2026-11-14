@@ -31,20 +31,28 @@ export const donationAccount = {
 	/** Промис не падает: ошибка уходит в консоль */
 	load(): Promise<void> {
 		if (!authStorage.isAuthenticated) return Promise.resolve();
-		return (loading ??= api
+		if (loading) return loading;
+		const req = api
 			.getDonationAccount()
 			.then((a) => {
-				account = a;
+				if (loading === req) account = a;
 			})
 			.catch((e) => {
-				loading = undefined;
+				if (loading === req) loading = undefined;
 				console.warn('[donationAccount] Не удалось получить счёт донатов:', e);
-			}));
+			});
+		loading = req;
+		return req;
 	},
 
 	refresh() {
 		loading = undefined;
 		return this.load();
+	},
+
+	clear() {
+		loading = undefined;
+		account = undefined;
 	}
 };
 

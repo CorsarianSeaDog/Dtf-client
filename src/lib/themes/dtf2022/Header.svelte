@@ -8,6 +8,7 @@
 	import CreateButton from './CreateButton.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
+	import { donationAccount } from '$lib/api/donationAccount.svelte';
 	import { notifications } from '$lib/api/notifications.svelte';
 	import NotificationsPanel from './NotificationsPanel.svelte';
 	import { notificationsPopup } from './notificationsPopup.svelte';
@@ -43,6 +44,7 @@
 			notifications.load();
 		} else {
 			currentUser.clear();
+			donationAccount.clear();
 			notifications.clear();
 			subscriptions.clear();
 			isUserMenuOpen = false;
