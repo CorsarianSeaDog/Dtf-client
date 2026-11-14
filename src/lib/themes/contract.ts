@@ -85,6 +85,8 @@ export interface ThemeComponents {
 		subsites: SearchSubsite[];
 		/** Сколько всего нашлось на вкладке */
 		total?: number;
+		/** Известные счётчики по уже загруженным вкладкам */
+		totals?: Partial<Record<SearchTab, number>>;
 		/** Первая страница уже пришла */
 		loaded: boolean;
 		loading: boolean;

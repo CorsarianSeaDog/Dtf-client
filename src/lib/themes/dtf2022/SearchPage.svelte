@@ -2,15 +2,23 @@
 	import { resolve } from '$app/paths';
 	import type { Post, SearchFilters, SearchSorting, SearchSubsite } from '$lib/api/types';
 	import type { SearchTab } from '$lib/themes/contract';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
+	import { preloadIntent } from '$lib/actions/preloadIntent';
 	import { getLeonardoUrl } from '$lib/api/utils';
+	import { reducedMotion } from '$lib/motion';
 	import { getPostPath, getProfilePath, openPost, openProfile } from '$lib/navigation';
 	import { votesOf } from '$lib/reactions';
 	import { sanitizeHtml } from '$lib/sanitize';
 	import NetworkErrorState from '$lib/components/NetworkErrorState.svelte';
-	import { formatNumber, formatTime, plural } from './format';
+	import { reactToPost, votePost, withActions } from './actions.svelte';
+	import { formatFullDate, formatNumber, formatTime, plural } from './format';
 	import { loadOnVisible } from './loadOnVisible';
+	import PostButton from './post/PostButton.svelte';
+	import Rating from './post/Rating.svelte';
+	import Reactions from './post/Reactions.svelte';
+	import { themeSettings } from './themeSettings.svelte';
 	import { Popover, Preloader } from './ui';
-	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
+	import PlusBadge from './ui/PlusBadge.svelte';
 
 	/*
 	 * Страница результатов поиска. Страницу поиска DTF (весна 2023) в архиве не сохранили, поэтому вид собран
@@ -28,6 +36,7 @@
 		posts,
 		subsites,
 		total,
+		totals,
 		loaded,
 		loading,
 		error,
@@ -45,6 +54,7 @@
 		posts: Post[];
 		subsites: SearchSubsite[];
 		total?: number;
+		totals?: Partial<Record<SearchTab, number>>;
 		loaded: boolean;
 		loading: boolean;
 		error: unknown;
@@ -70,9 +80,45 @@
 	];
 
 	let sortingOpen = $state(false);
+	let elevatedPostKey = $state<string | null>(null);
 	let currentSorting = $derived(SORTINGS.find((item) => item.value === sorting) ?? SORTINGS[0]);
-	let empty = $derived(loaded && !error && (tab === 'posts' ? posts.length === 0 : subsites.length === 0));
-	let count = $derived(total && !error ? formatNumber(total) : '');
+	let hasItems = $derived(tab === 'posts' ? posts.length > 0 : subsites.length > 0);
+	let empty = $derived(loaded && !error && !hasItems);
+
+	let votes = $derived(themeSettings.votes);
+	let arrows = $derived(votes === 'rating');
+	let arrowsLeft = $derived(arrows && themeSettings.arrowsSide === 'left');
+	let iconSize = $derived(arrows ? 22 : 20);
+
+	// Полоска под активной вкладкой переезжает от прежней вкладки к новой (FLIP через WAAPI)
+	let lineEl: HTMLElement | undefined;
+	let prevLineRect: DOMRect | undefined;
+
+	$effect.pre(() => {
+		void tab;
+		if (lineEl?.isConnected) prevLineRect = lineEl.getBoundingClientRect();
+	});
+
+	function slideLine(el: HTMLElement) {
+		const from = prevLineRect;
+		prevLineRect = undefined;
+		lineEl = el;
+		if (!reducedMotion() && from && from.width > 0) {
+			const to = el.getBoundingClientRect();
+			if (to.width > 0 && from.left !== to.left) {
+				el.animate(
+					[
+						{ transform: `translateX(${from.left - to.left}px) scaleX(${from.width / to.width})` },
+						{ transform: 'none' }
+					],
+					{ duration: 220, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+				);
+			}
+		}
+		return () => {
+			if (lineEl === el) lineEl = undefined;
+		};
+	}
 
 	/** Картинка первого медиа-блока записи для превью справа */
 	function thumbOf(post: Post): string | undefined {
@@ -93,6 +139,8 @@
 	<div class="search-bar">
 		<div class="search-tabs" role="tablist">
 			{#each TABS as item (item.value)}
+				{@const tabTotal = totals?.[item.value] ?? (tab === item.value ? total : undefined)}
+				{@const countText = tabTotal ? formatNumber(tabTotal) : ''}
 				<button
 					type="button"
 					role="tab"
@@ -101,7 +149,10 @@
 					onclick={() => onTabChange(item.value)}
 				>
 					{item.label}
-					{#if tab === item.value && count}<span class="search-tab__count">{count}</span>{/if}
+					{#if countText}<span class="search-tab__count">{countText}</span>{/if}
+					{#if tab === item.value}
+						<span class="search-tab__line" {@attach slideLine}></span>
+					{/if}
 				</button>
 			{/each}
 
@@ -136,73 +187,151 @@
 		{/if}
 	</div>
 
-	{#if error && !posts.length && !subsites.length}
+	{#if error && !hasItems}
 		<NetworkErrorState {error} title="Не удалось выполнить поиск" {onretry} />
 	{:else}
-		<div class={['search-results', { 'search-results--loading': loading && !hasMore && (posts.length > 0 || subsites.length > 0) }]}>
-			{#if tab === 'posts'}
-				{#each posts as post (post.sourceId + '_' + post.id)}
-					{@const thumb = thumbOf(post)}
-					{@const score = votesOf(post).up}
-					<a class="search-simple" href={resolve(getPostPath(post) as any)} onclick={(e) => openPost(e, post)}>
-						<div class="search-simple__body">
-							<div class="search-simple__meta">
-								{#if (post.subsite ?? post.author).avatarUrl}
-									<img class="search-simple__avatar" src={(post.subsite ?? post.author).avatarUrl} alt="" loading="lazy" {@attach animatedAvatar((post.subsite ?? post.author).avatarUrl)} />
+		<div class={['search-results', { 'search-results--loading': loading && !hasMore && hasItems }]}>
+			{#key tab}
+				<div class="search-results__list">
+					{#if tab === 'posts'}
+						{#each posts as rawPost (rawPost.sourceId + '_' + rawPost.id)}
+							{@const post = withActions(rawPost)}
+							{@const postKey = post.sourceId + '_' + post.id}
+							{@const thumb = thumbOf(post)}
+							{@const score = votesOf(post)}
+							{@const owner = post.subsite ?? post.author}
+							{@const postPath = resolve(getPostPath(post) as any)}
+							{@const commentsPath = resolve(getPostPath(post, 'comments') as any)}
+							{@const onreact = post.sourceId === 'dtf' ? (id: number) => reactToPost(post, id) : undefined}
+							{@const onopenchange = (open: boolean) => {
+								if (open) elevatedPostKey = postKey;
+								else if (elevatedPostKey === postKey) elevatedPostKey = null;
+							}}
+							<article class={['search-simple', { 'search-simple--elevated': elevatedPostKey === postKey }]}>
+								<a
+									class="search-simple__link"
+									href={postPath}
+									aria-label={post.title || 'Открыть запись'}
+									onclick={(e) => openPost(e, post)}
+									use:preloadIntent={post}
+								></a>
+								<div class="search-simple__body">
+									<div class="search-simple__meta">
+										<a class="search-simple__owner" href={resolve(getProfilePath(owner.id) as any)} onclick={(e) => openProfile(e, owner.id)}>
+											{#if owner.avatarUrl}
+												<img class="search-simple__avatar" src={owner.avatarUrl} alt="" loading="lazy" {@attach animatedAvatar(owner.avatarUrl)} />
+											{/if}
+											<span class="search-simple__author">{owner.name}</span>
+										</a>
+										{#if !post.subsite && post.author.isPlus}
+											<span class="search-simple__plus"><PlusBadge author={post.author} size={16} /></span>
+										{/if}
+										<a class="search-simple__time" href={postPath} title={formatFullDate(post.createdAt)} onclick={(e) => openPost(e, post)}>
+											<time datetime={post.createdAt}>{formatTime(post.createdAt)}</time>
+										</a>
+									</div>
+									{#if post.title}
+										<div class="search-simple__title">{post.title}</div>
+									{/if}
+									{#if post.searchSnippet}
+										<div class="search-simple__text">{@html sanitizeHtml(post.searchSnippet)}</div>
+									{/if}
+									<div class={['search-simple__footer', { 'search-simple__footer--arrows': arrows, 'search-simple__footer--arrows-left': arrowsLeft }]}>
+										{#if votes === 'reactions'}
+											<Reactions compact reactions={post.reactions} {onreact} {onopenchange} />
+											{#if !post.commentsDisabled}
+												<PostButton
+													kind="comments"
+													title="Комментарии"
+													href={commentsPath}
+													value={post.commentsCount}
+													onclick={(e) => openPost(e, post, { toComments: true })}
+												/>
+											{/if}
+										{:else if votes === 'likes'}
+											<PostButton
+												kind="like"
+												title="Лайк"
+												value={score.up || undefined}
+												active={score.myVote === 1}
+												reactions={post.reactions}
+												{onreact}
+												{onopenchange}
+												onclick={() => votePost(post, 1)}
+											/>
+											{#if !post.commentsDisabled}
+												<PostButton
+													kind="comments"
+													title="Комментарии"
+													href={commentsPath}
+													value={post.commentsCount}
+													onclick={(e) => openPost(e, post, { toComments: true })}
+												/>
+											{/if}
+											<PostButton
+												kind="dislike"
+												title="Дизлайк"
+												right
+												value={score.down || undefined}
+												active={score.myVote === -1}
+												reactions={post.reactions}
+												{onreact}
+												{onopenchange}
+												onclick={() => votePost(post, -1)}
+											/>
+										{:else}
+											{#if !post.commentsDisabled}
+												<PostButton
+													kind="comments"
+													title="Комментарии"
+													href={commentsPath}
+													{iconSize}
+													value={post.commentsCount}
+													onclick={(e) => openPost(e, post, { toComments: true })}
+												/>
+											{/if}
+											<div class="search-simple__rating">
+												<Rating
+													value={score.up - score.down}
+													myVote={score.myVote}
+													reactions={post.reactions}
+													onvote={(sign) => votePost(post, sign)}
+													{onreact}
+													{onopenchange}
+												/>
+											</div>
+										{/if}
+									</div>
+								</div>
+								{#if thumb}
+									<img class="search-simple__thumb" src={thumb} alt="" loading="lazy" />
 								{/if}
-								<span class="search-simple__author">{post.subsite?.name ?? post.author.name}</span>
-								<time class="search-simple__time" datetime={post.createdAt}>{formatTime(post.createdAt)}</time>
-							</div>
-							{#if post.title}
-								<div class="search-simple__title">{post.title}</div>
-							{/if}
-							{#if post.searchSnippet}
-								<div class="search-simple__text">{@html sanitizeHtml(post.searchSnippet)}</div>
-							{/if}
-							<div class="search-simple__footer">
-								<span class="search-simple__stat search-simple__stat--like" title="Оценки">
-									<svg class="icon" width="18" height="18" aria-hidden="true">
-										<use href="#v_like"></use>
-									</svg>
-									{formatNumber(score)}
+							</article>
+						{/each}
+					{:else}
+						{#each subsites as subsite (subsite.id)}
+							<a class="search-simple search-subsite" href={resolve(getProfilePath(subsite.id) as any)} onclick={(e) => openProfile(e, subsite.id)}>
+								<span class="search-subsite__avatar" style:background-image={subsite.avatarUrl ? `url('${subsite.avatarUrl}')` : undefined} {@attach animatedAvatar(subsite.avatarUrl)}></span>
+								<span class="search-subsite__info">
+									<span class="search-subsite__name">{subsite.name}</span>
+									{#if subsite.description}
+										<span class="search-subsite__description">{subsite.description}</span>
+									{/if}
+									{#if subsite.subscribersCount}
+										<span class="search-subsite__count">
+											{formatNumber(subsite.subscribersCount)} {plural(subsite.subscribersCount, ['подписчик', 'подписчика', 'подписчиков'])}
+										</span>
+									{/if}
 								</span>
-								{#if !post.commentsDisabled}
-									<span class="search-simple__stat" title="Комментарии">
-										<svg class="icon" width="18" height="18" aria-hidden="true">
-											<use href="#v_comments"></use>
-										</svg>
-										{formatNumber(post.commentsCount)}
-									</span>
-								{/if}
-							</div>
-						</div>
-						{#if thumb}
-							<img class="search-simple__thumb" src={thumb} alt="" loading="lazy" />
-						{/if}
-					</a>
-				{/each}
-			{:else}
-				{#each subsites as subsite (subsite.id)}
-					<a class="search-simple search-subsite" href={resolve(getProfilePath(subsite.id) as any)} onclick={(e) => openProfile(e, subsite.id)}>
-						<span class="search-subsite__avatar" style:background-image={subsite.avatarUrl ? `url('${subsite.avatarUrl}')` : undefined} {@attach animatedAvatar(subsite.avatarUrl)}></span>
-						<span class="search-subsite__info">
-							<span class="search-subsite__name">{subsite.name}</span>
-							{#if subsite.description}
-								<span class="search-subsite__description">{subsite.description}</span>
-							{/if}
-							{#if subsite.subscribersCount}
-								<span class="search-subsite__count">
-									{formatNumber(subsite.subscribersCount)} {plural(subsite.subscribersCount, ['подписчик', 'подписчика', 'подписчиков'])}
-								</span>
-							{/if}
-						</span>
-					</a>
-				{/each}
-			{/if}
+							</a>
+						{/each}
+					{/if}
 
-			{#if empty}
-				<p class="search-empty">Ничего не найдено</p>
-			{/if}
+					{#if empty}
+						<p class="search-empty">Ничего не найдено</p>
+					{/if}
+				</div>
+			{/key}
 		</div>
 
 		{#if error}
@@ -273,6 +402,7 @@
 	}
 
 	.search-tab {
+		position: relative;
 		display: flex;
 		align-items: center;
 		gap: 6px;
@@ -282,6 +412,7 @@
 		font: inherit;
 		font-size: 15px;
 		cursor: pointer;
+		transition: color 0.15s ease;
 	}
 
 	.search-tab:hover,
@@ -289,8 +420,15 @@
 		color: var(--text-primary);
 	}
 
-	.search-tab--active {
-		box-shadow: inset 0 -2px 0 var(--color-accent);
+	.search-tab__line {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 2px;
+		background: var(--color-accent);
+		transform-origin: left;
+		pointer-events: none;
 	}
 
 	.search-tab__count {
@@ -342,6 +480,9 @@
 		font-size: 13px;
 		line-height: 20px;
 		cursor: pointer;
+		transition:
+			background-color 0.15s ease,
+			color 0.15s ease;
 	}
 
 	.search-chip:hover {
@@ -361,11 +502,22 @@
 
 	/* Результаты карточками; пока грузится новая выдача, прежняя притухает */
 	.search-results {
+		margin-top: var(--gap);
+		transition: opacity 0.2s ease;
+	}
+
+	.search-results__list {
 		display: flex;
 		flex-direction: column;
 		gap: var(--gap);
-		margin-top: var(--gap);
-		transition: opacity 0.2s ease;
+		animation: search-tab-in 0.18s ease-out;
+	}
+
+	@keyframes search-tab-in {
+		from {
+			opacity: 0;
+			transform: translateY(6px);
+		}
 	}
 
 	.search-results--loading {
@@ -373,6 +525,7 @@
 	}
 
 	.search-simple {
+		position: relative;
 		display: flex;
 		align-items: flex-start;
 		gap: 16px;
@@ -381,10 +534,29 @@
 		background: var(--bg-card);
 		color: inherit;
 		text-decoration: none;
+		transition: background-color 0.15s ease;
 	}
 
-	.search-simple:hover {
-		background: var(--bg-card-hover);
+	.search-simple--elevated {
+		z-index: 20;
+	}
+
+	.search-simple__link {
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		border-radius: inherit;
+	}
+
+	@media (hover: hover) {
+		.search-subsite:hover,
+		.search-simple:has(> .search-simple__link:hover, .search-simple__time:hover) {
+			background: color-mix(in srgb, var(--bg-card) 97%, var(--text-primary));
+		}
+
+		.search-simple__owner:hover .search-simple__author {
+			color: var(--text-link);
+		}
 	}
 
 	.search-simple__body {
@@ -402,15 +574,36 @@
 	}
 
 	.search-simple__meta {
+		position: relative;
+		z-index: 2;
 		display: flex;
 		align-items: center;
 		gap: 8px;
 		margin-bottom: 8px;
 		font-size: 13px;
 		line-height: 20px;
+		pointer-events: none;
+	}
+
+	.search-simple__owner {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		min-width: 0;
+		color: inherit;
+		text-decoration: none;
+		pointer-events: auto;
+	}
+
+	.search-simple__plus {
+		display: inline-flex;
+		align-items: center;
+		flex-shrink: 0;
+		pointer-events: auto;
 	}
 
 	.search-simple__avatar {
+		flex-shrink: 0;
 		width: 20px;
 		height: 20px;
 		border-radius: 6px;
@@ -426,7 +619,9 @@
 
 	.search-simple__time {
 		color: var(--text-muted);
+		text-decoration: none;
 		white-space: nowrap;
+		pointer-events: auto;
 	}
 
 	.search-simple__title {
@@ -456,29 +651,43 @@
 	}
 
 	.search-simple__footer {
+		position: relative;
+		z-index: 2;
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
-		gap: 16px;
+		gap: 10px 20px;
 		margin-top: 10px;
-		color: var(--text-muted);
-		font-size: 14px;
-		line-height: 18px;
+		font-size: 15px;
+		pointer-events: none;
 	}
 
-	.search-simple__stat {
+	.search-simple__footer > :global(*) {
+		pointer-events: auto;
+	}
+
+	.search-simple__footer > :global(.post-reactions) {
+		min-width: 0;
+		max-width: 100%;
+	}
+
+	.search-simple__footer--arrows {
+		--post-button-value-gap: 4px;
+		gap: 10px 33px;
+	}
+
+	.search-simple__rating {
 		display: flex;
-		align-items: center;
-		gap: 6px;
+		margin-left: auto;
 	}
 
-	.search-simple__stat .icon {
-		fill: currentColor;
+	.search-simple__footer--arrows-left {
+		gap: 10px 20px;
 	}
 
-	/* Иконка оценки — контурная, как в кнопке лайка */
-	.search-simple__stat--like .icon {
-		fill: none;
-		stroke: currentColor;
+	.search-simple__footer--arrows-left .search-simple__rating {
+		order: -1;
+		margin: 0;
 	}
 
 	/* Блог или тема */
@@ -543,6 +752,12 @@
 		padding: 20px 0;
 	}
 
+	@media (prefers-reduced-motion: reduce) {
+		.search-results__list {
+			animation: none;
+		}
+	}
+
 	@media (max-width: 859px) {
 		.search-page {
 			--gap: 12px;
@@ -556,6 +771,14 @@
 		.search-simple,
 		.search-empty {
 			border-radius: 0;
+		}
+
+		.search-simple__footer--arrows {
+			gap: 10px 24px;
+		}
+
+		.search-simple__footer--arrows-left {
+			gap: 10px 16px;
 		}
 	}
 

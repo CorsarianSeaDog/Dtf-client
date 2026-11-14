@@ -8,60 +8,88 @@
 
 	/*
 	 * Результаты поиска. Записи листаются по курсору, блоги и темы приходят одной страницей.
-	 * Хранится только открытая вкладка: смена вкладки, порядка или запроса начинает выдачу заново.
+	 * Каждая вкладка хранит своё состояние для актуальных параметров, поэтому переключение вкладок
+	 * не сбрасывает загруженные записи и не тратит лишние поисковые запросы.
 	 * Разметку рисует компонент темы SearchPage.
 	 */
 	let { query }: { query: string } = $props();
 
+	class TabState<T> {
+		key = $state('');
+		items = $state.raw<T[]>([]);
+		cursor: CursorData | undefined;
+		hasMore = $state(false);
+		total = $state<number | undefined>();
+		loaded = $state(false);
+		loading = $state(false);
+		error = $state<unknown>();
+		// Номер запроса: ответ прежней выдачи не должен перетереть новую
+		reqId = 0;
+	}
+
 	let tab = $state<SearchTab>('posts');
 	let sorting = $state<SearchSorting>('relevance');
 	let filters = $state<SearchFilters>({ title: false, editorial: false, strict: false });
-	let posts = $state.raw<Post[]>([]);
-	let subsites = $state.raw<SearchSubsite[]>([]);
-	let total = $state<number>();
-	let hasMore = $state(false);
-	let loaded = $state(false);
-	let loading = $state(false);
-	let error = $state<unknown>();
 	// Первая выдача пришла: до этого страница показывает загрузку целиком, после — только список
 	let shown = $state(false);
-	let cursor: CursorData | undefined;
-	// Номер запроса: ответ прежней выдачи не должен перетереть новую
-	let requestId = 0;
 
-	async function load(more = false) {
-		if (more && (loading || !hasMore)) return;
-		const id = ++requestId;
-		loading = true;
-		error = undefined;
+	const postsTab = new TabState<Post>();
+	const blogsTab = new TabState<SearchSubsite>();
+	const topicsTab = new TabState<SearchSubsite>();
+
+	let postsKey = $derived(
+		`${query}\0${sorting}\0${filters.title ? 1 : 0}${filters.editorial ? 1 : 0}${filters.strict ? 1 : 0}`
+	);
+
+	function stateOf(t: SearchTab) {
+		return t === 'posts' ? postsTab : t === 'blogs' ? blogsTab : topicsTab;
+	}
+
+	function keyOf(t: SearchTab) {
+		return t === 'posts' ? postsKey : query;
+	}
+
+	async function load(targetTab: SearchTab, targetKey: string, more = false): Promise<boolean> {
+		const st = stateOf(targetTab);
+		if (more && (targetTab !== 'posts' || st.loading || !st.hasMore)) return false;
+		const id = ++st.reqId;
+		st.loading = true;
+		st.error = undefined;
 		if (!more) {
-			loaded = hasMore = false;
-			posts = subsites = [];
-			total = cursor = undefined;
+			st.key = targetKey;
+			st.loaded = st.hasMore = false;
+			st.items = [];
+			st.total = st.cursor = undefined;
 		}
 		try {
-			if (tab === 'posts') {
-				const result = await api.searchPosts(query, sorting, $state.snapshot(filters), cursor);
-				if (id !== requestId) return;
-				posts = more ? [...posts, ...result.items] : result.items;
-				total = result.total;
-				hasMore = result.items.length > 0 && result.lastId !== undefined;
-				cursor = hasMore ? { lastId: result.lastId!, lastSortingValue: result.lastSortingValue ?? 0 } : undefined;
-			} else {
-				const result = await api.searchSubsites(query, tab === 'topics');
-				if (id !== requestId) return;
-				subsites = result.items;
-				total = result.total;
+			if (targetTab === 'posts') {
+				const result = await api.searchPosts(query, sorting, $state.snapshot(filters), postsTab.cursor);
+				if (id !== postsTab.reqId) return false;
+				postsTab.items = more ? [...postsTab.items, ...result.items] : result.items;
+				postsTab.total = result.total;
+				postsTab.hasMore = result.items.length > 0 && result.lastId !== undefined;
+				postsTab.cursor = postsTab.hasMore
+					? { lastId: result.lastId!, lastSortingValue: result.lastSortingValue ?? 0 }
+					: undefined;
+				postsTab.loaded = true;
+				return result.items.length > 0;
 			}
-			loaded = true;
+			const subsiteTab = st as TabState<SearchSubsite>;
+			const result = await api.searchSubsites(query, targetTab === 'topics');
+			if (id !== subsiteTab.reqId) return false;
+			subsiteTab.items = result.items;
+			subsiteTab.total = result.total;
+			subsiteTab.loaded = true;
+			return result.items.length > 0;
 		} catch (e) {
-			if (id === requestId) {
-				error = e;
-				loaded = true;
+			if (id === st.reqId) {
+				st.error = e;
+				st.loaded = true;
 			}
+			return false;
 		} finally {
-			if (id === requestId) {
-				loading = false;
+			if (id === st.reqId) {
+				st.loading = false;
 				shown = true;
 			}
 		}
@@ -69,7 +97,23 @@
 
 	$effect(() => {
 		void query, tab, sorting, filters;
-		untrack(() => load());
+		untrack(() => {
+			const currentTab = tab;
+			const currentKey = keyOf(currentTab);
+			const st = stateOf(currentTab);
+			// Не перезапрашиваем уже загруженную или грузящуюся вкладку; если упала догрузка, первую страницу тоже сохраняем
+			if (st.key === currentKey && (st.loading || (st.loaded && (!st.error || st.items.length > 0)))) return;
+			void load(currentTab, currentKey);
+		});
+	});
+
+	let activeState = $derived(stateOf(tab));
+	let activeKey = $derived(keyOf(tab));
+	let isCurrent = $derived(activeState.key === activeKey);
+	let totals = $derived<Partial<Record<SearchTab, number>>>({
+		posts: postsTab.key === postsKey ? postsTab.total : undefined,
+		blogs: blogsTab.key === query ? blogsTab.total : undefined,
+		topics: topicsTab.key === query ? topicsTab.total : undefined
 	});
 </script>
 
@@ -79,20 +123,25 @@
 			componentName="SearchPage"
 			{query}
 			{tab}
-			onTabChange={(value: SearchTab) => (tab = value)}
+			onTabChange={(value: SearchTab) => {
+				if (value !== tab) tab = value;
+			}}
 			{sorting}
-			onSortingChange={(value: SearchSorting) => (sorting = value)}
+			onSortingChange={(value: SearchSorting) => {
+				if (value !== sorting) sorting = value;
+			}}
 			{filters}
 			onFiltersChange={(value: SearchFilters) => (filters = value)}
-			{posts}
-			{subsites}
-			{total}
-			{loaded}
-			{loading}
-			{error}
-			{hasMore}
-			loadMore={() => load(true)}
-			onretry={() => load()}
+			posts={tab === 'posts' && postsTab.key === postsKey ? postsTab.items : []}
+			subsites={tab !== 'posts' && isCurrent ? (activeState as TabState<SearchSubsite>).items : []}
+			total={isCurrent ? activeState.total : undefined}
+			{totals}
+			loaded={isCurrent && activeState.loaded}
+			loading={isCurrent && activeState.loading}
+			error={isCurrent ? activeState.error : undefined}
+			hasMore={tab === 'posts' && postsTab.key === postsKey && postsTab.hasMore}
+			loadMore={() => load('posts', postsKey, true)}
+			onretry={() => load(tab, keyOf(tab))}
 		/>
 	</Reveal>
 </div>
