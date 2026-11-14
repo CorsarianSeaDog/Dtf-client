@@ -177,6 +177,18 @@
 		background-color: var(--bg-button-hover, rgba(0, 0, 0, 0.05));
 	}
 
+	@media (pointer: coarse), (max-width: 859px) {
+		.badge-modal__close::after {
+			content: '';
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			width: 44px;
+			height: 44px;
+			transform: translate(-50%, -50%);
+		}
+	}
+
 	.badge-modal__hero {
 		display: flex;
 		justify-content: center;

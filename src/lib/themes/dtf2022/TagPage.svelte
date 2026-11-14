@@ -89,11 +89,29 @@
 
 	/* Как .etc_control у DTF: серая, при открытом меню чёрная */
 	.tag-head__etc {
+		position: relative;
 		display: flex;
 		align-items: center;
 		margin-left: 14px;
 		color: var(--text-muted);
 		cursor: pointer;
+	}
+
+	.tag-head__etc::after {
+		content: '';
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: 32px;
+		height: 32px;
+		transform: translate(-50%, -50%);
+	}
+
+	@media (pointer: coarse), (max-width: 859px) {
+		.tag-head__etc::after {
+			width: 44px;
+			height: 44px;
+		}
 	}
 
 	.tag-head__etc[aria-expanded='true'] {
