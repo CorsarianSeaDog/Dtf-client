@@ -13,9 +13,9 @@ export const currentUser = {
 		return stored.value;
 	},
 
-	/** Обновить данные один раз за загрузку страницы */
-	load() {
-		loading ??= api
+	/** Обновить данные один раз за загрузку страницы. Промис не падает: ошибка уходит в консоль */
+	load(): Promise<void> {
+		return (loading ??= api
 			.getMe()
 			.then((me) => {
 				stored.value = me;
@@ -23,13 +23,13 @@ export const currentUser = {
 			.catch((e) => {
 				loading = undefined;
 				console.warn('[currentUser] Не удалось получить профиль:', e);
-			});
+			}));
 	},
 
-	/** Перечитать после смены имени или био */
+	/** Перечитать: после смены имени или био, по обновлению страницы аккаунта */
 	refresh() {
 		loading = undefined;
-		this.load();
+		return this.load();
 	},
 
 	clear() {

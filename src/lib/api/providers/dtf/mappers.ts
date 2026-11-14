@@ -284,11 +284,19 @@ export function mapProfile(subsite: any): Profile {
 	};
 }
 
+// /subsite/me отдаёт тот же объект подсайта, что и профиль: обложку и счётчики берём тем же разбором
 export function mapCurrentUser(me: any): CurrentUser {
+	const { avatarUrl: avatarLargeUrl, coverUrl, coverY, rating, subscribersCount, subscriptionsCount } = mapProfile(me);
 	return {
 		id: me.id,
 		name: me.name || 'Аноним',
 		avatarUrl: mapAvatarUrl(me, '80x80'),
-		description: me.description || undefined
+		description: me.description || undefined,
+		avatarLargeUrl,
+		coverUrl,
+		coverY,
+		rating,
+		subscribersCount,
+		subscriptionsCount
 	};
 }

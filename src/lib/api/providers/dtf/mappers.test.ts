@@ -202,6 +202,12 @@ describe('mapCurrentUser', () => {
 		expect(mapCurrentUser({ id: 1, name: 'Ник', description: 'о себе' })).toMatchObject({ id: 1, name: 'Ник', description: 'о себе' });
 		expect(mapCurrentUser({ id: 1 }).name).toBe('Аноним');
 	});
+
+	it('берёт обложку и счётчики из того же объекта, что и профиль', () => {
+		const me = mapCurrentUser({ id: 1, rating: 42, counters: { subscribers: 3, subscriptions: 5 }, coverY: 30, cover: { data: { uuid: 'cov' } } });
+		expect(me).toMatchObject({ rating: 42, subscribersCount: 3, subscriptionsCount: 5, coverY: 30 });
+		expect(me.coverUrl).toContain('/cov/');
+	});
 });
 
 describe('parseNotificationHtml', () => {

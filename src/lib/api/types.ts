@@ -366,6 +366,13 @@ export interface CurrentUser {
 	avatarUrl?: string;
 	/** Био как есть, без разметки */
 	description?: string;
+	/** Для страницы аккаунта: крупная аватарка, обложка и счётчики (тот же ответ, отдельного запроса профиля не нужно) */
+	avatarLargeUrl?: string;
+	coverUrl?: string;
+	coverY?: number;
+	rating?: number;
+	subscribersCount?: number;
+	subscriptionsCount?: number;
 }
 
 /** Настройки аккаунта DTF: блог (имя, био) и ленты. Значения те же, что принимает `subsite/update` */
