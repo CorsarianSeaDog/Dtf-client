@@ -103,7 +103,7 @@ describe('SettingsScreen', () => {
 
 		expect(body).toContain('Поддержите reDTF');
 		expect(body).toContain('Расскажите о проекте');
-		expect(body).toContain('Из России');
+		expect(body).toContain('Поддержать проект');
 	});
 
 	it('рендерит страницу «Поддержавшие проект» при передаче page: supporters', () => {

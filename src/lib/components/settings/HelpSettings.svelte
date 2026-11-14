@@ -4,12 +4,11 @@
 	import SettingsRow from './SettingsRow.svelte';
 	import SettingsTile from './SettingsTile.svelte';
 	import { shareApp } from '$lib/shareApp';
+	import { openSupport } from '$lib/navigation';
 
 	let { onopensupporters }: { onopensupporters?: () => void } = $props();
 
 	/* Страница «Хочу помочь»: сначала поддержка (донат, рассказать другу, звезда), потом участие в разработке */
-	const DONATE_RU_URL = 'https://pay.cloudtips.ru/p/2fa64784';
-	const DONATE_WORLD_URL = 'https://dalink.to/donnertech';
 	const TELEGRAM_URL = 'https://t.me/re_dtf';
 	const GITHUB_URL = 'https://github.com/re-dtf/client';
 
@@ -38,8 +37,7 @@
 			Мы очень благодарны за любую помощь. Деньги идут на сервер, домен и труд разработки.
 		</p>
 		<div class="hero__actions">
-			<SettingsButton variant="suggested" href={DONATE_RU_URL}>Из России</SettingsButton>
-			<SettingsButton href={DONATE_WORLD_URL}>Из других стран</SettingsButton>
+			<SettingsButton variant="suggested" onclick={() => openSupport()}>Поддержать проект</SettingsButton>
 		</div>
 	</div>
 </section>

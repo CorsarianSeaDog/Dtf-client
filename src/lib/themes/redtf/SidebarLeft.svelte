@@ -5,7 +5,7 @@
 	import { drawerSwipe, provideDrawer } from '$lib/drawerSwipe';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { reducedMotion } from '$lib/motion';
-	import { getProfilePath, openFeed, openPost, openProfile, openSettings } from '$lib/navigation';
+	import { getProfilePath, openFeed, openPost, openProfile, openSettings, openSupport } from '$lib/navigation';
 	import { startWriting } from '../dtf2022/actions.svelte';
 	import { clickOnKey } from '../dtf2022/a11y';
 	import { sidebar } from '../dtf2022/sidebar.svelte';
@@ -163,7 +163,7 @@
 					<div class="sidebar-footer__links">
 						<a href={resolve('/settings')} onclick={openSettings}>Настройки</a>
 						<a href="{resolve('/settings')}?page=about" onclick={(e) => openSettings(e, 'about')}>О проекте</a>
-						<a href="{resolve('/settings')}?page=help" onclick={(e) => openSettings(e, 'help')}>Поддержать развитие</a>
+						<a href={resolve('/support')} onclick={openSupport}>Поддержать развитие</a>
 						<a href={resolve('/post/57431' as any)} onclick={(e) => openPost(e, { id: 57431, sourceId: 'dtf' })}>Правила DTF</a>
 						<a href="{resolve('/settings')}?page=about&section=documents" onclick={(e) => openSettings(e, 'about', 'documents')}>Правовая информация</a>
 						<a href="https://github.com/re-dtf/client/issues" target="_blank" rel="noreferrer">Сообщить о проблеме</a>

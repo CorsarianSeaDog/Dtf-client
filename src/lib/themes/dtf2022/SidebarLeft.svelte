@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { feed, openFeedTab, type FeedName } from '$lib/feed.svelte';
-	import { getProfilePath, openFeed, openPost, openProfile, openSettings } from '$lib/navigation';
+	import { getProfilePath, openFeed, openPost, openProfile, openSettings, openSupport } from '$lib/navigation';
 	import { startWriting } from './actions.svelte';
 	import { clickOnKey } from './a11y';
 	import { sidebar } from './sidebar.svelte';
@@ -112,7 +112,7 @@
 				<div class="sidebar-footer__links">
 					<a href={resolve('/settings')} onclick={openSettings}>Настройки</a>
 					<a href="{resolve('/settings')}?page=about" onclick={(e) => openSettings(e, 'about')}>О проекте</a>
-					<a href="{resolve('/settings')}?page=help" onclick={(e) => openSettings(e, 'help')}>Поддержать развитие</a>
+					<a href={resolve('/support')} onclick={openSupport}>Поддержать развитие</a>
 					<a href={resolve('/post/57431' as any)} onclick={(e) => openPost(e, { id: 57431, sourceId: 'dtf' })}>Правила DTF</a>
 					<a href="{resolve('/settings')}?page=about&section=documents" onclick={(e) => openSettings(e, 'about', 'documents')}>Правовая информация</a>
 					<a href="https://github.com/re-dtf/client/issues" target="_blank" rel="noreferrer">Сообщить о проблеме</a>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { openSettings } from '$lib/navigation';
+	import { openSupport } from '$lib/navigation';
 	import { shareApp } from '$lib/shareApp';
 	import { notify } from './ui/notify.svelte';
 
@@ -26,7 +26,7 @@
 	</div>
 
 	<div class="notice__actions">
-		<a href="{resolve('/settings')}?page=help" class="notice__btn notice__btn--primary" onclick={(e) => openSettings(e, 'help')}>Поддержать проект</a>
+		<a href={resolve('/support')} class="notice__btn notice__btn--primary" onclick={openSupport}>Поддержать проект</a>
 		<button class="notice__btn" onclick={share}>
 			<svg class="icon" width="20" height="20" aria-hidden="true"><use href="#v_share"></use></svg>
 			Рассказать друзьям

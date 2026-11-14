@@ -7,10 +7,7 @@
 		type Supporter,
 		type SupportersPayload
 	} from '$lib/supporters';
-	import { openDtfLink } from '$lib/navigation';
-
-	const DONATE_RU_URL = 'https://pay.cloudtips.ru/p/2fa64784';
-	const DONATE_WORLD_URL = 'https://dalink.to/donnertech';
+	import { openDtfLink, openSupport } from '$lib/navigation';
 
 	const AVATAR_COLORS = [
 		'#e5484d',
@@ -75,8 +72,7 @@
 			{data?.description || 'Мы очень благодарны всем, кто поддерживает развитие reDTF. Деньги идут на сервер, домен и труд разработки.'}
 		</p>
 		<div class="hero__actions">
-			<SettingsButton variant="suggested" href={DONATE_RU_URL}>Из России</SettingsButton>
-			<SettingsButton href={DONATE_WORLD_URL}>Из других стран</SettingsButton>
+			<SettingsButton variant="suggested" onclick={() => openSupport()}>Поддержать проект</SettingsButton>
 		</div>
 	</div>
 </section>
@@ -136,7 +132,7 @@
 	<div class="state-card">
 		<p class="state-card__title">Список пока пуст</p>
 		<p class="state-card__text">Вы можете стать первым, кто поддержит развитие клиента!</p>
-		<SettingsButton variant="suggested" href={DONATE_RU_URL}>Поддержать</SettingsButton>
+		<SettingsButton variant="suggested" onclick={() => openSupport()}>Поддержать</SettingsButton>
 	</div>
 {/if}
 

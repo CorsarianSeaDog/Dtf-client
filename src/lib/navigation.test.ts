@@ -63,27 +63,27 @@ describe('navigation', () => {
 		expect(getSettingsPath('about', 'documents')).toBe('/settings?page=about&section=documents');
 	});
 
-	it('SidebarLeft в dtf2022 содержит рабочие ссылки на «О приложении» и «Хочу помочь»', () => {
+	it('SidebarLeft в dtf2022 содержит рабочие ссылки на «О приложении» и окно поддержки', () => {
 		const filePath = path.resolve(__dirname, 'themes/dtf2022/SidebarLeft.svelte');
 		const content = fs.readFileSync(filePath, 'utf-8');
 
 		expect(content).toContain('?page=about');
-		expect(content).toContain('?page=help');
+		expect(content).toContain("resolve('/support')");
 		expect(content).toContain('?page=about&section=documents');
 		expect(content).toContain("openSettings(e, 'about')");
-		expect(content).toContain("openSettings(e, 'help')");
+		expect(content).toContain('onclick={openSupport}');
 		expect(content).toContain("openSettings(e, 'about', 'documents')");
 	});
 
-	it('SidebarLeft в redtf содержит рабочие ссылки на «О приложении» и «Хочу помочь»', () => {
+	it('SidebarLeft в redtf содержит рабочие ссылки на «О приложении» и окно поддержки', () => {
 		const filePath = path.resolve(__dirname, 'themes/redtf/SidebarLeft.svelte');
 		const content = fs.readFileSync(filePath, 'utf-8');
 
 		expect(content).toContain('?page=about');
-		expect(content).toContain('?page=help');
+		expect(content).toContain("resolve('/support')");
 		expect(content).toContain('?page=about&section=documents');
 		expect(content).toContain("openSettings(e, 'about')");
-		expect(content).toContain("openSettings(e, 'help')");
+		expect(content).toContain('onclick={openSupport}');
 		expect(content).toContain("openSettings(e, 'about', 'documents')");
 	});
 
