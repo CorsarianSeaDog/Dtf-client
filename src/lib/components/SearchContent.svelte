@@ -4,7 +4,8 @@
 	import type { CursorData, Post, SearchFilters, SearchSorting, SearchSubsite } from '$lib/api/types';
 	import { appendUnique, postKey } from '$lib/api/utils';
 	import type { SearchTab } from '$lib/themes/contract';
-	import ThemeLoader from '$lib/themes/ThemeLoader.svelte';
+	import ThemeLoader, { preloadThemeComponent } from '$lib/themes/ThemeLoader.svelte';
+	import { activeTheme } from '$lib/themes/index.svelte';
 	import Reveal from './Reveal.svelte';
 
 	/*
@@ -56,6 +57,8 @@
 		const id = ++st.reqId;
 		st.loading = true;
 		st.error = undefined;
+		// Параллельно с первым поиском грузим компонент темы: иначе Reveal запустит переход на пустом экране и мелькнёт спиннер
+		const componentReady = !shown ? preloadThemeComponent(activeTheme.chain, 'SearchPage') : null;
 		if (!more) {
 			st.key = targetKey;
 			st.loaded = st.hasMore = false;
@@ -100,7 +103,12 @@
 		} finally {
 			if (id === st.reqId) {
 				st.loading = false;
-				shown = true;
+				if (componentReady) {
+					await componentReady;
+					if (id === st.reqId) shown = true;
+				} else {
+					shown = true;
+				}
 			}
 		}
 	}

@@ -3,7 +3,8 @@
 	import { api } from '$lib/api/index.svelte';
 	import type { Post } from '$lib/api/types';
 	import { appendUnique, postKey } from '$lib/api/utils';
-	import ThemeLoader from '$lib/themes/ThemeLoader.svelte';
+	import ThemeLoader, { preloadThemeComponent } from '$lib/themes/ThemeLoader.svelte';
+	import { activeTheme } from '$lib/themes/index.svelte';
 	import Reveal from './Reveal.svelte';
 	import NetworkErrorState from './NetworkErrorState.svelte';
 
@@ -23,13 +24,17 @@
 		const id = ++requestId;
 		loading = true;
 		error = undefined;
+		const componentReady = preloadThemeComponent(activeTheme.chain, 'TagPage');
 		try {
 			const result = await api.getTagPosts(tag);
 			if (id === requestId) posts = appendUnique([], result, postKey);
 		} catch (e) {
 			if (id === requestId) error = e;
 		} finally {
-			if (id === requestId) loading = false;
+			if (id === requestId) {
+				if (!error) await componentReady;
+				if (id === requestId) loading = false;
+			}
 		}
 	}
 

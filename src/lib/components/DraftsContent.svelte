@@ -5,7 +5,8 @@
 	import type { Post } from '$lib/api/types';
 	import { appendUnique, postKey } from '$lib/api/utils';
 	import { openOverlay } from '$lib/navigation';
-	import ThemeLoader from '$lib/themes/ThemeLoader.svelte';
+	import ThemeLoader, { preloadThemeComponent } from '$lib/themes/ThemeLoader.svelte';
+	import { activeTheme } from '$lib/themes/index.svelte';
 	import Reveal from './Reveal.svelte';
 
 	/*
@@ -25,6 +26,7 @@
 		if (loading || (more && !hasMore)) return;
 		loading = true;
 		error = undefined;
+		const componentReady = !shown ? preloadThemeComponent(activeTheme.chain, 'DraftsPage') : null;
 		try {
 			const page = await api.getDrafts(more ? posts.length : 0);
 			posts = appendUnique(more ? posts : [], page, postKey);
@@ -32,8 +34,10 @@
 		} catch (e) {
 			error = e;
 		} finally {
-			loaded = shown = true;
+			loaded = true;
 			loading = false;
+			if (componentReady) await componentReady;
+			shown = true;
 		}
 	}
 
@@ -42,7 +46,11 @@
 		if (authStorage.isAuthenticated) untrack(() => load());
 		else {
 			posts = [];
-			loaded = shown = true;
+			loaded = true;
+			if (shown) return;
+			preloadThemeComponent(activeTheme.chain, 'DraftsPage').then(() => {
+				if (!authStorage.isAuthenticated) shown = true;
+			});
 		}
 	});
 </script>
