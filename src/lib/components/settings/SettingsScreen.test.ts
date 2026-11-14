@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render } from 'svelte/server';
 import SettingsScreen from './SettingsScreen.svelte';
 import { authStorage } from '$lib/storage/auth.svelte';
+import { resolveInitialNav } from './settingsConfig';
 
 describe('SettingsScreen', () => {
 	it('рендерит основные категории и пункты Уровня 1', () => {
@@ -335,5 +336,33 @@ describe('SettingsScreen', () => {
 
 		expect(body).toContain('Редактор');
 		expect(body).toContain('Типографика при вводе');
+	});
+
+	it('разрешает алиасы страниц и разделов через resolveInitialNav', () => {
+		expect(resolveInitialNav('themes', undefined, false)).toEqual({
+			folderId: null,
+			pageId: 'theme-select',
+			section: undefined
+		});
+		expect(resolveInitialNav('behavior-comments', undefined, false)).toEqual({
+			folderId: 'interface',
+			pageId: 'interface-comments',
+			section: undefined
+		});
+		expect(resolveInitialNav('legal', 'other', false)).toEqual({
+			folderId: null,
+			pageId: 'about',
+			section: 'documents'
+		});
+		expect(resolveInitialNav(undefined, 'appearance', false)).toEqual({
+			folderId: 'interface',
+			pageId: null,
+			section: 'appearance'
+		});
+		expect(resolveInitialNav('debug', undefined, false)).toEqual({
+			folderId: null,
+			pageId: null,
+			section: undefined
+		});
 	});
 });

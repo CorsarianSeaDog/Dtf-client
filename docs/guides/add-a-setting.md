@@ -43,7 +43,7 @@
 ## Общая настройка
 
 1. Добавьте поле в `AppSettings` и значение по умолчанию в `storage/settings.svelte.ts`.
-2. Добавьте поле на подходящую страницу в `components/settings/SettingsScreen.svelte` (новая страница — это новый пункт в `navigation` и ветка в разметке). Для выбора из вариантов и переключателя опишите поле и используйте `FieldControl`, для остального — `SettingsGroup` с обычным `input` и функциональной привязкой (образец — `ProxySettings.svelte`):
+2. Для выбора из вариантов или переключателя опишите поле и добавьте его на нужную страницу в `components/settings/settingsConfig.ts` (и рендер через `FieldControl`, и поисковый индекс обновятся вместе). Если нужна нестандартная разметка (образец — `ProxySettings.svelte`) — добавьте новый пункт навигации в `settingsConfig.ts`, подключите компонент страницы в `components/settings/SettingsScreen.svelte` и используйте `SettingsGroup` с функциональной привязкой `input`:
 
    ```svelte
    <input type="checkbox" bind:checked={() => settings.value.collectStats, (v) => settings.patch({ collectStats: v })} />

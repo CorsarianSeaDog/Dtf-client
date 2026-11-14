@@ -11,7 +11,8 @@
 
 | Файл | Роль |
 | --- | --- |
-| `components/settings/SettingsScreen.svelte` | окно: двухуровневые разделы слева, режим Solo, список страниц и выбор, что показать |
+| `components/settings/SettingsScreen.svelte` | окно: двухуровневые разделы слева, режим Solo, поиск и отображение выбранной страницы |
+| `components/settings/settingsConfig.ts` | конфигурация разделов навигации, алиасы страниц, описания общих полей и декларативные страницы |
 | `components/settings/SettingsIcon.svelte` | значки разделов боковой панели (по id страницы/раздела); новая страница — новая ветка в нём |
 | `components/settings/FieldControl.svelte` | один пункт настроек по описанию поля |
 | `components/settings/SettingsGroup.svelte`, `SettingsRow.svelte`, `SettingsSwitch.svelte`, `SettingsSelect.svelte`, `SettingsSegmented.svelte`, `SettingsButton.svelte` | примитивы оформления: группа-карточка, строка, переключатель, выпадающий список, сегментированный выбор, кнопка |

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import AboutSettings from './AboutSettings.svelte';
 	import AccountSettings from './AccountSettings.svelte';
 	import AppIconSettings from './AppIconSettings.svelte';
@@ -16,22 +16,31 @@
 	import SettingsGroup from './SettingsGroup.svelte';
 	import SettingsIcon from './SettingsIcon.svelte';
 	import SettingsRow from './SettingsRow.svelte';
-	import SettingsSwitch from './SettingsSwitch.svelte';
 	import StatsSettings from './StatsSettings.svelte';
 	import SupportersSettings from './SupportersSettings.svelte';
 	import SourcesSettings from '$lib/components/sources/SourcesSettings.svelte';
-	import { activeTheme, themes } from '$lib/themes/index.svelte';
-	import { getTheme, themeSettingsSchema } from '$lib/themes/registry';
+	import { activeTheme } from '$lib/themes/index.svelte';
+	import { themeSettingsSchema } from '$lib/themes/registry';
 	import { activeThemeSettings } from '$lib/themes/settings.svelte';
-	import { settings, DEFAULT_THEME } from '$lib/storage/settings.svelte';
-	import { reactionSettings } from '$lib/storage/reactions.svelte';
-	import type { NestingMode, CommentVirtualization, RecommendationsMode, ClientBadgesMode, MobileBadgesPosition, PlusBadgesMode, AnimatedAvatarsMode } from '$lib/storage/settings.svelte';
-	import { isFieldVisible, getCurrentDevice, MOBILE_BREAKPOINT } from '$lib/themes/types';
-	import type { ChoiceField, SettingField, ToggleField, SettingDevice } from '$lib/themes/types';
-	import { paletteSelection } from '$lib/themes/palette';
+	import { settings } from '$lib/storage/settings.svelte';
+	import { getCurrentDevice, MOBILE_BREAKPOINT } from '$lib/themes/types';
+	import type { SettingDevice } from '$lib/themes/types';
 	import { pushSubstate, popSubstate } from '$lib/navigation';
 	import { isNative } from '$lib/capacitor';
 	import { dev } from '$app/env';
+	import {
+		buildDeclarativePages,
+		buildNavSearchPages,
+		getPageTitle,
+		getRootNavigation,
+		INTERFACE_SUBNAV,
+		resolveInitialNav,
+		toSearchFieldGroups,
+		type DeclarativeFieldEntry,
+		type RootNavItem,
+		type SoloBackTarget,
+		type SubNavItem
+	} from './settingsConfig';
 	import {
 		buildSettingsSearchIndex,
 		scrollAndHighlightSetting,
@@ -41,11 +50,9 @@
 
 	/*
 	 * Окно настроек в духе libadwaita с двухуровневой навигацией:
-	 * - Уровень 1 (Главное меню): категории и пункты настроек.
-	 *   Пункты могут быть либо прямыми страницами, либо папками.
-	 * - Уровень 2 (Подменю раздела): шапка сайдбара меняется на имя раздела со стрелкой назад,
-	 *   а в сайдбаре показываются подпункты категории.
-	 * - Режим Solo: возможность скрыть сайдбар для сфокусированного просмотра (например, ЧС из Ленты).
+	 * - Уровень 1 (Главное меню): категории и пункты настроек (страницы или папки).
+	 * - Уровень 2 (Подменю раздела): шапка сайдбара меняется на имя раздела со стрелкой назад.
+	 * - Режим Solo: скрытый сайдбар для сфокусированного просмотра (например, ЧС из Ленты).
 	 */
 	let {
 		onclose,
@@ -75,399 +82,30 @@
 	});
 
 	let currentDevice = $derived(device ?? detectedDevice);
+	const isDevVisible = $derived(dev || Boolean(settings.value.devMode));
+	const rootNavigation = $derived(getRootNavigation(isDevVisible));
 
-	// --- Описания общих полей настроек ---
-	let paletteField = $derived<ChoiceField>({
-		key: 'palette',
-		type: 'radio',
-		title: 'Цветовая палитра',
-		default: 'auto',
-		options: [
-			{ value: 'auto', title: 'Системная', description: 'Следовать настройкам системы' },
-			...activeTheme.palettes.options.map(palette => ({ value: palette.id, title: palette.title }))
-		]
-	});
-	const themeField: ChoiceField = {
-		key: 'theme',
-		type: 'radio',
-		title: 'Выбор темы',
-		default: DEFAULT_THEME,
-		options: themes.filter((theme) => !theme.hidden).map((theme) => ({ value: theme.id, title: theme.name, description: theme.description }))
-	};
-
-	const hapticsField: ToggleField = {
-		key: 'haptics',
-		type: 'toggle',
-		title: 'Тактильный отклик (вибрация)',
-		description: 'Вибрация при лайках, реакциях и переключении вкладок (для Android)',
-		default: true
-	};
-
-	const disableMobileTopBarField: ToggleField = {
-		key: 'disableMobileTopBar',
-		type: 'toggle',
-		title: 'Отключить верхний бар в мобильной версии',
-		description: 'Скрывать шапку с логотипом на смартфонах для экономии места',
-		default: false,
-		device: 'mobile'
-	};
-
-	const useSharePreviewField: ToggleField = {
-		key: 'useSharePreview',
-		type: 'toggle',
-		title: 'Превью ссылок в соцсетях',
-		description: 'Копировать ссылки на посты через сервис предпросмотра, чтобы Telegram и другие соцсети показывали карточку статьи с обложкой.',
-		default: true
-	};
-
-	const watermarkField: ToggleField = {
-		key: 'watermark',
-		type: 'toggle',
-		title: 'Невидимая подпись reDTF',
-		description: 'Добавляет скрытую метку к отправляемым комментариям, чтобы другие пользователи reDTF видели, что комментарий написан через этот клиент.',
-		default: true
-	};
-
-	function defaultTransparency(): boolean {
-		if (typeof window === 'undefined') return true;
-		return !window.matchMedia?.('(prefers-reduced-transparency: reduce)').matches;
-	}
-
-	const defaultTransparencyField: ToggleField = {
-		key: 'transparencyEffects',
-		type: 'toggle',
-		title: 'Продвинутые эффекты прозрачности и размытия',
-		description: 'Размытие при переходах и предпросмотр медиа. Без них анимации быстрее и легче.',
-		default: defaultTransparency()
-	};
-
-	const recommendationsField: ChoiceField = {
-		key: 'recommendations',
-		type: 'radio',
-		title: 'Рекомендации под постом',
-		description: 'Как загружать ленту рекомендаций после комментариев.',
-		default: 'auto',
-		options: [
-			{ value: 'auto', title: 'Сразу', description: 'Подгружаются, когда долистали до конца комментариев' },
-			{ value: 'button', title: 'По кнопке', description: 'Под комментариями кнопка «Показать рекомендации»' }
-		]
-	};
-
-	const autoUpvoteCommentsField: ToggleField = {
-		key: 'autoUpvoteComments',
-		type: 'toggle',
-		title: 'Голос за себя при публикации',
-		description: 'Автоматически ставить плюс своему комментарию сразу после публикации, как на Reddit.',
-		default: false
-	};
-
-	const nestingField: ChoiceField = {
-		key: 'commentNesting',
-		type: 'radio',
-		title: 'Вложенные комментарии',
-		description: 'Режим отображения глубоко вложенных комментариев.',
-		default: 'flatten',
-		options: [
-			{ value: 'flatten', title: 'Сглаживание (рекомендуется)', description: 'Глубокие ветки сглаживаются с навигацией к родителю' },
-			{ value: 'autopan', title: 'Авто-панорама', description: 'Без лимита вложенности, камера следит за глубиной' }
-		]
-	};
-
-	const virtualizationField: ChoiceField = {
-		key: 'commentVirtualization',
-		type: 'radio',
-		title: 'Виртуализация комментариев',
-		description: 'На странице держатся только комментарии около экрана: длинные ветки прокручиваются быстрее. Поиск по странице и экранный чтец видят только их.',
-		default: 'auto',
-		options: [
-			{ value: 'auto', title: 'Авто (рекомендуется)', description: 'Включено' },
-			{ value: 'enabled', title: 'Всегда включено', description: 'Включено' },
-			{ value: 'disabled', title: 'Отключено', description: 'Все комментарии сразу: работает поиск по странице, но длинные ветки тормозят' }
-		]
-	};
-
-	const clientBadgesField: ChoiceField = {
-		key: 'clientBadges',
-		type: 'radio',
-		title: 'Бейджи клиентов',
-		description: 'Отображение меток приложений и клиентов у комментариев.',
-		default: 'redtf_only',
-		options: [
-			{ value: 'redtf_only', title: 'Только re: (по умолчанию)', description: 'Показывать только метку reDTF' },
-			{ value: 'all', title: 'Все бейджи', description: 'Показывать re: и метки официальных приложений (Android / iOS)' },
-			{ value: 'none', title: 'Отключено', description: 'Скрыть все бейджи клиентов' }
-		]
-	};
-
-	const mobileBadgesPositionField: ChoiceField = {
-		key: 'mobileBadgesPosition',
-		type: 'radio',
-		title: 'Расположение бейджей ОС',
-		description: 'Где показывать значки официальных приложений Android и iOS. Метка re: всегда остаётся у имени автора.',
-		default: 'author',
-		options: [
-			{ value: 'author', title: 'Возле ника (по умолчанию)', description: 'В строке автора рядом с именем' },
-			{ value: 'date', title: 'Возле времени отправления', description: 'Компактная мини-иконка рядом со временем комментария' }
-		]
-	};
-
-	const plusBadgesField: ChoiceField = {
-		key: 'plusBadges',
-		type: 'radio',
-		title: 'Бейджи Плюса',
-		description: 'Какой значок показывать у подписчиков DTF Plus.',
-		default: 'classic',
-		options: [
-			{ value: 'classic', title: 'Классическая иконка (по умолчанию)', description: 'Алмаз у всех подписчиков Плюса' },
-			{ value: 'custom', title: 'Разрешить кастомные бейджи', description: 'Тот значок, который автор выбрал в настройках профиля' }
-		]
-	};
-
-	const animatedAvatarsField: ChoiceField = {
-		key: 'animatedAvatars',
-		type: 'radio',
-		title: 'Анимированные аватарки',
-		description: 'Когда воспроизводить видео-аватарки подписчиков Плюса. Обложки профилей анимируются всегда.',
-		default: 'all',
-		options: [
-			{ value: 'all', title: 'Везде (по умолчанию)', description: 'В ленте, постах, комментариях и профилях (только на экране)' },
-			{ value: 'hover', title: 'Только профиль и при наведении', description: 'В шапке профиля и при наведении курсора в ленте и комментариях' },
-			{ value: 'off', title: 'Выключено', description: 'Всегда показывать статичный кадр' }
-		]
-	};
-
-	const smartTypographyField: ToggleField = {
-		key: 'smartTypography',
-		type: 'toggle',
-		title: 'Типографика при вводе',
-		description: 'Заменять в редакторе постов и комментариев два дефиса (--) на длинное тире (—), а двойные кавычки ("") — на кавычки-ёлочки («»)',
-		default: true
-	};
-
-	// --- Настройки темы ---
 	let themeFields = $derived(themeSettingsSchema(activeTheme.id));
 	let themeValues = $derived(activeThemeSettings());
-
-	// Группировка динамических полей темы по разделам интерфейса и приложения
-	const TOP_BAR_KEYS = new Set(['headerBlur', 'avatarOpensMenu', 'createButtonPos', 'searchBarMode']);
-	const MOBILE_BAR_KEYS = new Set(['mobileBarBlur', 'mobileBarFloating']);
-	const CONTENT_KEYS = new Set(['contentWidth']);
-	const VOTE_KEYS = new Set(['votes', 'arrowsSide', 'arrowsOrder']);
-	const EDITOR_KEYS = new Set(['editorFullscreen']);
-	const COMMENT_KEYS = new Set(['swipeColumn']);
-	const APP_KEYS = new Set(['transparencyEffects']);
-
-	let topBarThemeFields = $derived(themeFields.filter((f) => TOP_BAR_KEYS.has(f.key)));
-	let mobileBarThemeFields = $derived(themeFields.filter((f) => MOBILE_BAR_KEYS.has(f.key)));
-	let contentThemeFields = $derived(themeFields.filter((f) => CONTENT_KEYS.has(f.key)));
-	let votesThemeFields = $derived(themeFields.filter((f) => VOTE_KEYS.has(f.key)));
-	let editorThemeFields = $derived(themeFields.filter((f) => EDITOR_KEYS.has(f.key)));
-	let commentThemeFields = $derived(themeFields.filter((f) => COMMENT_KEYS.has(f.key)));
-	let otherThemeFields = $derived(
-		themeFields.filter(
-			(f) =>
-				!TOP_BAR_KEYS.has(f.key) &&
-				!MOBILE_BAR_KEYS.has(f.key) &&
-				!CONTENT_KEYS.has(f.key) &&
-				!VOTE_KEYS.has(f.key) &&
-				!EDITOR_KEYS.has(f.key) &&
-				!COMMENT_KEYS.has(f.key) &&
-				!APP_KEYS.has(f.key)
-		)
+	let declarativePages = $derived(
+		buildDeclarativePages(themeFields, themeValues, currentDevice, settings.value.clientBadges)
 	);
 
-	let transparencyField = $derived(
-		themeFields.find((f) => f.key === 'transparencyEffects') ?? defaultTransparencyField
-	);
+	const initial = untrack(() => resolveInitialNav(page, section, isDevVisible));
 
-	let visibleTopBarFields = $derived(topBarThemeFields.filter((f) => isFieldVisible(f, themeValues.value, themeFields, currentDevice)));
-	let visibleMobileBarFields = $derived(mobileBarThemeFields.filter((f) => isFieldVisible(f, themeValues.value, themeFields, currentDevice)));
-	let visibleContentFields = $derived(contentThemeFields.filter((f) => isFieldVisible(f, themeValues.value, themeFields, currentDevice)));
-	let visibleVotesFields = $derived(votesThemeFields.filter((f) => isFieldVisible(f, themeValues.value, themeFields, currentDevice)));
-	let visibleEditorFields = $derived(editorThemeFields.filter((f) => isFieldVisible(f, themeValues.value, themeFields, currentDevice)));
-	let visibleCommentFields = $derived(commentThemeFields.filter((f) => isFieldVisible(f, themeValues.value, themeFields, currentDevice)));
-	let visibleOtherFields = $derived(otherThemeFields.filter((f) => isFieldVisible(f, themeValues.value, themeFields, currentDevice)));
-
-	// --- Структура навигации Уровня 1 ---
-	interface RootNavItem {
-		id: string;
-		type: 'page' | 'folder';
-		title: string;
-		icon: string;
-	}
-
-	interface RootNavSection {
-		title: string;
-		items: RootNavItem[];
-	}
-
-	const BASE_ROOT_NAVIGATION: RootNavSection[] = [
-		{
-			title: 'Аккаунт',
-			items: [
-				{ id: 'account', type: 'page', title: 'Мой профиль', icon: 'profile' },
-				{ id: 'notifications', type: 'page', title: 'Уведомления', icon: 'notifications' }
-			]
-		},
-		{
-			title: 'Контент',
-			items: [
-				{ id: 'feed', type: 'page', title: 'Моя лента', icon: 'feed' },
-				{ id: 'ignored', type: 'page', title: 'Чёрный список', icon: 'ignored' },
-				{ id: 'sources', type: 'page', title: 'Источники данных', icon: 'sources' }
-			]
-		},
-		{
-			title: 'Персонализация',
-			items: [
-				{ id: 'theme-select', type: 'page', title: 'Выбор темы', icon: 'theme-select' },
-				{ id: 'interface', type: 'folder', title: 'Интерфейс', icon: 'interface' },
-				{ id: 'reactions', type: 'page', title: 'Реестр реакций', icon: 'reactions' },
-				{ id: 'app', type: 'page', title: 'Приложение', icon: 'app' }
-			]
-		},
-		{
-			title: 'Данные',
-			items: [
-				{ id: 'network', type: 'page', title: 'Сеть и прокси', icon: 'network' },
-				{ id: 'stats', type: 'page', title: 'Моя статистика', icon: 'stats' }
-			]
-		},
-		{
-			title: 'О проекте',
-			items: [
-				{ id: 'help', type: 'page', title: 'Хочу помочь', icon: 'help' },
-				{ id: 'supporters', type: 'page', title: 'Поддержавшие проект', icon: 'supporters' },
-				{ id: 'about', type: 'page', title: 'О приложении', icon: 'about' }
-			]
-		}
-	];
-
-	const isDevVisible = $derived(dev || Boolean(settings.value.devMode));
-
-	const rootNavigation = $derived<RootNavSection[]>(
-		isDevVisible
-			? [
-					...BASE_ROOT_NAVIGATION,
-					{
-						title: 'Разработка',
-						items: [
-							{ id: 'debug', type: 'page', title: 'Дебаг', icon: 'debug' }
-						]
-					}
-			  ]
-			: BASE_ROOT_NAVIGATION
-	);
-
-	// --- Структура навигации Уровня 2 ---
-	interface SubNavItem {
-		id: string;
-		title: string;
-		icon: string;
-		device?: SettingDevice;
-	}
-
-	interface SubNavGroup {
-		title: string;
-		items: SubNavItem[];
-	}
-
-	const INTERFACE_SUBNAV: SubNavGroup[] = [
-		{
-			title: 'Интерфейс',
-			items: [
-				{ id: 'interface-top-bar', title: 'Верхняя панель', icon: 'top-bar', device: 'desktop' },
-				{ id: 'interface-mobile-bar', title: 'Мобильная панель', icon: 'mobile-bar', device: 'mobile' },
-				{ id: 'interface-content', title: 'Лента и контент', icon: 'content' },
-				{ id: 'interface-votes', title: 'Оценки', icon: 'votes' },
-				{ id: 'interface-comments', title: 'Комментарии', icon: 'comments' },
-				{ id: 'interface-editor', title: 'Редактор', icon: 'editor' }
-			]
-		}
-	];
-
-	// --- Преобразование старых / прямых id страниц ---
-	function resolveInitialNav(): { folderId: string | null; pageId: string | null; section: string | undefined } {
-		const targetPage = page;
-		const targetSection = section;
-
-		if (targetPage === 'themes' || targetPage === 'theme-select' || targetPage === 'theme') {
-			return { folderId: null, pageId: 'theme-select', section: targetSection };
-		}
-		if (targetPage === 'interface-top-bar' || targetPage === 'top-bar') {
-			return { folderId: 'interface', pageId: 'interface-top-bar', section: targetSection };
-		}
-		if (targetPage === 'interface-mobile-bar' || targetPage === 'mobile-bar') {
-			return { folderId: 'interface', pageId: 'interface-mobile-bar', section: targetSection };
-		}
-		if (targetPage === 'interface-content' || targetPage === 'content' || targetPage === 'appearance-general') {
-			return { folderId: 'interface', pageId: 'interface-content', section: targetSection };
-		}
-		if (targetPage === 'interface-votes' || targetPage === 'votes' || targetPage === 'appearance-votes') {
-			return { folderId: 'interface', pageId: 'interface-votes', section: targetSection };
-		}
-		if (targetPage === 'interface-comments' || targetPage === 'comments' || targetPage === 'behavior-comments') {
-			return { folderId: 'interface', pageId: 'interface-comments', section: targetSection };
-		}
-		if (targetPage === 'interface-editor' || targetPage === 'editor' || targetPage === 'appearance-editor') {
-			return { folderId: 'interface', pageId: 'interface-editor', section: targetSection };
-		}
-		if (targetPage === 'reactions' || targetPage === 'behavior-reactions') {
-			return { folderId: null, pageId: 'reactions', section: targetSection };
-		}
-		if (targetPage === 'app') {
-			return { folderId: null, pageId: 'app', section: targetSection };
-		}
-		if (targetPage === 'app-icon' || targetPage === 'icons' || targetPage === 'appearance-icons') {
-			return { folderId: null, pageId: 'app-icon', section: targetSection };
-		}
-		if (targetPage === 'feed' || targetPage === 'my-feed' || targetPage === 'behavior-feed') {
-			return { folderId: null, pageId: 'feed', section: targetSection };
-		}
-		if (targetPage === 'dtf') {
-			return { folderId: null, pageId: 'notifications', section: targetSection };
-		}
-		if (targetPage === 'legal' || targetPage === 'documents') {
-			return { folderId: null, pageId: 'about', section: 'documents' };
-		}
-		if (targetPage === 'proxy') {
-			return { folderId: null, pageId: 'network', section: targetSection };
-		}
-		if (targetPage === 'supporters' || targetPage === 'donations' || targetPage === 'backers') {
-			return { folderId: null, pageId: 'supporters', section: targetSection };
-		}
-		if (targetPage === 'debug' && !isDevVisible) {
-			return { folderId: null, pageId: null, section: targetSection };
-		}
-		if (targetPage) {
-			return { folderId: null, pageId: targetPage, section: targetSection };
-		}
-		if (targetSection === 'interface' || targetSection === 'appearance' || targetSection === 'behavior') {
-			return { folderId: 'interface', pageId: null, section: targetSection };
-		}
-		// По умолчанию ничего не выбрано (открываем пустыми)
-		return { folderId: null, pageId: null, section: targetSection };
-	}
-
-	const initial = resolveInitialNav();
-
-	// Текущая открытая папка в сайдбаре (null = главное меню, 'interface')
 	let activeFolderId = $state<string | null>(initial.folderId);
-	// Текущая выбранная страница контента справа (null = empty state)
 	let selectedPageId = $state<string | null>(initial.pageId);
 	let activeSection = $state<string | undefined>(initial.section);
 
-	// Solo-режим (скрытый сайдбар)
 	let soloByUser = $state<boolean>();
 	let isSolo = $derived(soloByUser ?? solo);
-	let soloBackTarget = $state<{ pageId: string; folderId: string | null; title: string } | null>(null);
+	let soloBackTarget = $state<SoloBackTarget | null>(null);
 
 	// На узком экране: false — список разделов, true — открытая страница
 	let openedByUser = $state<boolean>();
 	let opened = $derived(openedByUser ?? (selectedPageId !== null && (!!page || isSolo)));
 
 	let scroller = $state<HTMLElement>();
-	let windowEl = $state<HTMLElement>();
 	let faded = $state(false);
 	let peeking = $state(false);
 	let searchQuery = $state('');
@@ -475,115 +113,28 @@
 	let hasSearch = $derived(searchQuery.trim().length > 0);
 	let cancelPendingHighlight: (() => void) | undefined;
 
-	// Единый индекс для поиска: пересобирается при смене темы, устройства, режима разработчика или зависимых полей
-	const PAGE_KEYWORDS: Record<string, string> = {
-		notifications: 'оповещения ответы комментарии лайки почта push',
-		'theme-select': 'оформление внешний вид скин палитра светлая тёмная amoled',
-		supporters: 'спонсоры донатеры благодарности',
-		network: 'прокси proxy cors failover вход',
-		stats: 'статистика время посты графики',
-		debug: 'отладка дебаг safe area hud'
-	};
+	let activeDeclarativePage = $derived(
+		selectedPageId ? declarativePages.find((p) => p.pageId === selectedPageId) : undefined
+	);
 
-	let searchIndex = $derived.by(() => {
-		const navPages = [
-			...rootNavigation.flatMap((group) =>
-				group.items
-					.filter((item) => item.type === 'page')
-					.map((item) => ({
-						pageId: item.id,
-						icon: item.icon,
-						path: group.title,
-						title: item.title,
-						keywords: PAGE_KEYWORDS[item.id],
-						devOnly: item.id === 'debug'
-					}))
-			),
-			...INTERFACE_SUBNAV.flatMap((group) =>
-				group.items.map((item) => ({
-					pageId: item.id,
-					folderId: 'interface',
-					icon: item.icon,
-					path: `Персонализация › ${group.title}`,
-					title: item.title,
-					keywords: PAGE_KEYWORDS[item.id],
-					device: item.device
-				}))
-			)
-		];
-
-		const commentFields: SettingField[] = [
-			autoUpvoteCommentsField,
-			nestingField,
-			virtualizationField,
-			...visibleCommentFields,
-			clientBadgesField,
-			...(settings.value.clientBadges === 'all' ? [mobileBadgesPositionField] : [])
-		];
-
-		return buildSettingsSearchIndex({
-			navPages,
-			fieldGroups: [
-				{ pageId: 'theme-select', icon: 'theme-select', path: 'Персонализация › Выбор темы', fields: [themeField, paletteField] },
-				{
-					pageId: 'app',
-					icon: 'app',
-					path: 'Персонализация › Приложение',
-					fields: [hapticsField, transparencyField, watermarkField, useSharePreviewField]
-				},
-				{ pageId: 'interface-top-bar', folderId: 'interface', icon: 'top-bar', path: 'Интерфейс › Верхняя панель', fields: visibleTopBarFields },
-				{
-					pageId: 'interface-mobile-bar',
-					folderId: 'interface',
-					icon: 'mobile-bar',
-					path: 'Интерфейс › Мобильная панель',
-					fields: [disableMobileTopBarField, ...visibleMobileBarFields]
-				},
-				{
-					pageId: 'interface-content',
-					folderId: 'interface',
-					icon: 'content',
-					path: 'Интерфейс › Лента и контент',
-					fields: [...visibleContentFields, recommendationsField, plusBadgesField, animatedAvatarsField, ...visibleOtherFields]
-				},
-				{ pageId: 'interface-votes', folderId: 'interface', icon: 'votes', path: 'Интерфейс › Оценки', fields: visibleVotesFields },
-				{ pageId: 'interface-comments', folderId: 'interface', icon: 'comments', path: 'Интерфейс › Комментарии', fields: commentFields },
-				{
-					pageId: 'interface-editor',
-					folderId: 'interface',
-					icon: 'editor',
-					path: 'Интерфейс › Редактор',
-					fields: [smartTypographyField, ...visibleEditorFields]
-				}
-			],
+	let searchIndex = $derived(
+		buildSettingsSearchIndex({
+			navPages: buildNavSearchPages(rootNavigation),
+			fieldGroups: toSearchFieldGroups(declarativePages),
 			currentDevice,
 			isDevVisible,
 			isNativePlatform: isNative(),
 			hasGestures: Boolean(activeTheme.gestures)
-		});
-	});
+		})
+	);
 
 	let searchResults = $derived(hasSearch ? searchSettings(searchIndex, searchQuery) : []);
 
-	// Получение заголовка текущей папки Уровня 2
 	let folderTitle = $derived(
 		hasSearch ? 'Настройки' : activeFolderId === 'interface' ? 'Интерфейс' : 'Настройки'
 	);
 
-	// Заголовок текущей страницы
-	let pageTitle = $derived.by(() => {
-		if (!selectedPageId) return folderTitle;
-		for (const s of rootNavigation) {
-			const found = s.items.find((i) => i.id === selectedPageId);
-			if (found) return found.title;
-		}
-		for (const g of INTERFACE_SUBNAV) {
-			const found = g.items.find((i) => i.id === selectedPageId);
-			if (found) return found.title;
-		}
-		if (selectedPageId === 'app-icon') return 'Иконка приложения';
-		return 'Настройки';
-	});
+	let pageTitle = $derived(getPageTitle(selectedPageId, folderTitle, rootNavigation));
 
 	function resetSolo() {
 		soloByUser = false;
@@ -601,33 +152,12 @@
 		}
 	}
 
-	// Клик по элементу Уровня 1
-	function handleRootItemClick(item: RootNavItem) {
+	function openPage(targetPageId: string, targetFolderId: string | null = activeFolderId) {
 		cancelPendingHighlight?.();
 		activeSection = undefined;
 		resetSolo();
-		if (item.type === 'folder') {
-			activeFolderId = item.id;
-			selectedPageId = null;
-			openedByUser = false;
-			pushSubstate(performBackToRoot);
-		} else {
-			selectedPageId = item.id;
-			activeFolderId = null;
-			openedByUser = true;
-			scroller?.scrollTo({ top: 0 });
-			if (currentDevice === 'mobile') {
-				pushSubstate(performMobileBack);
-			}
-		}
-	}
-
-	// Клик по сабпункту Уровня 2
-	function handleSubItemClick(item: SubNavItem) {
-		cancelPendingHighlight?.();
-		activeSection = undefined;
-		resetSolo();
-		selectedPageId = item.id;
+		activeFolderId = targetFolderId;
+		selectedPageId = targetPageId;
 		openedByUser = true;
 		scroller?.scrollTo({ top: 0 });
 		if (currentDevice === 'mobile') {
@@ -635,7 +165,24 @@
 		}
 	}
 
-	// Клик по результату поиска: открываем страницу, на мобилке уходим в неё, затем скроллим и подсвечиваем
+	function handleRootItemClick(item: RootNavItem) {
+		if (item.type === 'folder') {
+			cancelPendingHighlight?.();
+			activeSection = undefined;
+			resetSolo();
+			activeFolderId = item.id;
+			selectedPageId = null;
+			openedByUser = false;
+			pushSubstate(performBackToRoot);
+			return;
+		}
+		openPage(item.id, null);
+	}
+
+	function handleSubItemClick(item: SubNavItem) {
+		openPage(item.id, activeFolderId);
+	}
+
 	async function handleSearchResultClick(item: SettingsSearchItem) {
 		cancelPendingHighlight?.();
 		activeSection = undefined;
@@ -667,83 +214,21 @@
 		openedByUser = false;
 	}
 
-	// Возврат из подменю в главное меню сайдбара
 	function handleBackToRoot() {
 		if (!popSubstate()) {
 			performBackToRoot();
 		}
 	}
 
-	// Переход в Чёрный список из Ленты и контента (с активацией Solo)
-	function openIgnoredFromContent() {
-		soloBackTarget = {
-			folderId: 'interface',
-			pageId: 'interface-content',
-			title: 'Лента и контент'
-		};
+	function openSoloPage(
+		targetPageId: string,
+		backTarget: SoloBackTarget,
+		targetFolderId: string | null = null
+	) {
+		soloBackTarget = backTarget;
 		soloByUser = true;
-		selectedPageId = 'ignored';
-		activeFolderId = null;
-		openedByUser = true;
-		scroller?.scrollTo({ top: 0 });
-		pushSubstate(performReturnFromSolo);
-	}
-
-	// Переход в Реестр реакций из Оценок (с активацией Solo)
-	function openReactionsFromVotes() {
-		soloBackTarget = {
-			folderId: 'interface',
-			pageId: 'interface-votes',
-			title: 'Оценки'
-		};
-		soloByUser = true;
-		selectedPageId = 'reactions';
-		activeFolderId = null;
-		openedByUser = true;
-		scroller?.scrollTo({ top: 0 });
-		pushSubstate(performReturnFromSolo);
-	}
-
-	// Переход в Приложение из Комментариев для настройки подписи (с активацией Solo)
-	function openAppFromComments() {
-		soloBackTarget = {
-			folderId: 'interface',
-			pageId: 'interface-comments',
-			title: 'Комментарии'
-		};
-		soloByUser = true;
-		selectedPageId = 'app';
-		activeFolderId = null;
-		openedByUser = true;
-		scroller?.scrollTo({ top: 0 });
-		pushSubstate(performReturnFromSolo);
-	}
-
-	// Переход в Иконку приложения из раздела Приложение (с активацией Solo)
-	function openAppIconSolo() {
-		soloBackTarget = {
-			folderId: null,
-			pageId: 'app',
-			title: 'Приложение'
-		};
-		soloByUser = true;
-		selectedPageId = 'app-icon';
-		activeFolderId = null;
-		openedByUser = true;
-		scroller?.scrollTo({ top: 0 });
-		pushSubstate(performReturnFromSolo);
-	}
-
-	// Переход в Ленту и контент из раздела Моя лента (с активацией Solo)
-	function openContentFromFeed() {
-		soloBackTarget = {
-			folderId: null,
-			pageId: 'feed',
-			title: 'Моя лента'
-		};
-		soloByUser = true;
-		selectedPageId = 'interface-content';
-		activeFolderId = 'interface';
+		selectedPageId = targetPageId;
+		activeFolderId = targetFolderId;
 		openedByUser = true;
 		scroller?.scrollTo({ top: 0 });
 		pushSubstate(performReturnFromSolo);
@@ -760,7 +245,6 @@
 		scroller?.scrollTo({ top: 0 });
 	}
 
-	// Возврат из Solo-режима
 	function handleReturnFromSolo() {
 		if (!popSubstate()) {
 			performReturnFromSolo();
@@ -783,9 +267,14 @@
 	}
 </script>
 
+{#snippet fieldEntries(entries: DeclarativeFieldEntry[])}
+	{#each entries as entry (entry.field.key)}
+		<FieldControl field={entry.field} value={entry.getValue()} onchange={entry.setValue} />
+	{/each}
+{/snippet}
+
 <div
 	class="window"
-	bind:this={windowEl}
 	data-view={opened ? 'page' : 'list'}
 	data-solo={isSolo ? 'true' : 'false'}
 	data-fade={faded ? 'active' : (peeking ? 'peek' : undefined)}
@@ -977,7 +466,14 @@
 						{:else if selectedPageId === 'ignored'}
 							<IgnoredSettings />
 						{:else if selectedPageId === 'feed'}
-							<FeedSettings onopencontent={openContentFromFeed} />
+							<FeedSettings
+								onopencontent={() =>
+									openSoloPage(
+										'interface-content',
+										{ folderId: null, pageId: 'feed', title: 'Моя лента' },
+										'interface'
+									)}
+							/>
 						{:else if selectedPageId === 'sources'}
 							<SourcesSettings />
 						{:else if selectedPageId === 'network'}
@@ -992,229 +488,41 @@
 							<AboutSettings section={activeSection} />
 						{:else if selectedPageId === 'debug' && isDevVisible}
 							<DebugSettings ondisable={() => { selectedPageId = null; handleMobileBack(); }} />
-
-						<!-- Персонализация: Прямые страницы -->
-						{:else if selectedPageId === 'theme-select'}
-							<FieldControl field={themeField} value={activeTheme.id} onchange={(value) => activeTheme.set(String(value))} />
-							<FieldControl
-								field={paletteField}
-								value={paletteSelection(activeTheme.palettes, activeThemeSettings().value.palette)}
-								onchange={(value) => activeThemeSettings().patch({ palette: String(value) })}
-							/>
 						{:else if selectedPageId === 'reactions'}
 							<ReactionsSettings />
-						{:else if selectedPageId === 'app'}
-							<div class="settings-cards">
-								<FieldControl
-									field={hapticsField}
-									value={settings.value.haptics}
-									onchange={(value) => settings.patch({ haptics: Boolean(value) })}
-								/>
-								<FieldControl
-									field={transparencyField}
-									value={themeValues.value.transparencyEffects ?? transparencyField.default}
-									onchange={(value) => themeValues.patch({ transparencyEffects: Boolean(value) })}
-								/>
-								<FieldControl
-									field={watermarkField}
-									value={settings.value.watermark}
-									onchange={(value) => settings.patch({ watermark: Boolean(value) })}
-								/>
-								<FieldControl
-									field={useSharePreviewField}
-									value={settings.value.useSharePreview}
-									onchange={(value) => settings.patch({ useSharePreview: Boolean(value) })}
-								/>
-							</div>
-							<SettingsGroup title="Внешний вид приложения">
-								<SettingsRow
-									title="Иконка приложения"
-									subtitle="Выбор значка приложения и вкладки браузера, или загрузка своей иконки"
-								>
-									<SettingsButton variant="suggested" onclick={openAppIconSolo}>
-										<span class="btn-text">
-											Выбрать
-											<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-												<path d="M6 3l5 5-5 5" />
-											</svg>
-										</span>
-									</SettingsButton>
-								</SettingsRow>
-							</SettingsGroup>
 						{:else if selectedPageId === 'app-icon'}
 							<AppIconSettings />
-
-						<!-- Интерфейс: Подстраницы -->
-						{:else if selectedPageId === 'interface-top-bar'}
-							{#if visibleTopBarFields.length > 0}
-								<div class="settings-cards">
-									{#each visibleTopBarFields as field (field.key)}
-										<FieldControl
-											{field}
-											value={themeValues.value[field.key] ?? field.default}
-											onchange={(value) => themeValues.patch({ [field.key]: value })}
-										/>
-									{/each}
-								</div>
-							{:else}
-								<p class="section-hint">У выбранной темы нет отдельных настроек верхней панели.</p>
-							{/if}
-						{:else if selectedPageId === 'interface-mobile-bar'}
-							<div class="settings-cards">
-								<FieldControl
-									field={disableMobileTopBarField}
-									value={settings.value.disableMobileTopBar}
-									onchange={(value) => settings.patch({ disableMobileTopBar: Boolean(value) })}
-								/>
-								{#each visibleMobileBarFields as field (field.key)}
-									<FieldControl
-										{field}
-										value={themeValues.value[field.key] ?? field.default}
-										onchange={(value) => themeValues.patch({ [field.key]: value })}
-									/>
-								{/each}
-							</div>
-						{:else if selectedPageId === 'interface-content'}
-							<div class="settings-cards">
-								{#each visibleContentFields as field (field.key)}
-									<FieldControl
-										{field}
-										value={themeValues.value[field.key] ?? field.default}
-										onchange={(value) => themeValues.patch({ [field.key]: value })}
-									/>
-								{/each}
-								<FieldControl
-									field={recommendationsField}
-									value={settings.value.recommendations}
-									onchange={(value) => settings.patch({ recommendations: value as RecommendationsMode })}
-								/>
-								<FieldControl
-									field={plusBadgesField}
-									value={settings.value.plusBadges}
-									onchange={(value) => settings.patch({ plusBadges: value as PlusBadgesMode })}
-								/>
-								<FieldControl
-									field={animatedAvatarsField}
-									value={settings.value.animatedAvatars}
-									onchange={(value) => settings.patch({ animatedAvatars: value as AnimatedAvatarsMode })}
-								/>
-								{#each visibleOtherFields as field (field.key)}
-									<FieldControl
-										{field}
-										value={themeValues.value[field.key] ?? field.default}
-										onchange={(value) => themeValues.patch({ [field.key]: value })}
-									/>
-								{/each}
-							</div>
-							<SettingsGroup title="Фильтрация контента">
-								<SettingsRow
-									title="Чёрный список и стоп-слова"
-									subtitle="Скрытие постов по тегам (#политика, #аниме), ключевым словам, а также авторов и сообществ DTF"
-								>
-									<SettingsButton variant="suggested" onclick={openIgnoredFromContent}>
-										<span class="btn-text">
-											Настроить
-											<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-												<path d="M6 3l5 5-5 5" />
-											</svg>
-										</span>
-									</SettingsButton>
-								</SettingsRow>
-							</SettingsGroup>
-						{:else if selectedPageId === 'interface-votes'}
-							{#if visibleVotesFields.length > 0}
-								{#each visibleVotesFields as field (field.key)}
-									<FieldControl
-										{field}
-										value={themeValues.value[field.key] ?? field.default}
-										onchange={(value) => themeValues.patch({ [field.key]: value })}
-									/>
-								{/each}
-							{:else}
-								<p class="section-hint">У выбранной темы нет дополнительных настроек оценок.</p>
-							{/if}
-							<SettingsGroup title="Реестр реакций">
-								<SettingsRow
-									title="Настройка реакций"
-									subtitle="Вес и вид реакций, подсчёт рейтинга"
-								>
-									<SettingsButton variant="suggested" onclick={openReactionsFromVotes}>
-										<span class="btn-text">
-											Настроить
-											<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-												<path d="M6 3l5 5-5 5" />
-											</svg>
-										</span>
-									</SettingsButton>
-								</SettingsRow>
-							</SettingsGroup>
-						{:else if selectedPageId === 'interface-comments'}
-							<div class="settings-cards">
-								<FieldControl
-									field={autoUpvoteCommentsField}
-									value={settings.value.autoUpvoteComments}
-									onchange={(value) => settings.patch({ autoUpvoteComments: Boolean(value) })}
-								/>
-								<FieldControl
-									field={nestingField}
-									value={settings.value.commentNesting}
-									onchange={(value) => settings.patch({ commentNesting: value as NestingMode })}
-								/>
-								<FieldControl
-									field={virtualizationField}
-									value={settings.value.commentVirtualization}
-									onchange={(value) => settings.patch({ commentVirtualization: value as CommentVirtualization })}
-								/>
-								{#each visibleCommentFields as field (field.key)}
-									<FieldControl
-										{field}
-										value={themeValues.value[field.key] ?? field.default}
-										onchange={(value) => themeValues.patch({ [field.key]: value })}
-									/>
-								{/each}
-								<FieldControl
-									field={clientBadgesField}
-									value={settings.value.clientBadges}
-									onchange={(value) => settings.patch({ clientBadges: value as ClientBadgesMode })}
-								/>
-								{#if settings.value.clientBadges === 'all'}
-									<FieldControl
-										field={mobileBadgesPositionField}
-										value={settings.value.mobileBadgesPosition}
-										onchange={(value) => settings.patch({ mobileBadgesPosition: value as MobileBadgesPosition })}
-									/>
+						{:else if activeDeclarativePage}
+							{#if activeDeclarativePage.entries.length > 0}
+								{#if activeDeclarativePage.cardsLayout}
+									<div class="settings-cards">
+										{@render fieldEntries(activeDeclarativePage.entries)}
+									</div>
+								{:else}
+									{@render fieldEntries(activeDeclarativePage.entries)}
 								{/if}
-							</div>
-							<SettingsGroup title="Подпись reDTF">
-								<SettingsRow
-									title="Невидимая подпись reDTF"
-									subtitle="Скрытая метка клиента в комментариях настраивается в параметрах приложения"
-								>
-									<SettingsButton variant="suggested" onclick={openAppFromComments}>
-										<span class="btn-text">
-											Настроить
-											<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-												<path d="M6 3l5 5-5 5" />
-											</svg>
-										</span>
-									</SettingsButton>
-								</SettingsRow>
-							</SettingsGroup>
-						{:else if selectedPageId === 'interface-editor'}
-							<div class="settings-cards">
-								<FieldControl
-									field={smartTypographyField}
-									value={settings.value.smartTypography}
-									onchange={(value) => settings.patch({ smartTypography: Boolean(value) })}
-								/>
-								{#each visibleEditorFields as field (field.key)}
-									<FieldControl
-										{field}
-										value={themeValues.value[field.key] ?? field.default}
-										onchange={(value) => themeValues.patch({ [field.key]: value })}
-									/>
-								{/each}
-							</div>
+							{:else if activeDeclarativePage.emptyHint}
+								<p class="section-hint">{activeDeclarativePage.emptyHint}</p>
+							{/if}
+
+							{#if activeDeclarativePage.soloLink}
+								{@const link = activeDeclarativePage.soloLink}
+								<SettingsGroup title={link.groupTitle}>
+									<SettingsRow title={link.title} subtitle={link.subtitle}>
+										<SettingsButton
+											variant="suggested"
+											onclick={() => openSoloPage(link.targetPageId, link.backTarget, link.targetFolderId ?? null)}
+										>
+											<span class="btn-text">
+												{link.buttonLabel}
+												<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+													<path d="M6 3l5 5-5 5" />
+												</svg>
+											</span>
+										</SettingsButton>
+									</SettingsRow>
+								</SettingsGroup>
+							{/if}
 						{/if}
 					</div>
 				{:else}
