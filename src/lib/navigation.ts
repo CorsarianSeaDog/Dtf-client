@@ -200,6 +200,13 @@ export function openOverlay(overlay: App.OverlayData) {
 				state: { overlays: [...currentOverlays.slice(0, -1), updated] }
 			});
 		}
+		if (currentOverlays.length === 0 && page.route?.id === '/search') {
+			return goto(resolve(overlayPath(overlay) as '/'), {
+				shallow: true,
+				replace: true,
+				state: page.state
+			});
+		}
 	}
 
 	const opened: App.OverlayState = { ...overlay, id: nextOverlayId(overlay.type), presentation: PRESENTATION[overlay.type] };

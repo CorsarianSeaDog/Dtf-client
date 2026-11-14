@@ -17,7 +17,8 @@ vi.mock('$app/navigation', () => ({
 }));
 
 import { goto } from '$app/navigation';
-import { getPostPath, getPostShareUrl, getSettingsPath, pushSubstate, popSubstate, closeOverlay, resetSubstates, clearSubstates, openPost, openDtfUrl, openDtfLink, openLightbox, takeLightboxOrigin, overlayReuser } from './navigation';
+import { page } from '$app/state';
+import { getPostPath, getPostShareUrl, getSettingsPath, pushSubstate, popSubstate, closeOverlay, resetSubstates, clearSubstates, openPost, openSearch, openDtfUrl, openDtfLink, openLightbox, takeLightboxOrigin, overlayReuser } from './navigation';
 import { settings } from './storage/settings.svelte';
 import { embedToPost } from './api/embed';
 import { clearPostCache, peekPost } from './postCache';
@@ -305,5 +306,26 @@ describe('navigation', () => {
 		expect(back).toBe(profile);
 		const changed = { ...profile, data: { profileId: 3 } } as App.OverlayState;
 		expect(reuse([changed])[0]).toBe(changed);
+	});
+
+	it('openSearch на маршруте /search с пустым стеком оверлеев заменяет URL без дублирующего оверлея', () => {
+		vi.clearAllMocks();
+		mockPageState.overlays = [];
+		const prevRouteId = page.route.id;
+		(page.route as { id: string | null }).id = '/search';
+		try {
+			openSearch('новый запрос');
+			expect(goto).toHaveBeenCalledTimes(1);
+			expect(goto).toHaveBeenCalledWith(
+				'/search?q=%D0%BD%D0%BE%D0%B2%D1%8B%D0%B9%20%D0%B7%D0%B0%D0%BF%D1%80%D0%BE%D1%81',
+				{
+					shallow: true,
+					replace: true,
+					state: mockPageState
+				}
+			);
+		} finally {
+			(page.route as { id: string | null }).id = prevRouteId;
+		}
 	});
 });
