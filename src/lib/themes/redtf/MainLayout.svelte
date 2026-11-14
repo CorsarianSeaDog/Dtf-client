@@ -56,7 +56,8 @@
 	.layout {
 		display: grid;
 		grid-template-columns: var(--sidebar-left-width) minmax(0, 1fr);
-		min-height: 100vh;
+		/* Каркас стоит под шапкой: без её высоты короткая страница прокручивалась бы на высоту шапки */
+		min-height: calc(100vh - var(--header-height));
 		transition: grid-template-columns 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
 	}
 
