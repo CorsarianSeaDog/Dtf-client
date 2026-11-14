@@ -179,7 +179,7 @@ export default defineTheme({
 	id: 'redtf',
 	name: 'Re:DTF',
 	gestures: true,
-	description: 'Основная тема. Вдохновлена DTF 2023-24 года, но лучше, и с кастомизацией.',
+	description: 'Основная тема. Вдохновлена DTF 2022-23 года, но с адаптацией под современность.',
 	palettes: {
 		default: 'light',
 		system: { light: 'light', dark: 'dark' },
