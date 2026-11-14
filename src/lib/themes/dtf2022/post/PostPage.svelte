@@ -57,7 +57,9 @@
 
 			{#if showActions}
 				<div class={['post-actions', { 'post-actions--arrows': arrows, 'post-inactive': draft }]} inert={draft}>
-					<PostButton kind="comments" title="Комментарии" href="#comments" {iconSize} value={post.commentsCount} onclick={scrollToComments} />
+					{#if !post.commentsDisabled}
+						<PostButton kind="comments" title="Комментарии" href="#comments" {iconSize} value={post.commentsCount} onclick={scrollToComments} />
+					{/if}
 					<PostButton kind="bookmark" title="В закладки" {iconSize} active={post.isFavorited} onclick={() => toggleFavoritePost(post)} />
 					{#if arrows}
 						<span class="post-actions__share"><PostButton kind="share" title="Поделиться" {iconSize} onclick={() => sharePost(post)} /></span>
@@ -96,7 +98,9 @@
 							onclick={() => votePost(post, 1)}
 						/>
 					{/if}
-					<PostButton kind="comments" title="Комментарии" href="#comments" {iconSize} value={post.commentsCount} onclick={scrollToComments} />
+					{#if !post.commentsDisabled}
+						<PostButton kind="comments" title="Комментарии" href="#comments" {iconSize} value={post.commentsCount} onclick={scrollToComments} />
+					{/if}
 					<PostButton
 						kind="repost"
 						title="Сделать репост"

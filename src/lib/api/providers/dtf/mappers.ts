@@ -154,6 +154,7 @@ export function mapEntryToPost(entry: any): Post {
 		repostsCount: entry.counters?.reposts || undefined,
 		repost: mapRepost(entry),
 		isSubscribedToComments: entry.subscribedToTreads,
+		commentsDisabled: entry.isCommentsEnabled === false || undefined,
 		commentEditor: mapCommentEditor(entry.commentEditor),
 		isEditorial: entry.isEditorial || undefined,
 		isBlur: entry.isBlur || undefined,

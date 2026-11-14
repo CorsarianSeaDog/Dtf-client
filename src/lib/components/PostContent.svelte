@@ -84,6 +84,7 @@
 		if ((commentId === undefined && !toComments && !anchor) || postShown) return;
 		postShown = true;
 		if (toComments || commentId !== undefined) {
+			if (post?.isDraft || post?.commentsDisabled) return;
 			commentsTurn.then(tick).then(() => {
 				requestAnimationFrame(() => {
 					commentsBox?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
@@ -100,7 +101,7 @@
 
 	let lastScrollNonce = 0;
 	$effect(() => {
-		if (toComments && postShown && focusNonce && focusNonce !== lastScrollNonce) {
+		if (toComments && postShown && !post?.isDraft && !post?.commentsDisabled && focusNonce && focusNonce !== lastScrollNonce) {
 			lastScrollNonce = focusNonce;
 			tick().then(() => {
 				requestAnimationFrame(() => {
@@ -156,8 +157,10 @@
 			{#if post}
 				{@const loaded = post}
 				<ThemeLoader componentName="Post" post={loaded} preview={false} evictMedia={depth >= 3} />
-				<!-- Граница поста и комментариев для статистики: сколько времени пользователь в комментариях -->
-				<div {@attach (el) => markCommentsStart(loaded, el)}></div>
+				{#if !loaded.isDraft && !loaded.commentsDisabled}
+					<!-- Граница поста и комментариев для статистики: сколько времени пользователь в комментариях -->
+					<div {@attach (el) => markCommentsStart(loaded, el)}></div>
+				{/if}
 				{#if backButton}
 					<div class="actions">
 						{@render backButton()}
@@ -176,7 +179,9 @@
 		{:else if depth <= 1}
 			{#await commentsTurn then}
 				<div class="comments-container" bind:this={commentsBox} {@attach (commentId === undefined && !toComments ? appear('feedIn') : undefined)}>
-					<ThemeLoader componentName="Comments" postId={loaded.id} sourceId={loaded.sourceId} commentsCount={loaded.commentsCount} subscribed={loaded.isSubscribedToComments} postAuthorId={loaded.author.id} commentEditor={loaded.commentEditor} focusCommentId={commentId} {focusNonce} />
+					{#if !loaded.commentsDisabled}
+						<ThemeLoader componentName="Comments" postId={loaded.id} sourceId={loaded.sourceId} commentsCount={loaded.commentsCount} subscribed={loaded.isSubscribedToComments} postAuthorId={loaded.author.id} commentEditor={loaded.commentEditor} focusCommentId={commentId} {focusNonce} />
+					{/if}
 					{#if loaded.sourceId === 'dtf' && hasThemeComponent(activeTheme.chain, 'Recommendations')}
 						<ThemeLoader componentName="Recommendations" postId={loaded.id} />
 					{/if}

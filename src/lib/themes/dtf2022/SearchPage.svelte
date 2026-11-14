@@ -165,12 +165,14 @@
 									</svg>
 									{formatNumber(score)}
 								</span>
-								<span class="search-simple__stat" title="Комментарии">
-									<svg class="icon" width="18" height="18" aria-hidden="true">
-										<use href="#v_comments"></use>
-									</svg>
-									{formatNumber(post.commentsCount)}
-								</span>
+								{#if !post.commentsDisabled}
+									<span class="search-simple__stat" title="Комментарии">
+										<svg class="icon" width="18" height="18" aria-hidden="true">
+											<use href="#v_comments"></use>
+										</svg>
+										{formatNumber(post.commentsCount)}
+									</span>
+								{/if}
 							</div>
 						</div>
 						{#if thumb}

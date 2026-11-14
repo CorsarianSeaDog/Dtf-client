@@ -14,14 +14,16 @@
 			{@const commentsHref = resolve(getPostPath(item, 'comments') as any)}
 			<div class="news-item">
 				<a {href} class="news-item__title" onclick={(e) => openPost(e, item)}>{item.title}</a>
-				<a href={commentsHref} class="comments-counter" aria-label="Комментарии: {item.commentsCount}" onclick={(e) => openPost(e, item, { toComments: true })}>
-					<span class="comments-counter__icon">
-						<svg class="icon" width="16" height="16" aria-hidden="true">
-							<use href="#v_comments"></use>
-						</svg>
-					</span>
-					<span class="comments-counter__number">{formatNumber(item.commentsCount)}</span>
-				</a>
+				{#if !item.commentsDisabled}
+					<a href={commentsHref} class="comments-counter" aria-label="Комментарии: {item.commentsCount}" onclick={(e) => openPost(e, item, { toComments: true })}>
+						<span class="comments-counter__icon">
+							<svg class="icon" width="16" height="16" aria-hidden="true">
+								<use href="#v_comments"></use>
+							</svg>
+						</span>
+						<span class="comments-counter__number">{formatNumber(item.commentsCount)}</span>
+					</a>
+				{/if}
 			</div>
 		{/each}
 

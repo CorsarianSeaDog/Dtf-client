@@ -142,14 +142,16 @@
 							onclick={() => votePost(post, 1)}
 						/>
 					{/if}
-					<PostButton
-						kind="comments"
-						title="Комментарии"
-						href={commentsPath}
-						{iconSize}
-						value={post.commentsCount}
-						onclick={(e) => openPost(e, post, { toComments: true })}
-					/>
+					{#if !post.commentsDisabled}
+						<PostButton
+							kind="comments"
+							title="Комментарии"
+							href={commentsPath}
+							{iconSize}
+							value={post.commentsCount}
+							onclick={(e) => openPost(e, post, { toComments: true })}
+						/>
+					{/if}
 					<!-- Осенью 2022 вместо репоста — «Поделиться», и стоит он после закладки -->
 					{#if arrows}
 						<PostButton kind="bookmark" title="В закладки" {iconSize} active={post.isFavorited} onclick={() => toggleFavoritePost(post)} />

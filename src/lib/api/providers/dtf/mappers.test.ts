@@ -88,6 +88,12 @@ describe('mapEntryToPost', () => {
 		expect(mapEntryToPost({ id: 1 }).commentEditor).toBeUndefined();
 	});
 
+	it('отключённые на уровне записи комментарии: commentsDisabled только при isCommentsEnabled === false', () => {
+		expect(mapEntryToPost({ id: 57431, isCommentsEnabled: false }).commentsDisabled).toBe(true);
+		expect(mapEntryToPost({ id: 1, isCommentsEnabled: true }).commentsDisabled).toBeUndefined();
+		expect(mapEntryToPost({ id: 1 }).commentsDisabled).toBeUndefined();
+	});
+
 	it('материал редакции: isEditorial только когда true', () => {
 		expect(mapEntryToPost({ id: 1, isEditorial: true }).isEditorial).toBe(true);
 		expect(mapEntryToPost({ id: 1, isEditorial: false }).isEditorial).toBeUndefined();

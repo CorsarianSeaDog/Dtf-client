@@ -90,6 +90,8 @@ export interface Post {
 	repost?: { id: number; original?: Post };
 	/** Подписан ли пользователь на новые комментарии поста (колокольчик) */
 	isSubscribedToComments?: boolean;
+	/** Комментарии не поддерживаются на уровне записи (например, технические посты, `isCommentsEnabled === false`) */
+	commentsDisabled?: boolean;
 	/** Состояние редактора комментариев для текущего пользователя; нет — писать можно */
 	commentEditor?: CommentEditorState;
 	/** Материал редакции: синяя галочка у заголовка */
