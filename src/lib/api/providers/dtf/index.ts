@@ -30,10 +30,11 @@ import type {
 	SearchSorting,
 	SearchSubsite,
 	SubsiteItem,
+	UploadOptions,
 	UploadResult
 } from '../../types';
 import { getLeonardoUrl } from '../../utils';
-import { API_URL, COMMENTS_API_URL, UPLOAD_URL, apiV, fetchSearch, fetchWithAuth, requireAuth } from './client';
+import { API_URL, COMMENTS_API_URL, UPLOAD_URL, apiV, fetchSearch, fetchWithAuth, requireAuth, uploadWithAuth } from './client';
 import { untrack } from 'svelte';
 import { addWatermark } from '$lib/watermark';
 import { settings } from '$lib/storage/settings.svelte';
@@ -41,11 +42,11 @@ import { login, loginByToken } from './auth';
 import { mapBadges, mapComment, mapCurrentUser, mapEntryToPost, mapIgnoredSubsite, mapNotification, mapProfile, mapProfileListItem, mapQuizResult, mapReactions, mapSearchSnippet, mapSearchSubsite } from './mappers';
 
 /** Загружает файл в хранилище DTF; возвращает запись как есть (`{ type, data }`): в таком виде её принимают поля вроде avatar и cover */
-async function uploadItem(file: File): Promise<any> {
+async function uploadItem(file: File, options?: UploadOptions): Promise<any> {
 	const formData = new FormData();
 	formData.append('files', file);
 
-	const response = await fetchWithAuth(`${UPLOAD_URL}/uploader/upload`, { method: 'POST', body: formData });
+	const response = await uploadWithAuth(`${UPLOAD_URL}/uploader/upload`, formData, options);
 	const json = await response.json();
 	if (json.error) throw new Error(json.message?.text || 'Не удалось загрузить файл');
 
@@ -600,10 +601,10 @@ export const dtfApiProvider = {
 		return json.result?.entry;
 	},
 
-	async uploadMedia(file: File): Promise<UploadResult> {
+	async uploadMedia(file: File, options?: UploadOptions): Promise<UploadResult> {
 		requireAuth();
 
-		const resultItem = await uploadItem(file);
+		const resultItem = await uploadItem(file, options);
 		const uploaded = resultItem.data;
 
 		return {

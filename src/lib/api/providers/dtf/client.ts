@@ -5,6 +5,7 @@ import { checkAndConsumeSearchLimit } from '$lib/storage/searchLimit.svelte';
 import { isNative } from '$lib/capacitor';
 import { CapacitorHttp } from '@capacitor/core';
 import { ApiError, ProxyError } from '../../errors';
+import type { UploadOptions } from '../../types';
 
 /** Адреса и версии API DTF */
 export const API_URL = 'https://api.dtf.ru/v2.31';
@@ -224,33 +225,16 @@ async function doRefreshSession(): Promise<boolean> {
 }
 
 /**
- * Запрос к API DTF с токеном. При 401 один раз обновляет токен и повторяет запрос.
- * Ошибки сети и ответы не 2xx превращаются в Error с понятным сообщением.
+ * Выполняет запрос с авторизацией: при 401 один раз обновляет токен и повторяет,
+ * а ответы не 2xx превращает в ApiError с понятным сообщением.
  */
-export async function fetchWithAuth(
+async function withAuthRetry(
 	url: string,
-	options: RequestInit = {},
-	authHeader: 'x-device-token' | 'JWTAuthorization' = 'JWTAuthorization'
+	authHeader: 'x-device-token' | 'JWTAuthorization',
+	send: (token: string | null) => Promise<Response>
 ): Promise<Response> {
-	const headers = new Headers(options.headers || { 'Accept': 'application/json' });
-
-	const setAuth = (token: string) => {
-		headers.set(authHeader, authHeader === 'JWTAuthorization' ? `Bearer ${token}` : token);
-	};
-
-	const currentToken = untrack(() => authStorage.dtfToken);
-	if (currentToken) setAuth(currentToken);
-
-	const doFetch = () => fetch(url, { ...options, headers }).catch((e: unknown) => {
-		const raw = e instanceof Error ? e.message : 'Неизвестная ошибка';
-		throw new ApiError(`Сетевая ошибка: ${raw}`, {
-			url,
-			rawMessage: raw,
-			cause: e
-		});
-	});
-
-	let response = await doFetch();
+	const currentToken = untrack(() => authStorage.dtfToken) || null;
+	let response = await send(currentToken);
 
 	const hasToken = untrack(() => !!authStorage.dtfToken);
 	const hasRefreshToken = untrack(() => !!authStorage.session?.refreshToken);
@@ -260,8 +244,7 @@ export async function fetchWithAuth(
 		const nextToken = untrack(() => authStorage.dtfToken);
 
 		if (refreshed && nextToken) {
-			setAuth(nextToken);
-			response = await doFetch();
+			response = await send(nextToken);
 		} else {
 			// Прокси недоступен или токен устарел: сбрасываем невалидный accessToken,
 			// чтобы следующие вызовы не слали мёртвый токен и не тормозили на повторных попытках.
@@ -270,8 +253,7 @@ export async function fetchWithAuth(
 			if (session && session.accessToken) {
 				authStorage.session = { ...session, accessToken: '' };
 			}
-			headers.delete(authHeader);
-			response = await doFetch();
+			response = await send(null);
 		}
 	}
 
@@ -290,10 +272,110 @@ export async function fetchWithAuth(
 			status: response.status,
 			rawMessage: json.message || response.statusText || String(response.status)
 		});
-
 	}
 
 	return response;
+}
+
+/**
+ * Запрос к API DTF с токеном. При 401 один раз обновляет токен и повторяет запрос.
+ * Ошибки сети и ответы не 2xx превращаются в Error с понятным сообщением.
+ */
+export async function fetchWithAuth(
+	url: string,
+	options: RequestInit = {},
+	authHeader: 'x-device-token' | 'JWTAuthorization' = 'JWTAuthorization'
+): Promise<Response> {
+	return withAuthRetry(url, authHeader, (token) => {
+		const headers = new Headers(options.headers || { 'Accept': 'application/json' });
+		if (token) {
+			headers.set(authHeader, authHeader === 'JWTAuthorization' ? `Bearer ${token}` : token);
+		} else {
+			headers.delete(authHeader);
+		}
+		return fetch(url, { ...options, headers }).catch((e: unknown) => {
+			const raw = e instanceof Error ? e.message : 'Неизвестная ошибка';
+			throw new ApiError(`Сетевая ошибка: ${raw}`, {
+				url,
+				rawMessage: raw,
+				cause: e
+			});
+		});
+	});
+}
+
+/**
+ * Отправка FormData с прогрессом загрузки через XMLHttpRequest (с тем же 401-обновлением токена).
+ * Если XHR недоступен (например, в среде тестов без DOM), падает обратно на fetchWithAuth.
+ */
+export async function uploadWithAuth(
+	url: string,
+	body: FormData,
+	options: UploadOptions = {},
+	authHeader: 'x-device-token' | 'JWTAuthorization' = 'JWTAuthorization'
+): Promise<Response> {
+	if (typeof XMLHttpRequest === 'undefined') {
+		return fetchWithAuth(url, { method: 'POST', body, signal: options.signal }, authHeader);
+	}
+
+	return withAuthRetry(url, authHeader, (token) => {
+		return new Promise<Response>((resolve, reject) => {
+			if (options.signal?.aborted) {
+				reject(new DOMException('Aborted', 'AbortError'));
+				return;
+			}
+
+			const xhr = new XMLHttpRequest();
+			let lastLoaded = 0;
+			let lastTotal = 0;
+
+			const onAbort = () => xhr.abort();
+			options.signal?.addEventListener('abort', onAbort, { once: true });
+			const cleanup = () => options.signal?.removeEventListener('abort', onAbort);
+
+			xhr.open('POST', url);
+			xhr.setRequestHeader('Accept', 'application/json');
+			if (token) {
+				xhr.setRequestHeader(authHeader, authHeader === 'JWTAuthorization' ? `Bearer ${token}` : token);
+			}
+
+			options.onProgress?.({ loaded: 0, total: 0, progress: 0, processing: false });
+
+			xhr.upload.onprogress = (e) => {
+				if (!e.lengthComputable) return;
+				lastLoaded = e.loaded;
+				lastTotal = e.total;
+				const progress = e.total > 0 ? Math.min(1, e.loaded / e.total) : 0;
+				options.onProgress?.({ loaded: e.loaded, total: e.total, progress, processing: false });
+			};
+
+			xhr.upload.onload = () => {
+				const total = lastTotal || lastLoaded || 1;
+				options.onProgress?.({ loaded: total, total, progress: 1, processing: true });
+			};
+
+			xhr.onload = () => {
+				cleanup();
+				if (xhr.status === 0) {
+					reject(new ApiError('Сетевая ошибка при загрузке файла', { url, rawMessage: 'Network error' }));
+					return;
+				}
+				resolve(new Response(xhr.responseText, { status: xhr.status, statusText: xhr.statusText }));
+			};
+
+			xhr.onerror = () => {
+				cleanup();
+				reject(new ApiError('Сетевая ошибка при загрузке файла', { url, rawMessage: 'Network error' }));
+			};
+
+			xhr.onabort = () => {
+				cleanup();
+				reject(new DOMException('Aborted', 'AbortError'));
+			};
+
+			xhr.send(body);
+		});
+	});
 }
 
 async function fetchSearchNative(url: string): Promise<Response> {

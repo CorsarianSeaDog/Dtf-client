@@ -446,6 +446,20 @@ export interface Notification {
  * если метода нет, источник этого не умеет. Источники из манифестов умеют только чтение
  * и реакции (см. providers/source.ts), всё остальное делает только DTF.
  */
+export interface UploadProgress {
+	/** Доля отправленных байтов (0..1) */
+	progress: number;
+	loaded: number;
+	total: number;
+	/** Файл отправлен на сервер, ждём завершения обработки и ответа */
+	processing?: boolean;
+}
+
+export interface UploadOptions {
+	onProgress?: (info: UploadProgress) => void;
+	signal?: AbortSignal;
+}
+
 export interface ApiProvider {
 	/** Название для сообщений об ошибках */
 	name: string;
@@ -526,7 +540,7 @@ export interface ApiProvider {
 	// Редактор
 	getEditorEntry?(postId: number): Promise<DtfEditorEntry>;
 	saveDraft?(entry: DtfEditorEntry): Promise<DtfEditorEntry>;
-	uploadMedia?(file: File): Promise<UploadResult>;
+	uploadMedia?(file: File, options?: UploadOptions): Promise<UploadResult>;
 	getSubsites?(): Promise<SubsiteItem[]>;
 	getCommentPermissions?(postId: number): Promise<CommentPermission>;
 	setCommentPermissions?(postId: number, permission: CommentPermission): Promise<void>;
