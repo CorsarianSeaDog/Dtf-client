@@ -28,6 +28,7 @@ const PRESENTATION: Record<App.OverlayData['type'], App.OverlayState['presentati
 	search: 'page',
 	drafts: 'page',
 	login: 'modal',
+	support: 'modal',
 	editor: 'modal',
 	lightbox: 'fullscreen'
 };
@@ -109,6 +110,8 @@ function overlayPath(overlay: Exclude<App.OverlayData, { type: 'lightbox' }>): s
 			return '/drafts';
 		case 'login':
 			return '/login';
+		case 'support':
+			return '/support';
 		case 'editor':
 			return '/write';
 	}
@@ -451,6 +454,12 @@ export function openSettings(e?: MouseEvent, page?: string, section?: string) {
 	} else {
 		openOverlay({ type: 'settings', data: page || section ? { page, section } : undefined });
 	}
+}
+
+/** Открыть окно «Поддержать reDTF» с тремя способами поддержки */
+export function openSupport(e?: MouseEvent) {
+	if (e) openFromLink(e, { type: 'support' });
+	else openOverlay({ type: 'support' });
 }
 
 /**

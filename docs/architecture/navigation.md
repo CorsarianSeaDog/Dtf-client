@@ -16,6 +16,7 @@ type OverlayData =
 	| { type: 'search'; data: { query: string } }
 	| { type: 'drafts' }
 	| { type: 'login' }
+	| { type: 'support' }
 	| { type: 'editor'; data?: { postId?: number | null; repostId?: number } }
 	| { type: 'lightbox'; data: { images: { uuid: string; width: number; height: number; type?: string }[]; index: number } };
 
@@ -79,6 +80,7 @@ type OverlayState = OverlayData & { id: string; presentation: 'page' | 'modal' |
 | `/search?q=…` | результаты поиска (`SearchContent`); новый поиск из открытого заменяет его, а не копится в истории |
 | `/drafts` | черновики вошедшего пользователя (`DraftsContent`) |
 | `/login` | вход |
+| `/support` | сначала главная, затем открывается окно поддержки с тремя способами (`SupportOverlay`) |
 | `/write` | сначала главная, затем открывается редактор |
 
 Обновление страницы с оверлеем (`state` не сохраняется) открывает этот маршрут заново: страницы (`page`) — полноэкранным маршрутом без ленты под ним, окна (`modal`) — лентой с окном поверх.

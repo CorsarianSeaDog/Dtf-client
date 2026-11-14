@@ -8,6 +8,7 @@
 	import DraftsContent from '$lib/components/DraftsContent.svelte';
 	import EditorOverlay from '$lib/components/overlays/EditorOverlay.svelte';
 	import LightboxOverlay from '$lib/components/overlays/LightboxOverlay.svelte';
+	import SupportOverlay from '$lib/components/overlays/SupportOverlay.svelte';
 	import MediaSheet from '$lib/components/MediaSheet.svelte';
 	import { overlayReuser, preloadLightbox } from '$lib/navigation';
 	import ModalShell from '$lib/components/overlays/ModalShell.svelte';
@@ -433,6 +434,8 @@
 		<DraftsContent />
 	{:else if overlay.type === 'login'}
 		<ThemeLoader componentName="LoginModal" />
+	{:else if overlay.type === 'support'}
+		<SupportOverlay />
 	{:else if overlay.type === 'editor'}
 		<EditorOverlay {...overlay.data} />
 	{:else if overlay.type === 'lightbox'}
