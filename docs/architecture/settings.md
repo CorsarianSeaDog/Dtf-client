@@ -53,6 +53,8 @@ interface AppSettings {
 	watermark: boolean;             // невидимая подпись reDTF к отправляемым комментариям
 	clientBadges: 'all' | 'redtf_only' | 'none'; // отображение бейджей клиентов комментариев
 	mobileBadgesPosition: 'author' | 'date';     // позиция бейджей клиентов
+	plusBadges: 'classic' | 'custom';
+	animatedAvatars: 'all' | 'hover' | 'off';
 	autoUpvoteComments: boolean;    // голос за себя при публикации комментария (как на Reddit)
 	appIcon: AppIconId;             // иконка приложения и вкладки
 	customIconData?: string | null; // пользовательская иконка

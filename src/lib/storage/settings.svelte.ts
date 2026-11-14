@@ -11,6 +11,7 @@ export type RecommendationsMode = 'auto' | 'button';
 export type ClientBadgesMode = 'all' | 'redtf_only' | 'none';
 export type MobileBadgesPosition = 'author' | 'date';
 export type PlusBadgesMode = 'classic' | 'custom';
+export type AnimatedAvatarsMode = 'all' | 'hover' | 'off';
 export type RestoreScope = 'all' | 'moderator';
 
 export interface ProxyItem {
@@ -51,6 +52,8 @@ export interface AppSettings {
 	mobileBadgesPosition: MobileBadgesPosition;
 	/** Бейдж Плюса у автора комментария: 'classic' (алмаз) или 'custom' (тот, что автор выбрал себе) */
 	plusBadges: PlusBadgesMode;
+	/** Режим воспроизведения анимированных аватарок: 'all' (везде), 'hover' (профиль и наведение), 'off' (выкл) */
+	animatedAvatars: AnimatedAvatarsMode;
 	/** Выбранная иконка приложения и вкладки браузера: 'default' | 'bluer' | 'white' | 'custom' */
 	appIcon: AppIconId;
 	/** Пользовательская иконка в формате data URI (image/png или image/svg+xml) */
@@ -140,6 +143,7 @@ export const settings = persistedState<AppSettings>(
 		clientBadges: 'redtf_only',
 		mobileBadgesPosition: 'author',
 		plusBadges: 'classic',
+		animatedAvatars: 'all',
 		autoUpvoteComments: false,
 		restoreScope: 'all',
 		restoreExpanded: false,

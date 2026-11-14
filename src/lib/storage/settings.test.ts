@@ -49,6 +49,7 @@ describe('settings & shouldVirtualizeComments', () => {
 			clientBadges: 'redtf_only',
 			mobileBadgesPosition: 'author',
 			plusBadges: 'classic',
+			animatedAvatars: 'all',
 			autoUpvoteComments: false,
 			restoreScope: 'all',
 			restoreExpanded: false,

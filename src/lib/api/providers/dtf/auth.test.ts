@@ -50,6 +50,7 @@ describe('auth & proxy failover', () => {
 			clientBadges: 'redtf_only',
 			mobileBadgesPosition: 'author',
 			plusBadges: 'classic',
+			animatedAvatars: 'all',
 			autoUpvoteComments: false,
 			restoreScope: 'all',
 			restoreExpanded: false,

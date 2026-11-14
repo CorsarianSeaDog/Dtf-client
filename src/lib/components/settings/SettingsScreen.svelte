@@ -24,7 +24,7 @@
 	import { activeThemeSettings } from '$lib/themes/settings.svelte';
 	import { settings, DEFAULT_THEME } from '$lib/storage/settings.svelte';
 	import { reactionSettings } from '$lib/storage/reactions.svelte';
-	import type { NestingMode, CommentVirtualization, RecommendationsMode, ClientBadgesMode, MobileBadgesPosition, PlusBadgesMode } from '$lib/storage/settings.svelte';
+	import type { NestingMode, CommentVirtualization, RecommendationsMode, ClientBadgesMode, MobileBadgesPosition, PlusBadgesMode, AnimatedAvatarsMode } from '$lib/storage/settings.svelte';
 	import { isFieldVisible, getCurrentDevice, MOBILE_BREAKPOINT } from '$lib/themes/types';
 	import type { ChoiceField, SettingField, ToggleField, SettingDevice } from '$lib/themes/types';
 	import { paletteSelection } from '$lib/themes/palette';
@@ -212,6 +212,19 @@
 		options: [
 			{ value: 'classic', title: 'Классическая иконка (по умолчанию)', description: 'Алмаз у всех подписчиков Плюса' },
 			{ value: 'custom', title: 'Разрешить кастомные бейджи', description: 'Тот значок, который автор выбрал в настройках профиля' }
+		]
+	};
+
+	const animatedAvatarsField: ChoiceField = {
+		key: 'animatedAvatars',
+		type: 'radio',
+		title: 'Анимированные аватарки',
+		description: 'Когда воспроизводить видео-аватарки подписчиков Плюса. Обложки профилей анимируются всегда.',
+		default: 'all',
+		options: [
+			{ value: 'all', title: 'Везде (по умолчанию)', description: 'В ленте, постах, комментариях и профилях (только на экране)' },
+			{ value: 'hover', title: 'Только профиль и при наведении', description: 'В шапке профиля и при наведении курсора в ленте и комментариях' },
+			{ value: 'off', title: 'Выключено', description: 'Всегда показывать статичный кадр' }
 		]
 	};
 
@@ -890,6 +903,11 @@
 									field={plusBadgesField}
 									value={settings.value.plusBadges}
 									onchange={(value) => settings.patch({ plusBadges: value as PlusBadgesMode })}
+								/>
+								<FieldControl
+									field={animatedAvatarsField}
+									value={settings.value.animatedAvatars}
+									onchange={(value) => settings.patch({ animatedAvatars: value as AnimatedAvatarsMode })}
 								/>
 								{#each visibleOtherFields as field (field.key)}
 									<FieldControl
