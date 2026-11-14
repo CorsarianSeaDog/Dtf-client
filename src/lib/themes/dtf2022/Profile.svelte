@@ -133,30 +133,50 @@
 	// Вкладка «Комментарии»: грузится при первом открытии, дальше подгружается по мере прокрутки
 	let tab = $state<'posts' | 'comments' | 'details'>('posts');
 	let detailsPage = $state<DetailsPage>('all');
-	// Не $state.raw: оценка комментария меняет его на месте (comments/votes.svelte.ts)
+	// Не $state.raw: переключение закладки меняет комментарий на месте (comments/votes.svelte.ts)
 	let comments = $state<Comment[]>([]);
+	let commentsSorting = $state<Sorting>('new');
 	let commentsCursor: CursorData | undefined;
 	let commentsLoaded = $state(false);
 	let commentsHasMore = $state(true);
 	let loadingComments = $state(false);
 	let commentsError = $state<string | null>(null);
+	let commentsRequestId = 0;
 
-	async function loadComments() {
-		if (loadingComments || !commentsHasMore) return;
+	async function loadComments(reset = false) {
+		if (!reset && (loadingComments || !commentsHasMore)) return;
+		const requestId = ++commentsRequestId;
+		if (reset) {
+			comments = [];
+			commentsCursor = undefined;
+			commentsHasMore = true;
+			commentsLoaded = false;
+		}
 		loadingComments = true;
 		commentsError = null;
+		const sortingForRequest = commentsSorting;
 		try {
-			const result = await api.getProfileComments(profile.id, commentsCursor);
+			const result = await api.getProfileComments(profile.id, sortingForRequest, commentsCursor);
+			if (requestId !== commentsRequestId) return;
 			comments = [...comments, ...result.items];
 			commentsHasMore = result.items.length > 0 && result.lastId !== undefined;
 			commentsCursor = commentsHasMore ? { lastId: result.lastId!, lastSortingValue: result.lastSortingValue ?? 0 } : undefined;
 		} catch (e) {
+			if (requestId !== commentsRequestId) return;
 			commentsError = (e as Error).message;
 			commentsHasMore = false;
 		} finally {
-			loadingComments = false;
-			commentsLoaded = true;
+			if (requestId === commentsRequestId) {
+				loadingComments = false;
+				commentsLoaded = true;
+			}
 		}
+	}
+
+	function onCommentsSortingChange(next: Sorting) {
+		if (commentsSorting === next) return;
+		commentsSorting = next;
+		loadComments(true);
 	}
 
 	function openTab(next: 'posts' | 'comments' | 'details') {
@@ -378,20 +398,23 @@
 			onClose={() => openTab('posts')}
 		/>
 	{:else}
+		{@const activeSorting = tab === 'posts' ? sorting : commentsSorting}
+		{@const setActiveSorting = tab === 'posts' ? onSortingChange : onCommentsSortingChange}
 		<div class="profile-feed">
-			{#if tab === 'posts'}
-				<div class="profile-feed-sorting">
-					{#each SORTINGS as item (item.value)}
-						<button
-							class={['profile-feed-sorting__button', { 'profile-feed-sorting__button--active': sorting === item.value }]}
-							aria-pressed={sorting === item.value}
-							onclick={() => onSortingChange(item.value)}
-						>
-							{item.label}
-						</button>
-					{/each}
-				</div>
+			<div class="profile-feed-sorting">
+				{#each SORTINGS as item (item.value)}
+					<button
+						type="button"
+						class={['profile-feed-sorting__button', { 'profile-feed-sorting__button--active': activeSorting === item.value }]}
+						aria-pressed={activeSorting === item.value}
+						onclick={() => setActiveSorting(item.value)}
+					>
+						{item.label}
+					</button>
+				{/each}
+			</div>
 
+			{#if tab === 'posts'}
 				<div class="profile-feed__posts">
 					{#each posts as post (post.sourceId + '_' + post.id)}
 						<PostCard {post} subscribe={false} />
@@ -423,7 +446,7 @@
 				{/if}
 
 				{#if commentsHasMore}
-					<div class="profile-feed__more" {@attach loadOnVisible(loadComments)}>
+					<div class="profile-feed__more" {@attach loadOnVisible(() => loadComments())}>
 						{#if loadingComments}<Preloader />{/if}
 					</div>
 				{/if}
@@ -794,11 +817,6 @@
 		}
 	}
 
-	/* Вкладка «Комментарии» */
-	.profile-comments {
-		margin-top: 20px;
-	}
-
 	/* Лента профиля */
 	.profile-feed {
 		min-width: 0;
@@ -826,6 +844,12 @@
 	.profile-feed-sorting__button--active {
 		background: var(--bg-card);
 		box-shadow: var(--shadow-sorting-button);
+	}
+
+	@media (hover: hover) {
+		.profile-feed-sorting__button:hover {
+			background: var(--bg-card);
+		}
 	}
 
 	/* Первая карточка — сразу под сортировкой, между карточками — как в ленте */

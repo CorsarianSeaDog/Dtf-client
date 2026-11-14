@@ -11,15 +11,10 @@
 	import { parseDtfUrl, dtfTargetToPath } from '$lib/dtfLinks';
 	import { ensureLogin } from './actions.svelte';
 	import { parseCommentText } from './comments/commentText';
-	import { toggleCommentFavorite, toggleCommentReaction, voteComment } from './comments/votes.svelte';
+	import { toggleCommentFavorite } from './comments/votes.svelte';
 	import ComplaintDialog from './ComplaintDialog.svelte';
 	import { formatFullDate, formatTime } from './format';
-	import PostButton from './post/PostButton.svelte';
-	import Rating from './post/Rating.svelte';
-	import Reactions from './post/Reactions.svelte';
-	import { votesOf } from '$lib/reactions';
 	import UnknownBlock from './UnknownBlock.svelte';
-	import { themeSettings } from './themeSettings.svelte';
 	import Popover from './ui/Popover.svelte';
 	import PlusBadge from './ui/PlusBadge.svelte';
 	import { notify } from './ui/notify.svelte';
@@ -31,9 +26,6 @@
 	/** Карточка комментария на вкладке «Комментарии» профиля, как profile_comment_favorite у DTF */
 	let { comment }: { comment: Comment } = $props();
 
-	let votes = $derived(themeSettings.votes);
-	let score = $derived(votesOf(comment));
-	const react = (id: number) => toggleCommentReaction(comment, id);
 	let filterMatch = $derived(matchCommentFilter(comment));
 	let revealed = $state(false);
 	let isFiltered = $derived(!!filterMatch && !revealed);
@@ -44,10 +36,10 @@
 	let showDateBadge = $derived(clientBadge && clientBadge.type !== 'redtf' && settings.value.mobileBadgesPosition === 'date');
 	let images = $derived((comment.media ?? []).filter((media) => media.type === 'image'));
 	let postPath = $derived(resolve(getPostPath(post) as any));
+	let commentPath = $derived(resolve(getPostPath(post, comment.id) as any));
 	let commentUrl = $derived(getPostShareUrl(post, `comment-${comment.sourceId}_${comment.id}`));
 
 	let menuOpen = $state(false);
-	let pickerOpen = $state(false);
 	let complaining = $state(false);
 	let showBadgeModal = $state(false);
 	let menuItems = $derived([
@@ -90,7 +82,7 @@
 		</article>
 	{/if}
 {:else}
-<article class={['profile-comment', { 'profile-comment--elevated': menuOpen || pickerOpen }]}>
+<article class={['profile-comment', { 'profile-comment--elevated': menuOpen }]}>
 	{#if comment.postTitle}
 		<a class="profile-comment__title" href={postPath} onclick={(e) => openPost(e, post)}>{comment.postTitle}</a>
 	{/if}
@@ -124,7 +116,7 @@
 				<span>{clientBadge.label}</span>
 			</button>
 		{/if}
-		<a class="profile-comment__date" href={postPath} onclick={(e) => openPost(e, post)}>
+		<a class="profile-comment__date" href={commentPath} onclick={(e) => openPost(e, post, { commentId: comment.id })}>
 			<time datetime={comment.createdAt} title={formatFullDate(comment.createdAt)}>{formatTime(comment.createdAt)}</time>
 		</a>
 		{#if showDateBadge && clientBadge && 'icon' in clientBadge}
@@ -143,33 +135,6 @@
 				</svg>
 			</button>
 		{/if}
-
-		<div class="profile-comment__vote">
-			{#if votes === 'reactions'}
-				<Reactions compact reactions={comment.reactions} onreact={react} onopenchange={(v) => (pickerOpen = v)} />
-			{:else if votes === 'likes'}
-				<PostButton
-					kind="like"
-					title="Лайк"
-					value={score.up || undefined}
-					active={score.myVote === 1}
-					reactions={comment.reactions}
-					onreact={react}
-					onopenchange={(v) => (pickerOpen = v)}
-					onclick={() => voteComment(comment, 1)}
-				/>
-			{:else}
-				<Rating
-					compact
-					value={score.up - score.down}
-					myVote={score.myVote}
-					reactions={comment.reactions}
-					onvote={(vote) => voteComment(comment, vote)}
-					onreact={react}
-					onopenchange={(v) => (pickerOpen = v)}
-				/>
-			{/if}
-		</div>
 	</div>
 
 	<div class="profile-comment__text">
@@ -205,7 +170,7 @@
 	{/if}
 
 	<div class="profile-comment__footer">
-		<a class="profile-comment__reply" href={postPath} onclick={(e) => openPost(e, post)}>Ответить</a>
+		<a class="profile-comment__reply" href={commentPath} onclick={(e) => openPost(e, post, { commentId: comment.id })}>Ответить</a>
 
 		{#if comment.sourceId === 'dtf'}
 			<button
@@ -214,7 +179,7 @@
 				title={comment.isFavorited ? 'Убрать из закладок' : 'Добавить в закладки'}
 				onclick={() => toggleCommentFavorite(comment)}
 			>
-				<svg class="icon" width="20" height="20" aria-hidden="true">
+				<svg class="icon" width="16" height="16" aria-hidden="true">
 					<use href="#{comment.isFavorited ? 'v_bookmark_solid' : 'v_bookmark'}"></use>
 				</svg>
 			</button>
@@ -309,6 +274,7 @@
 	}
 
 	.profile-comment__badge {
+		position: relative;
 		display: inline-flex;
 		align-items: center;
 		gap: 3px;
@@ -323,6 +289,16 @@
 		cursor: pointer;
 		white-space: nowrap;
 		transition: opacity var(--duration-base, 0.15s);
+	}
+
+	.profile-comment__badge::after {
+		content: '';
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		min-width: max(100%, 24px);
+		min-height: 24px;
 	}
 
 	.profile-comment__badge:hover {
@@ -376,6 +352,7 @@
 	}
 
 	.profile-comment__time-badge {
+		position: relative;
 		display: inline-flex;
 		align-items: center;
 		margin-left: 6px;
@@ -386,12 +363,18 @@
 		transition: opacity var(--duration-base, 0.15s);
 	}
 
-	.profile-comment__time-badge .icon {
-		display: block;
+	.profile-comment__time-badge::after {
+		content: '';
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		width: 24px;
+		height: 24px;
 	}
 
-	.profile-comment__vote {
-		margin-left: auto;
+	.profile-comment__time-badge .icon {
+		display: block;
 	}
 
 	.profile-comment__text {
@@ -446,29 +429,82 @@
 	}
 
 	.profile-comment__reply {
+		position: relative;
 		margin-top: 3px;
 		margin-right: 17px;
 		color: var(--text-muted);
 		font-size: 15px;
 	}
 
+	.profile-comment__reply::after {
+		content: '';
+		position: absolute;
+		top: 50%;
+		left: 0;
+		right: 0;
+		height: 32px;
+		transform: translateY(-50%);
+	}
+
+	/* Как .bookmark--type-comment в .profile_comment_favorite у DTF: 16×16 и круглый ховер 28×28 */
 	.profile-comment__bookmark {
+		position: relative;
 		display: flex;
-		margin-right: 20px;
+		align-items: center;
+		justify-content: center;
+		margin: 2px 20px 0 3px;
 		color: var(--text-muted);
 		cursor: pointer;
+	}
+
+	.profile-comment__bookmark::before {
+		content: '';
+		position: absolute;
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+		background-color: var(--color-comments-hover-bg);
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.profile-comment__bookmark::after {
+		content: '';
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: 32px;
+		height: 32px;
+		transform: translate(-50%, -50%);
+	}
+
+	.profile-comment__bookmark .icon {
+		position: relative;
+		z-index: 1;
+		display: block;
 	}
 
 	.profile-comment__bookmark--active {
 		color: var(--color-blue);
 	}
 
-	/* Как .etc_control у DTF: серая, при наведении чёрная */
+	/* Как .etc_control у DTF: серая, при наведении чёрная; зона клика больше иконки 14×7 */
 	.profile-comment__etc {
+		position: relative;
 		display: flex;
 		align-items: center;
 		color: var(--text-muted);
 		cursor: pointer;
+	}
+
+	.profile-comment__etc::after {
+		content: '';
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: 32px;
+		height: 32px;
+		transform: translate(-50%, -50%);
 	}
 
 	.profile-comment__etc[aria-expanded='true'] {
@@ -487,6 +523,14 @@
 			color: var(--text-link);
 		}
 
+		.profile-comment__bookmark:hover {
+			color: var(--color-comments-hover);
+		}
+
+		.profile-comment__bookmark:hover::before {
+			opacity: 0.12;
+		}
+
 		.profile-comment__time-badge:hover {
 			opacity: 0.9;
 		}
@@ -498,6 +542,32 @@
 
 		.profile-comment__etc:hover {
 			color: var(--text-primary);
+		}
+	}
+
+	/* Расширенная зона нажатия на тач-экранах без перекрытия соседних кнопок */
+	@media (pointer: coarse), (max-width: 859px) {
+		.profile-comment__reply::after {
+			height: 44px;
+		}
+
+		.profile-comment__bookmark::after {
+			left: -18px;
+			width: 44px;
+			height: 44px;
+			transform: translateY(-50%);
+		}
+
+		.profile-comment__etc::after {
+			left: -10px;
+			width: 44px;
+			height: 44px;
+			transform: translateY(-50%);
+		}
+
+		.profile-comment__time-badge::after {
+			width: 44px;
+			height: 44px;
 		}
 	}
 </style>
