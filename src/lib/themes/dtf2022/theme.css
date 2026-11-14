@@ -2,8 +2,7 @@
    Всё остальное живёт в scoped-стилях компонентов темы. */
 @font-face {
     font-family: 'Roboto';
-    src: url('/fonts/Roboto-VariableFont_wdth,wght.ttf') format('truetype-variations'),
-        url('/fonts/Roboto-VariableFont_wdth,wght.ttf') format('truetype');
+    src: url('/fonts/Roboto-Variable.woff2') format('woff2');
     font-weight: 100 1000;
     font-stretch: 75% 125%;
     font-style: normal;
