@@ -9,6 +9,10 @@
 	import Dialog from '$lib/components/Dialog.svelte';
 	import { startWriting } from '../dtf2022/actions.svelte';
 	import { donationsNote, formatNumber, plural } from '../dtf2022/format';
+	import { fromAction } from 'svelte/attachments';
+	import { lazyVideo } from '$lib/actions/lazyVideo';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
+	import { getAnimatedVideoUrl } from '$lib/api/utils';
 
 	/*
 	 * Страница аккаунта для нижней панели смартфона: карточка с профилем, черновики, донаты и выход.
@@ -76,7 +80,20 @@
 		<section class="hero" style:--i={0}>
 			<div class="hero__cover">
 				{#if user.coverUrl}
-					<img class="hero__cover-image" src={user.coverUrl} alt="" style:object-position="50% {user.coverY ?? 50}%" />
+					{#if getAnimatedVideoUrl(user.coverUrl)}
+						<video
+							class="hero__cover-image"
+							src={getAnimatedVideoUrl(user.coverUrl)}
+							poster={user.coverUrl}
+							style:object-position="50% {user.coverY ?? 50}%"
+							muted
+							loop
+							playsinline
+							{@attach fromAction(lazyVideo)}
+						></video>
+					{:else}
+						<img class="hero__cover-image" src={user.coverUrl} alt="" style:object-position="50% {user.coverY ?? 50}%" />
+					{/if}
 				{:else if user.avatarUrl}
 					<!-- Без обложки фон — размытая аватарка: у каждого своя, но в цветах профиля -->
 					<div class="hero__cover-blur" style:background-image="url('{user.avatarUrl}')"></div>
@@ -88,7 +105,7 @@
 			</div>
 
 			<div class="hero__body">
-				<a class="hero__avatar" href={resolve(getProfilePath(user.id) as any)} onclick={openMe} aria-label="Мой профиль">
+				<a class="hero__avatar" href={resolve(getProfilePath(user.id) as any)} onclick={openMe} aria-label="Мой профиль" {@attach animatedAvatar(avatarUrl, true)}>
 					{#if avatarUrl}
 						<img src={avatarUrl} alt="" />
 					{/if}

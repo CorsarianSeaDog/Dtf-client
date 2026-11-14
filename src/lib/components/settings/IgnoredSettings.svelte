@@ -7,6 +7,7 @@
 	import SettingsSwitch from './SettingsSwitch.svelte';
 	import { api } from '$lib/api/index.svelte';
 	import type { IgnoredSubsite } from '$lib/api/types';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 	import {
 		addIgnoredKeyword,
 		addIgnoredKeywords,
@@ -100,7 +101,7 @@
 		<SettingsGroup {title}>
 			{#each subsites as item (item.id)}
 				<div class="ignored-row">
-					<span class="avatar" style:background-image={item.avatarUrl ? `url(${item.avatarUrl})` : undefined}></span>
+					<span class="avatar" style:background-image={item.avatarUrl ? `url(${item.avatarUrl})` : undefined} {@attach animatedAvatar(item.avatarUrl)}></span>
 					<div class="ignored-row__info">
 						<span class="ignored-row__name">{item.name}</span>
 						{#if item.description}

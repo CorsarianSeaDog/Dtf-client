@@ -8,6 +8,7 @@
 	import { formatRating } from '../format';
 	import Button from '../ui/Button.svelte';
 	import PlusBadge from '../ui/PlusBadge.svelte';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 
 	let { author }: { author: User } = $props();
 
@@ -51,6 +52,7 @@
 			style:background-image={author.avatarUrl ? `url(${author.avatarUrl})` : undefined}
 			aria-label={author.name}
 			onclick={(e) => openProfile(e, author.id)}
+			{@attach animatedAvatar(author.avatarUrl)}
 		></a>
 		<div class="author-card__main">
 			<div class="author-card__title">

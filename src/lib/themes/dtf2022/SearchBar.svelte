@@ -6,6 +6,7 @@
 	import { clickOnKey } from './a11y';
 	import { formatNumber, plural } from './format';
 	import Preloader from './ui/Preloader.svelte';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 
 	let {
 		autofocus = false,
@@ -141,7 +142,7 @@
 						<div class="popup__title">{group.title}</div>
 						{#each group.items as subsite (subsite.id)}
 							<a class="popup-item" role="option" aria-selected="false" href={resolve(getProfilePath(subsite.id) as any)} onclick={(e) => pick(e, subsite)}>
-								<span class="popup-item__avatar" style:background-image={subsite.avatarUrl ? `url('${subsite.avatarUrl}')` : undefined}></span>
+								<span class="popup-item__avatar" style:background-image={subsite.avatarUrl ? `url('${subsite.avatarUrl}')` : undefined} {@attach animatedAvatar(subsite.avatarUrl)}></span>
 								<span class="popup-item__info">
 									<span class="popup-item__name">{subsite.name}</span>
 									{#if subsite.subscribersCount}

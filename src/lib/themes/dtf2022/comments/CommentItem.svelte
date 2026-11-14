@@ -6,6 +6,7 @@
 	import { resolve } from '$app/paths';
 	import { openExternalUrl } from '$lib/capacitor';
 	import { lazyVideo } from '$lib/actions/lazyVideo';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 	import { mediaHold } from '$lib/actions/mediaHold';
 	import { api } from '$lib/api/index.svelte';
 	import { getLeonardoUrl } from '$lib/api/utils';
@@ -297,7 +298,7 @@
 			<div class="comment-item__avatar">
 				<div class="comment-item__avatar-image">
 					{#if comment.author.avatarUrl}
-						<img src={comment.author.avatarUrl} alt="" style="opacity: 0.5;" />
+						<img src={comment.author.avatarUrl} alt="" style="opacity: 0.5;" {@attach animatedAvatar(comment.author.avatarUrl)} />
 					{/if}
 				</div>
 			</div>
@@ -366,7 +367,7 @@
 			{@render repliesAction()}
 		{:else}
 			<a class="comment-item__avatar" class:comment-item__avatar--restored={restoredAuthor} href={profilePath} tabindex="-1" aria-hidden="true" onclick={(e) => openProfile(e, shownAuthor.id)}>
-				<div class="comment-item__avatar-image">
+				<div class="comment-item__avatar-image" {@attach animatedAvatar(shownAuthor.avatarUrl)}>
 					{#if shownAuthor.avatarUrl}
 						<img src={shownAuthor.avatarUrl} alt="" />
 					{:else}

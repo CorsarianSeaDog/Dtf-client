@@ -15,6 +15,7 @@
 	import { subscriptions } from './actions.svelte';
 	import { settings } from '$lib/storage/settings.svelte';
 	import { themeSettings } from './themeSettings.svelte';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 
 	let {
 		avatarOpensMenu: avatarOpensMenuProp,
@@ -214,7 +215,7 @@
 							aria-expanded={isUserMenuOpen}
 							onclick={() => (isUserMenuOpen = !isUserMenuOpen)}
 						>
-							<div class="header-profile__avatar-image" style:background-image={user?.avatarUrl ? `url('${user.avatarUrl}')` : undefined}></div>
+							<div class="header-profile__avatar-image" style:background-image={user?.avatarUrl ? `url('${user.avatarUrl}')` : undefined} {@attach animatedAvatar(user?.avatarUrl)}></div>
 							<span class={['header-profile__arrow', { 'header-profile__arrow--open': isUserMenuOpen }]}>
 								<svg class="icon" width="20" height="20" aria-hidden="true">
 									<use href="#v_chevron_down"></use>
@@ -232,7 +233,7 @@
 								if (user) openProfile(e, user.id);
 							}}
 						>
-							<div class="header-profile__avatar-image" style:background-image={user?.avatarUrl ? `url('${user.avatarUrl}')` : undefined}></div>
+							<div class="header-profile__avatar-image" style:background-image={user?.avatarUrl ? `url('${user.avatarUrl}')` : undefined} {@attach animatedAvatar(user?.avatarUrl)}></div>
 						</a>
 						<button
 							type="button"

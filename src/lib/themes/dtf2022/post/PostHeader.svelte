@@ -11,6 +11,7 @@
 	import PlusBadge from '../ui/PlusBadge.svelte';
 	import { notify } from '../ui/notify.svelte';
 	import { formatFullDate, formatTime } from '../format';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 
 	let {
 		post,
@@ -92,7 +93,7 @@
 			{@const subsite = post.subsite}
 			<div class="post-header__item post-header-subsite">
 				<a href={resolve(getProfilePath(subsite.id) as any)} onclick={(e) => openProfile(e, subsite.id)}>
-					<div class="post-header-subsite__avatar">
+					<div class="post-header-subsite__avatar" {@attach animatedAvatar(subsite.avatarUrl)}>
 						{#if subsite.avatarUrl}
 							<img src={subsite.avatarUrl} alt="" />
 						{/if}

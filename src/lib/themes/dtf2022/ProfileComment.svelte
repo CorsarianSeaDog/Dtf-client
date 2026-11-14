@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { openExternalUrl } from '$lib/capacitor';
 	import { lazyVideo } from '$lib/actions/lazyVideo';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 	import { mediaHold } from '$lib/actions/mediaHold';
 	import { api } from '$lib/api/index.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
@@ -91,7 +92,7 @@
 	<div class="profile-comment__header">
 		<a class="profile-comment__user" href={resolve(getProfilePath(comment.author.id) as any)} onclick={(e) => openProfile(e, comment.author.id)}>
 			{#if comment.author.avatarUrl}
-				<img class="profile-comment__avatar" src={comment.author.avatarUrl} alt="" />
+				<img class="profile-comment__avatar" src={comment.author.avatarUrl} alt="" {@attach animatedAvatar(comment.author.avatarUrl)} />
 			{/if}
 			<span class="profile-comment__name">{comment.author.name}</span>
 		</a>

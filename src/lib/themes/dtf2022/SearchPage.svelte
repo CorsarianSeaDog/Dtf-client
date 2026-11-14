@@ -10,6 +10,7 @@
 	import { formatNumber, formatTime, plural } from './format';
 	import { loadOnVisible } from './loadOnVisible';
 	import { Popover, Preloader } from './ui';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 
 	/*
 	 * Страница результатов поиска. Страницу поиска DTF (весна 2023) в архиве не сохранили, поэтому вид собран
@@ -147,7 +148,7 @@
 						<div class="search-simple__body">
 							<div class="search-simple__meta">
 								{#if (post.subsite ?? post.author).avatarUrl}
-									<img class="search-simple__avatar" src={(post.subsite ?? post.author).avatarUrl} alt="" loading="lazy" />
+									<img class="search-simple__avatar" src={(post.subsite ?? post.author).avatarUrl} alt="" loading="lazy" {@attach animatedAvatar((post.subsite ?? post.author).avatarUrl)} />
 								{/if}
 								<span class="search-simple__author">{post.subsite?.name ?? post.author.name}</span>
 								<time class="search-simple__time" datetime={post.createdAt}>{formatTime(post.createdAt)}</time>
@@ -183,7 +184,7 @@
 			{:else}
 				{#each subsites as subsite (subsite.id)}
 					<a class="search-simple search-subsite" href={resolve(getProfilePath(subsite.id) as any)} onclick={(e) => openProfile(e, subsite.id)}>
-						<span class="search-subsite__avatar" style:background-image={subsite.avatarUrl ? `url('${subsite.avatarUrl}')` : undefined}></span>
+						<span class="search-subsite__avatar" style:background-image={subsite.avatarUrl ? `url('${subsite.avatarUrl}')` : undefined} {@attach animatedAvatar(subsite.avatarUrl)}></span>
 						<span class="search-subsite__info">
 							<span class="search-subsite__name">{subsite.name}</span>
 							{#if subsite.description}

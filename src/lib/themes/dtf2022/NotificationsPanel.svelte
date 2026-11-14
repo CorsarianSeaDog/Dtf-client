@@ -7,6 +7,7 @@
 	import { authStorage } from '$lib/storage/auth.svelte';
 	import { formatNotificationTime } from './format';
 	import { notificationsPopup } from './notificationsPopup.svelte';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 
 	/** page — страница уведомлений: список целиком, без ссылки «Все уведомления» */
 	let { page = false }: { page?: boolean } = $props();
@@ -111,7 +112,7 @@
 
 				{#if item.avatarUrl && !squareIcon}
 					<div class="u-notification__image u-notification__image--relative">
-						<img src={item.avatarUrl} alt="" loading="lazy" />
+						<img src={item.avatarUrl} alt="" loading="lazy" {@attach animatedAvatar(item.avatarUrl)} />
 						{#if badge}
 							<div class="u-notification__avatar-icon">
 								<svg class="icon" width="9" height="9" aria-hidden="true"><use href="#{badge}"></use></svg>

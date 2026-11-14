@@ -5,6 +5,7 @@
 	import type { CurrentUser } from '$lib/api/types';
 	import { donationAccount } from '$lib/api/donationAccount.svelte';
 	import { donationsNote } from './format';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 
 	let { user, onclose }: { user: CurrentUser | null; onclose: () => void } = $props();
 
@@ -41,7 +42,7 @@
 		{#if user}
 			<a class="account-menu__user-card" href={resolve(getProfilePath(user.id) as any)} onclick={openMyProfile}>
 				<div class="user-card">
-					<div class="user-card__avatar" style:background-image={user.avatarUrl ? `url('${user.avatarUrl}')` : undefined}></div>
+					<div class="user-card__avatar" style:background-image={user.avatarUrl ? `url('${user.avatarUrl}')` : undefined} {@attach animatedAvatar(user.avatarUrl)}></div>
 					<span class="user-card__text">{user.name}</span>
 				</div>
 			</a>

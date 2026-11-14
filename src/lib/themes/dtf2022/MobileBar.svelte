@@ -11,6 +11,7 @@
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { hasThemeComponent } from '$lib/themes/ThemeLoader.svelte';
 	import { scrollBehavior } from '$lib/motion';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 
 	// Тема со страницей аккаунта ведёт на неё (гостю она сама предлагает войти), остальные — в настройки или во вход
 	let hasAccountPage = $derived(hasThemeComponent(activeTheme.chain, 'AccountPage'));
@@ -76,7 +77,7 @@
 			<button class="mobile-bar__link" aria-label={hasAccountPage ? 'Аккаунт' : authStorage.isAuthenticated ? 'Настройки' : 'Войти'} onclick={openAccount}>
 				<!-- Как у DTF 2023: вошедшему — аватарка, гостю — значок входа; на открытой странице аккаунта — подсветка -->
 				{#if avatarUrl}
-					<span class={['mobile-bar__profile-avatar', { 'mobile-bar__profile-avatar--is-active': accountOpen }]} style:background-image="url('{avatarUrl}')"></span>
+					<span class={['mobile-bar__profile-avatar', { 'mobile-bar__profile-avatar--is-active': accountOpen }]} style:background-image="url('{avatarUrl}')" {@attach animatedAvatar(avatarUrl)}></span>
 				{:else}
 					<svg height="28" width="28" class={['icon', { 'mobile-bar__account--is-active': accountOpen }]} aria-hidden="true">
 						<use href="#v_login"></use>

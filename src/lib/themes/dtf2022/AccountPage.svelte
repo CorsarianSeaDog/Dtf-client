@@ -6,6 +6,7 @@
 	import { authStorage } from '$lib/storage/auth.svelte';
 	import { getProfilePath, openDrafts, openOverlay, openProfile, openSettings } from '$lib/navigation';
 	import { donationsNote } from './format';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 
 	/*
 	 * Страница /account, куда в DTF 2023 вела кнопка профиля в нижней панели: меню аккаунта на весь экран
@@ -51,7 +52,7 @@
 		{#if user}
 			<a class="account-menu__user-card" href={resolve(getProfilePath(user.id) as any)} onclick={openMe}>
 				<div class="user-card">
-					<div class="user-card__avatar" style:background-image={user.avatarUrl ? `url('${user.avatarUrl}')` : undefined}></div>
+					<div class="user-card__avatar" style:background-image={user.avatarUrl ? `url('${user.avatarUrl}')` : undefined} {@attach animatedAvatar(user.avatarUrl)}></div>
 					<span class="user-card__text">{user.name}</span>
 				</div>
 			</a>

@@ -12,6 +12,7 @@
 	import { loadOnVisible } from './loadOnVisible';
 	import { formatNumber } from './format';
 	import Preloader from './ui/Preloader.svelte';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 
 	/*
 	 * Вкладка «Подробнее»: обзор, подписчики, подписки. Рисует три блока сетки профиля:
@@ -81,7 +82,7 @@
 {#snippet personRow(person: ProfileListItem, isMySubscription = false)}
 	<div class="subsite-item">
 		<a href={resolve(getProfilePath(person.id) as any)} class="subsite-item__main" onclick={(e) => openProfile(e, person.id)}>
-			<div class="subsite-item__image" style:background-image={person.avatarUrl ? `url(${person.avatarUrl})` : undefined}></div>
+			<div class="subsite-item__image" style:background-image={person.avatarUrl ? `url(${person.avatarUrl})` : undefined} {@attach animatedAvatar(person.avatarUrl)}></div>
 			<div class="subsite-item__label-container">
 				<span class="subsite-item__label" title={person.name}>{person.name}</span>
 			</div>

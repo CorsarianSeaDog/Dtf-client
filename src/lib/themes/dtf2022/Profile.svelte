@@ -15,6 +15,10 @@
 	import Preloader from './ui/Preloader.svelte';
 	import PlusBadge from './ui/PlusBadge.svelte';
 	import { notify } from './ui/notify.svelte';
+	import { fromAction } from 'svelte/attachments';
+	import { lazyVideo } from '$lib/actions/lazyVideo';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
+	import { getAnimatedVideoUrl } from '$lib/api/utils';
 
 	let {
 		profile,
@@ -220,7 +224,7 @@
 							title={grid ? item.name : undefined}
 							onclick={(e) => openProfile(e, item.id)}
 						>
-							<img src={item.avatarUrl} class="profile-sidebar-list__image" loading="lazy" alt={grid ? item.name : ''} />
+							<img src={item.avatarUrl} class="profile-sidebar-list__image" loading="lazy" alt={grid ? item.name : ''} {@attach animatedAvatar(item.avatarUrl)} />
 							{#if !grid}
 								<div class="profile-sidebar-list__label">{item.name}</div>
 							{/if}
@@ -238,7 +242,7 @@
 	{#if isMe}
 		<!-- Скрытые поля выбора файла: кнопки обложки и аватарки открывают их -->
 		<input bind:this={coverInput} type="file" accept="image/*, video/mp4, .webp" hidden onchange={pickImage('cover')} />
-		<input bind:this={avatarInput} type="file" accept="image/png, image/jpeg" hidden onchange={pickImage('avatar')} />
+		<input bind:this={avatarInput} type="file" accept="image/png, image/jpeg, image/gif, image/webp, video/mp4" hidden onchange={pickImage('avatar')} />
 
 		{#if !profile.coverUrl}
 			<div class="profile-cover-upload">
@@ -253,6 +257,17 @@
 			style:background-image={profile.coverUrl ? `url(${profile.coverUrl})` : undefined}
 			style:background-position="50% {editingCover ? coverY : (profile.coverY ?? 50)}%"
 		>
+			{#if getAnimatedVideoUrl(profile.coverUrl)}
+				<video
+					class="profile-head__cover-video"
+					src={getAnimatedVideoUrl(profile.coverUrl)}
+					style:object-position="50% {editingCover ? coverY : (profile.coverY ?? 50)}%"
+					muted
+					loop
+					playsinline
+					{@attach fromAction(lazyVideo)}
+				></video>
+			{/if}
 			{#if isMe && profile.coverUrl}
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div
@@ -283,6 +298,7 @@
 					aria-label="Открыть аватарку"
 					disabled={!profile.avatarMedia} onpointerenter={() => profile.avatarMedia && preloadLightbox()}
 					onclick={() => profile.avatarMedia && openLightbox([profile.avatarMedia], 0)}
+					{@attach animatedAvatar(profile.avatarUrl, true)}
 				></button>
 				{#if isMe}
 					<button type="button" class="profile-avatar-change" title="Сменить фото" aria-label="Сменить фото" disabled={busy} onclick={() => avatarInput?.click()}>
@@ -497,6 +513,15 @@
 		margin-left: calc(var(--offset-x) * -1);
 		margin-right: calc(var(--offset-x) * -1);
 		background: var(--border-color) no-repeat 50% 50% / cover;
+	}
+
+	.profile-head__cover-video {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		pointer-events: none;
 	}
 
 	.profile-head__avatar {

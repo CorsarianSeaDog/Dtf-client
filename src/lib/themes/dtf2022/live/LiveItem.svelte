@@ -4,6 +4,7 @@
 	import { formatDonation } from '../comments/donation';
 	import { formatFullDate, formatTime } from '../format';
 	import { shorten, uniqueByType, type LiveItem } from './liveModel';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 
 	let {
 		item,
@@ -36,7 +37,7 @@
 		}}
 	>
 		<div class="note-avatar">
-			<div class="avatar" style:background-image={item.user.avatarUrl ? `url("${item.user.avatarUrl}")` : undefined}></div>
+			<div class="avatar" style:background-image={item.user.avatarUrl ? `url("${item.user.avatarUrl}")` : undefined} {@attach animatedAvatar(item.user.avatarUrl)}></div>
 			<div class="note-badge note-badge--{item.notification.kind}">
 				<svg class="icon" width="8" height="8" aria-hidden="true">
 					<use href="#{NOTE_ICONS[item.notification.kind]}"></use>
@@ -49,7 +50,7 @@
 	<div class={['live-item', { 'live-item--donate': !!item.donate, 'live-item--first': first }]}>
 		<div class="header">
 			<a class="user" href={profileHref} onclick={(e) => openProfile(e, item.user.id)}>
-				<div class="avatar" style:background-image={item.user.avatarUrl ? `url("${item.user.avatarUrl}")` : undefined}></div>
+				<div class="avatar" style:background-image={item.user.avatarUrl ? `url("${item.user.avatarUrl}")` : undefined} {@attach animatedAvatar(item.user.avatarUrl)}></div>
 				<div class="name"><span>{item.user.name}</span></div>
 				{#if item.user.isVerified}
 					<svg class="icon" width="12" height="12" aria-label="Подтверждённый аккаунт" role="img">
