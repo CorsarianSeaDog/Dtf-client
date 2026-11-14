@@ -103,6 +103,19 @@
 	let underLayer = $derived(topmostPageOverlayIndex < 0 ? undefined : (overlays.slice(0, topmostPageOverlayIndex).findLast(o => o.presentation === 'page')?.id ?? '__feed__'));
 	const hiddenAs = (layer: string, shown: boolean) => (shown ? undefined : layer === underLayer ? 'under' : 'deep');
 
+	// Метка у детей слоя, по которой его прячет CSS. С `> *` Chrome при каждом показе слоя пересчитывал стили всего его
+	// поддерева (страница с 1000 комментариев — десятки тысяч элементов, секунды на телефоне): по универсальному селектору
+	// инвалидацию не сузить. Атрибут, а не класс: динамический class Svelte перезаписывает целиком
+	const markLayerRoots = (layer: HTMLElement) => {
+		const mark = () => {
+			for (const child of layer.children) child.setAttribute('data-layer-root', '');
+		};
+		mark();
+		const observer = new MutationObserver(mark);
+		observer.observe(layer, { childList: true });
+		return () => observer.disconnect();
+	};
+
 	// Модалки и просмотр картинок закрывают страницу целиком: она под ними не прокручивается
 	let hasModalActive = $derived(overlays.some(o => o.presentation !== 'page'));
 	
@@ -431,6 +444,7 @@
 			class="layer"
 			data-layer="__feed__"
 			data-hidden={hiddenAs('__feed__', pageTransition.isOutgoing('__feed__') || topmostPageOverlayIndex < 0 || swipeBack.preview === '__feed__')}
+			{@attach markLayerRoots}
 		>
 			{@render children()}
 		</div>
@@ -443,6 +457,7 @@
 					data-hidden={hiddenAs(overlay.id, pageTransition.isOutgoing(overlay.id) || index >= topmostPageOverlayIndex || swipeBack.preview === overlay.id)}
 					style:visibility={pageTransition.isIncoming(overlay.id) && pageTransition.incomingHidden ? 'hidden' : 'visible'}
 					out:leavePage|global
+					{@attach markLayerRoots}
 				>
 					{@render overlayContent(overlay, topmostPageOverlayIndex - index)}
 				</div>
@@ -504,7 +519,7 @@
 	/* Слой прямо под страницей не рисуется и не занимает места, но браузер хранит его раскладку: закрытие страницы
 	   показывает его без пересчёта. Из потока он выведен, чтобы его поля не сдвигали страницу; раскладка содержимого
 	   при этом не пересчитывается, пока слой скрыт. Слои глубже раскладку не держат: её память на каждый слой не нужна */
-	.layer[data-hidden] > :global(*) {
+	.layer[data-hidden] > :global([data-layer-root]) {
 		content-visibility: hidden;
 		position: absolute;
 	}
