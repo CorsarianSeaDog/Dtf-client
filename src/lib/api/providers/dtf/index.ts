@@ -265,16 +265,17 @@ export const dtfApiProvider = {
 		return entriesOf((await response.json()).result?.items).map(mapEntryToPost);
 	},
 
-	/** Поиск записей: `title` — искать только в заголовках, `editorial` — только у редакции, `strict` — точное совпадение. У каждой записи `meta.highlight` — фрагмент текста с найденным в `<mark>`; страницы — по курсору */
+	/** Поиск записей: `title` — искать только в заголовках, `editorial` — только у редакции, `strict` — точное совпадение, `authorId` — по автору. У каждой записи `meta.highlight` — фрагмент текста с найденным в `<mark>`; страницы — по курсору */
 	async searchPosts(query: string, sorting: SearchSorting, filters: SearchFilters, cursor?: CursorData): Promise<PaginatedResult<Post> & { total?: number }> {
 		const params = new URLSearchParams({
 			markdown: 'false',
 			sorting,
-			q: query,
 			title: String(filters.title),
 			editorial: String(filters.editorial),
 			strict: String(filters.strict)
 		});
+		if (query) params.set('q', query);
+		if (filters.authorId !== undefined) params.set('author', String(filters.authorId));
 		const response = await fetchSearch(`/v2.10/search/posts?${params}${cursorQuery(cursor)}`);
 		const result = (await response.json()).result;
 

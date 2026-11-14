@@ -127,3 +127,52 @@ describe('searchComments', () => {
 		await expect(dtfApiProvider.searchComments({ query: 'ок' })).rejects.toThrow('Сетевая ошибка');
 	});
 });
+
+describe('searchPosts', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('передаёт author и курсор; при указанном authorId работает и без query', async () => {
+		vi.mocked(fetchSearch).mockResolvedValueOnce(Response.json({
+			result: {
+				items: [{
+					type: 'entry',
+					data: { id: 10, title: 'Пост', author: { id: 3469248, name: 'A' }, blocks: [] },
+					meta: { highlight: 'Пост<mark>тест</mark>' }
+				}],
+				lastId: 10,
+				lastSortingValue: 2,
+				total: 1
+			}
+		}));
+
+		const withAuthor = await dtfApiProvider.searchPosts(
+			'тест',
+			'date',
+			{ title: false, editorial: false, strict: true, authorId: 3469248 },
+			{ lastId: 20, lastSortingValue: 5 }
+		);
+
+		const url1 = vi.mocked(fetchSearch).mock.calls[0][0];
+		const params1 = new URLSearchParams(url1.split('?')[1]);
+		expect(url1.startsWith('/v2.10/search/posts?')).toBe(true);
+		expect(params1.get('q')).toBe('тест');
+		expect(params1.get('sorting')).toBe('date');
+		expect(params1.get('strict')).toBe('true');
+		expect(params1.get('author')).toBe('3469248');
+		expect(params1.get('lastId')).toBe('20');
+		expect(params1.get('lastSortingValue')).toBe('5');
+		expect(withAuthor.total).toBe(1);
+		expect(withAuthor.items[0].searchSnippet).toBe('<mark>тест</mark>');
+
+		vi.mocked(fetchSearch).mockResolvedValueOnce(Response.json({
+			result: { items: [], total: 0 }
+		}));
+
+		await dtfApiProvider.searchPosts('', 'relevance', { title: false, editorial: false, strict: false, authorId: 3469248 });
+		const params2 = new URLSearchParams(vi.mocked(fetchSearch).mock.calls[1][0].split('?')[1]);
+		expect(params2.has('q')).toBe(false);
+		expect(params2.get('author')).toBe('3469248');
+	});
+});

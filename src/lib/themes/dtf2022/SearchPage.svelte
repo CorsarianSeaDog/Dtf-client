@@ -62,7 +62,7 @@
 		{ value: 'relevance', label: 'По релевантности', short: 'Релевантность' },
 		{ value: 'date', label: 'По дате', short: 'Дата' }
 	];
-	const FILTERS: { key: keyof SearchFilters; label: string }[] = [
+	const FILTERS: { key: 'title' | 'editorial' | 'strict'; label: string }[] = [
 		{ key: 'title', label: 'Только в заголовках' },
 		{ key: 'editorial', label: 'Новости редакции' },
 		{ key: 'strict', label: 'Точное совпадение' }

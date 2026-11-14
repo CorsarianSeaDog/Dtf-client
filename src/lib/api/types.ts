@@ -200,11 +200,12 @@ export interface SearchSubsite {
 /** Порядок выдачи поиска по записям */
 export type SearchSorting = 'relevance' | 'date';
 
-/** Уточнения поиска по записям: только заголовки, только редакция, точное совпадение */
+/** Уточнения поиска по записям: только заголовки, только редакция, точное совпадение, автор */
 export interface SearchFilters {
 	title: boolean;
 	editorial: boolean;
 	strict: boolean;
+	authorId?: number;
 }
 
 /** Параметры поиска по комментариям (`GET /v2.51/search/comments`) */
