@@ -50,6 +50,23 @@ export const unresist = (y: number) => (MAX / 0.7) * (1 / (1 - Math.min(y, MAX -
 
 const allowed = () => activeTheme.gestures && getCurrentDevice() === 'mobile';
 
+/** Тема показывает загрузку, пока идёт обновление */
+function holdWhile(p: Puller, refresh: () => Promise<unknown>) {
+	p.hold();
+	const wait = new Promise((done) => setTimeout(done, MIN_LOADING));
+	return Promise.all([refresh().catch(() => {}), wait]).then(() => p.close());
+}
+
+/**
+ * Обновить без жеста (повторным нажатием на вкладку), с той же загрузкой, что после него.
+ * Если тема жест не рисует или уже занята, обновление идёт молча
+ */
+export function refreshWithIndicator(refresh: () => Promise<unknown>): Promise<unknown> {
+	const p = puller;
+	if (!p || !allowed() || p.grab() === undefined) return refresh();
+	return holdWhile(p, refresh);
+}
+
 export interface PullRefreshOptions {
 	/** Можно ли сейчас обновлять: страница на экране и поверх нет окон */
 	enabled: () => boolean;
@@ -97,12 +114,7 @@ export function pullRefresh(options: PullRefreshOptions): Attachment<HTMLElement
 			const d = p!;
 			if (!go) return d.close();
 			busy = true;
-			d.hold();
-			const wait = new Promise((done) => setTimeout(done, MIN_LOADING));
-			Promise.all([options.refresh().catch(() => {}), wait]).then(() => {
-				busy = false;
-				d.close();
-			});
+			holdWhile(d, options.refresh).then(() => (busy = false));
 		}
 
 		function onStart(e: TouchEvent) {
