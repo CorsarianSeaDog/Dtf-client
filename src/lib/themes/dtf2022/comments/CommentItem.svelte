@@ -4,6 +4,7 @@
 	import type { Attachment } from 'svelte/attachments';
 	import { fromAction } from 'svelte/attachments';
 	import { resolve } from '$app/paths';
+	import { openExternalUrl } from '$lib/capacitor';
 	import { lazyVideo } from '$lib/actions/lazyVideo';
 	import { mediaHold } from '$lib/actions/mediaHold';
 	import { api } from '$lib/api/index.svelte';
@@ -160,7 +161,7 @@
 	function selectMenuItem(item: 'edit' | 'open_dtf' | 'copy' | 'favorite' | 'complain' | AuthorAction) {
 		if (item.endsWith('_author')) runAuthorAction(item as AuthorAction, comment.author);
 		else if (item === 'edit') onedit();
-		else if (item === 'open_dtf') window.open(`https://dtf.ru/${comment.postId}?comment=${comment.id}`, '_blank', 'noopener,noreferrer');
+		else if (item === 'open_dtf') openExternalUrl(`https://dtf.ru/${comment.postId}?comment=${comment.id}`);
 		else if (item === 'copy') copyLink();
 		else if (item === 'complain') complaining = ensureLogin();
 		else toggleCommentFavorite(comment, onpatch);

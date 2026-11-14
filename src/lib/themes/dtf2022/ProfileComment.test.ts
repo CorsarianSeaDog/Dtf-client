@@ -29,7 +29,8 @@ describe('ProfileComment badge modal integration', () => {
 
 		expect(svelteContent).toContain("label: 'Открыть на DTF'");
 		expect(svelteContent).toContain("icon: 'v_external'");
-		expect(svelteContent).toContain('https://dtf.ru/${comment.postId}?comment=${comment.id}');
+		expect(svelteContent).toContain('openExternalUrl(`https://dtf.ru/${comment.postId}?comment=${comment.id}`)');
+		expect(svelteContent).not.toContain('window.open(');
 	});
 
 	it('не рисует оценки, ведёт «Ответить» и дату на комментарий, задаёт закладку 16x16 с ховером и расширенные хитбоксы', () => {

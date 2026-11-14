@@ -53,7 +53,8 @@ describe('CommentItem thread lines hitbox', () => {
 
 		expect(svelteContent).toContain("label: 'Открыть на DTF'");
 		expect(svelteContent).toContain("icon: 'v_external'");
-		expect(svelteContent).toContain('https://dtf.ru/${comment.postId}?comment=${comment.id}');
+		expect(svelteContent).toContain('openExternalUrl(`https://dtf.ru/${comment.postId}?comment=${comment.id}`)');
+		expect(svelteContent).not.toContain('window.open(');
 	});
 
 	it('поддерживает переход со стрелки к родителю ветки с подсветкой', () => {

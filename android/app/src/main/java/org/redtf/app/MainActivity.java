@@ -1,7 +1,9 @@
 package org.redtf.app;
 
 import android.app.DownloadManager;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
@@ -19,6 +21,28 @@ import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
     public class AndroidBridge {
+        @JavascriptInterface
+        public boolean openExternalUrl(String url) {
+            try {
+                if (url == null || url.isEmpty()) return false;
+                Uri uri = Uri.parse(url);
+                String scheme = uri.getScheme();
+                if (scheme == null || (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https"))) {
+                    return false;
+                }
+                Intent viewIntent = new Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE);
+                Intent chooser = Intent.createChooser(viewIntent, null);
+                chooser.putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, new ComponentName[] {
+                    new ComponentName(MainActivity.this, MainActivity.class)
+                });
+                startActivity(chooser);
+                return true;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+
         @JavascriptInterface
         public boolean download(String url, String filename, String mimeType) {
             try {

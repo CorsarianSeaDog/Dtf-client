@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { openExternalUrl } from '$lib/capacitor';
+
 	const UNSUPPORTED_BLOCK_TYPES = new Set(['game']);
 
 	let {
@@ -25,7 +27,17 @@
 	<span class="unknown-block__title">{isUnsupported ? 'Неподдерживаемый блок' : 'Неизвестный блок'}</span>
 	<span class="unknown-block__content">{isUnsupported ? `re:DTF не поддерживает блоки типа ${type} из-за их невостребованности.` : `re:DTF пока не поддерживает блоки типа ${type}.`}</span>
 	{#if dtfUrl}
-		<a class="unknown-block__button" href={dtfUrl} target="_blank" rel="noreferrer" onclick={(e) => e.stopPropagation()}>
+		<a
+			class="unknown-block__button"
+			href={dtfUrl}
+			target="_blank"
+			rel="noreferrer"
+			onclick={(e) => {
+				e.stopPropagation();
+				e.preventDefault();
+				openExternalUrl(dtfUrl);
+			}}
+		>
 			Открыть на DTF
 		</a>
 	{/if}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Post } from '$lib/api/types';
 	import { resolve } from '$app/paths';
+	import { openExternalUrl } from '$lib/capacitor';
 	import { getPostPath, getPostShareUrl, getProfilePath, openPost, openProfile } from '$lib/navigation';
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import { api } from '$lib/api/index.svelte';
@@ -70,7 +71,7 @@
 		if (item.endsWith('_author')) {
 			runAuthorAction(item as AuthorAction, post.author);
 		} else if (item === 'open_dtf') {
-			window.open(`https://dtf.ru/${post.id}`, '_blank', 'noopener,noreferrer');
+			openExternalUrl(`https://dtf.ru/${post.id}`);
 		} else if (item === 'copy') {
 			copyLink();
 		} else if (item === 'hide_post') {

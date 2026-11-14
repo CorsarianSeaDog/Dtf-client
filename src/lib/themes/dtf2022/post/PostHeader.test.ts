@@ -11,7 +11,8 @@ describe('PostHeader menu items', () => {
 
 		expect(svelteContent).toContain("label: 'Открыть на DTF'");
 		expect(svelteContent).toContain("icon: 'v_external'");
-		expect(svelteContent).toContain('https://dtf.ru/${post.id}');
+		expect(svelteContent).toContain('openExternalUrl(`https://dtf.ru/${post.id}`)');
+		expect(svelteContent).not.toContain('window.open(');
 	});
 
 	it('содержит пункт меню "Копировать ссылку"', () => {

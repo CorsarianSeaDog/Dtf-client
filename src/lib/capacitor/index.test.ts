@@ -17,7 +17,21 @@ vi.mock('$app/state', () => ({
 }));
 
 const appMocks = vi.hoisted(() => ({
-	minimizeApp: vi.fn().mockResolvedValue(undefined)
+	minimizeApp: vi.fn().mockResolvedValue(undefined),
+	isNativePlatform: vi.fn(() => false),
+	browserOpen: vi.fn().mockResolvedValue(undefined)
+}));
+
+vi.mock('@capacitor/core', () => ({
+	Capacitor: {
+		isNativePlatform: appMocks.isNativePlatform
+	}
+}));
+
+vi.mock('@capacitor/browser', () => ({
+	Browser: {
+		open: appMocks.browserOpen
+	}
 }));
 
 vi.mock('@capacitor/app', () => ({
@@ -47,6 +61,10 @@ describe('Capacitor bridge', () => {
 		mocks.popSubstate.mockReset();
 		appMocks.minimizeApp.mockReset();
 		appMocks.minimizeApp.mockResolvedValue(undefined);
+		appMocks.isNativePlatform.mockReset();
+		appMocks.isNativePlatform.mockReturnValue(false);
+		appMocks.browserOpen.mockReset();
+		appMocks.browserOpen.mockResolvedValue(undefined);
 		mockPageState.overlays = [];
 	});
 
@@ -66,6 +84,81 @@ describe('Capacitor bridge', () => {
 		vi.stubGlobal('window', { open: openMock });
 		await openExternalUrl('https://dtf.ru');
 		expect(openMock).toHaveBeenCalledWith('https://dtf.ru', '_blank', 'noopener,noreferrer');
+	});
+
+	describe('openExternalUrl в нативном приложении', () => {
+		it.each([
+			'https://dtf.ru/5389802',
+			'https://www.dtf.ru/5389802?comment=123',
+			'http://dtf.ru/settings/general',
+			'https://redtf.org/post/5389802',
+			'https://www.redtf.org/'
+		])('открывает %s через AndroidBridge.openExternalUrl в обход App Links', async (url) => {
+			appMocks.isNativePlatform.mockReturnValue(true);
+			const bridgeOpen = vi.fn().mockReturnValue(true);
+			const openMock = vi.fn();
+			vi.stubGlobal('window', { open: openMock, AndroidBridge: { openExternalUrl: bridgeOpen } });
+
+			await openExternalUrl(url);
+
+			expect(bridgeOpen).toHaveBeenCalledWith(url);
+			expect(appMocks.browserOpen).not.toHaveBeenCalled();
+			expect(openMock).not.toHaveBeenCalled();
+		});
+
+		it('откатывается на Browser.open, если AndroidBridge.openExternalUrl отсутствует или вернул false', async () => {
+			appMocks.isNativePlatform.mockReturnValue(true);
+			vi.stubGlobal('window', { open: vi.fn() });
+
+			await openExternalUrl('https://dtf.ru/5389802');
+			expect(appMocks.browserOpen).toHaveBeenCalledWith({ url: 'https://dtf.ru/5389802' });
+
+			appMocks.browserOpen.mockClear();
+			const bridgeOpen = vi.fn().mockReturnValue(false);
+			vi.stubGlobal('window', { open: vi.fn(), AndroidBridge: { openExternalUrl: bridgeOpen } });
+
+			await openExternalUrl('https://dtf.ru/5389802');
+			expect(bridgeOpen).toHaveBeenCalledWith('https://dtf.ru/5389802');
+			expect(appMocks.browserOpen).toHaveBeenCalledWith({ url: 'https://dtf.ru/5389802' });
+		});
+
+		it('откатывается на Browser.open, если AndroidBridge.openExternalUrl выбросил исключение', async () => {
+			appMocks.isNativePlatform.mockReturnValue(true);
+			const bridgeOpen = vi.fn(() => {
+				throw new Error('bridge error');
+			});
+			vi.stubGlobal('window', { open: vi.fn(), AndroidBridge: { openExternalUrl: bridgeOpen } });
+
+			await openExternalUrl('https://dtf.ru/5389802');
+
+			expect(appMocks.browserOpen).toHaveBeenCalledWith({ url: 'https://dtf.ru/5389802' });
+		});
+
+		it.each([
+			'https://github.com/re-dtf',
+			'https://m.dtf.ru/5389802',
+			'https://evil-dtf.ru/5389802'
+		])('для стороннего домена %s использует Browser.open без AndroidBridge', async (url) => {
+			appMocks.isNativePlatform.mockReturnValue(true);
+			const bridgeOpen = vi.fn().mockReturnValue(true);
+			vi.stubGlobal('window', { open: vi.fn(), AndroidBridge: { openExternalUrl: bridgeOpen } });
+
+			await openExternalUrl(url);
+
+			expect(bridgeOpen).not.toHaveBeenCalled();
+			expect(appMocks.browserOpen).toHaveBeenCalledWith({ url });
+		});
+
+		it('откатывается на window.open, если Browser.open завершился ошибкой', async () => {
+			appMocks.isNativePlatform.mockReturnValue(true);
+			appMocks.browserOpen.mockRejectedValueOnce(new Error('no browser'));
+			const openMock = vi.fn();
+			vi.stubGlobal('window', { open: openMock });
+
+			await openExternalUrl('https://github.com/re-dtf');
+
+			expect(openMock).toHaveBeenCalledWith('https://github.com/re-dtf', '_blank', 'noopener,noreferrer');
+		});
 	});
 
 	describe('handleAppUrl', () => {
@@ -99,10 +192,10 @@ describe('Capacitor bridge', () => {
 			expect(redtfResult).toBe(true);
 		});
 
-		it('игнорирует посторонние URL не от dtf.ru или redtf.org', async () => {
+		it.each(['https://google.com/search', 'https://dtf.ru.evil.com/rules'])('игнорирует посторонний URL %s', async (url) => {
 			mocks.openDtfUrl.mockReturnValue(false);
 
-			const result = await handleAppUrl('https://google.com/search');
+			const result = await handleAppUrl(url);
 
 			expect(mocks.openDtfUrl).not.toHaveBeenCalled();
 			expect(result).toBe(false);
@@ -195,6 +288,33 @@ describe('Capacitor bridge', () => {
 			expect(preventDefault).not.toHaveBeenCalled();
 			expect(openMock).not.toHaveBeenCalled();
 		});
+
+		it.each(['https://dtf.ru/5389802', 'https://redtf.org/post/5389802'])(
+			'ссылку %s с target="_blank" открывает во внешнем браузере в обход openDtfLink, даже при совпадении origin',
+			async (href) => {
+				appMocks.isNativePlatform.mockReturnValue(true);
+				const bridgeOpen = vi.fn().mockReturnValue(true);
+				vi.stubGlobal('window', {
+					open: vi.fn(),
+					location: { origin: 'https://redtf.org' },
+					AndroidBridge: { openExternalUrl: bridgeOpen }
+				});
+
+				const anchor = {
+					closest: (selector: string) => (selector === 'a' ? anchor : null),
+					getAttribute: (attr: string) => ({ href, target: '_blank' })[attr] ?? null
+				};
+				const preventDefault = vi.fn();
+				const event = { defaultPrevented: false, button: 0, target: anchor, preventDefault } as unknown as MouseEvent;
+
+				handleNativeLinkClick(event);
+				await Promise.resolve();
+
+				expect(mocks.openDtfLink).not.toHaveBeenCalled();
+				expect(preventDefault).toHaveBeenCalled();
+				expect(bridgeOpen).toHaveBeenCalledWith(href);
+			}
+		);
 	});
 
 	describe('handleBackButton', () => {

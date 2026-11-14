@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { fromAction } from 'svelte/attachments';
 	import { resolve } from '$app/paths';
+	import { openExternalUrl } from '$lib/capacitor';
 	import { lazyVideo } from '$lib/actions/lazyVideo';
 	import { mediaHold } from '$lib/actions/mediaHold';
 	import { api } from '$lib/api/index.svelte';
@@ -50,7 +51,7 @@
 
 	async function selectMenuItem(item: 'open_dtf' | 'copy' | 'complain') {
 		if (item === 'open_dtf') {
-			window.open(`https://dtf.ru/${comment.postId}?comment=${comment.id}`, '_blank', 'noopener,noreferrer');
+			openExternalUrl(`https://dtf.ru/${comment.postId}?comment=${comment.id}`);
 			return;
 		}
 		if (item === 'complain') {

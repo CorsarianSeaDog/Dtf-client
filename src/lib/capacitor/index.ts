@@ -49,11 +49,37 @@ export async function hideSplashScreen(): Promise<void> {
 	}
 }
 
+const APP_LINK_HOSTS = /^(?:www\.)?(?:dtf\.ru|redtf\.org)$/i;
+
+function isAppLinkHost(url: string): boolean {
+	try {
+		const parsed = new URL(url);
+		return (parsed.protocol === 'https:' || parsed.protocol === 'http:') && APP_LINK_HOSTS.test(parsed.hostname);
+	} catch {
+		return false;
+	}
+}
+
+function openViaAndroidBrowser(url: string): boolean {
+	if (typeof window === 'undefined') return false;
+	try {
+		const bridge = (window as { AndroidBridge?: { openExternalUrl?: (url: string) => boolean } }).AndroidBridge;
+		return typeof bridge?.openExternalUrl === 'function' && bridge.openExternalUrl(url) === true;
+	} catch {
+		return false;
+	}
+}
+
 /**
  * Открытие внешней ссылки через In-App Browser (Chrome Custom Tabs / SFSafariViewController).
+ * Ссылки на домены, перехватываемые самим приложением (dtf.ru, redtf.org),
+ * открываются через нативный мост напрямую в браузере в обход App Links.
  */
 export async function openExternalUrl(url: string): Promise<void> {
 	if (isNative()) {
+		if (isAppLinkHost(url) && openViaAndroidBrowser(url)) {
+			return;
+		}
 		try {
 			await Browser.open({ url });
 			return;
@@ -95,10 +121,8 @@ export async function handleAppUrl(url: string): Promise<boolean> {
 	lastHandledTime = now;
 
 	// Игнорируем адреса, не относящиеся к dtf.ru или redtf.org
-	if (
-		!/^https?:\/\/(?:www\.)?(?:dtf\.ru|redtf\.org)/i.test(url) &&
-		!/^\/(?:post|u|tag|notifications|popular|new|my|\d+)/i.test(url)
-	) {
+	const isAppLink = isAppLinkHost(url);
+	if (!isAppLink && !/^\/(?:post|u|tag|notifications|popular|new|my|\d+)/i.test(url)) {
 		return false;
 	}
 
@@ -108,7 +132,7 @@ export async function handleAppUrl(url: string): Promise<boolean> {
 	}
 
 	// Неподдерживаемые разделы dtf.ru и redtf.org открываем во внешнем браузере, чтобы не терять контекст
-	if (/^https?:\/\/(?:www\.)?(?:dtf\.ru|redtf\.org)/i.test(url)) {
+	if (isAppLink) {
 		await openExternalUrl(url);
 		return true;
 	}
@@ -127,12 +151,13 @@ export function handleNativeLinkClick(e: MouseEvent): void {
 	const href = anchor.getAttribute('href');
 	if (!href) return;
 
-	if (openDtfLink(e, href)) {
+	const isBlankTarget = anchor.getAttribute('target') === '_blank';
+	if (!isBlankTarget && openDtfLink(e, href)) {
 		return;
 	}
 
 	const origin = typeof window !== 'undefined' ? window.location?.origin : undefined;
-	if (/^https?:\/\//i.test(href) && (!origin || !href.startsWith(origin))) {
+	if (/^https?:\/\//i.test(href) && (isBlankTarget || !origin || !href.startsWith(origin))) {
 		e.preventDefault();
 		openExternalUrl(href).catch(() => {});
 	}
