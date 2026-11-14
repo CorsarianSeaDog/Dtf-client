@@ -19,7 +19,9 @@ const precacheUrls = Array.from(
 		resolve('/'),
 		resolve('/index.html'),
 		...immutable.map((f) => resolve(f.path)),
-		...assets.map((f) => resolve(f.path)),
+		...assets
+			.filter((f) => !f.path.includes('reactions/'))
+			.map((f) => resolve(f.path)),
 		...prerendered
 			.filter((f) => !f.path.includes('api/') && !f.path.includes('version.json') && !f.path.endsWith('index.html'))
 			.map((f) => resolve(f.path))
