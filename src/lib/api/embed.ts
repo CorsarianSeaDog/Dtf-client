@@ -1,8 +1,10 @@
 import type { Post } from './types';
-import { getLeonardoUrl } from './utils';
+import { getLeonardoUrl, isAnimatedMedia } from './utils';
 
 const avatar = (subsite: any) =>
-	subsite?.avatar?.data?.uuid ? getLeonardoUrl(subsite.avatar.data.uuid, { scale_crop: '64x64' }) : undefined;
+	subsite?.avatar?.data?.uuid
+		? getLeonardoUrl(subsite.avatar.data.uuid, { scale_crop: '64x64', animated: isAnimatedMedia(subsite.avatar) })
+		: undefined;
 
 /** Встроенный пост DTF (`osnovaEmbed.data`, он же `repostData.data`) → Post для карточки */
 export function embedToPost(embed: any): Post {

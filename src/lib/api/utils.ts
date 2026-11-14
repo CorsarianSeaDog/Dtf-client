@@ -7,7 +7,7 @@ export function isStubComment(c: Comment): boolean {
 
 export function getLeonardoUrl(
 	uuid: string,
-	options: { format?: string; width?: number; scale_crop?: string; original?: boolean } = {}
+	options: { format?: string; width?: number; scale_crop?: string; original?: boolean; animated?: boolean } = {}
 ): string {
 	if (!uuid) return '';
 	if (uuid.startsWith('http://') || uuid.startsWith('https://')) return uuid;
@@ -26,7 +26,29 @@ export function getLeonardoUrl(
 	const format = options.format || 'webp';
 	url += `/format/${format}/`;
 
+	if (options.animated) url += '#video';
+
 	return url;
+}
+
+/** Определяет, является ли медиа-запись DTF анимированной (GIF / MP4) */
+export function isAnimatedMedia(media: any): boolean {
+	const type = media?.data?.type?.toLowerCase();
+	return Boolean(
+		media?.type === 'movie' ||
+		media?.data?.isVideo ||
+		type === 'gif' ||
+		type === 'mp4' ||
+		type === 'webm' ||
+		media?.data?.duration
+	);
+}
+
+/** Если адрес помечен `#video`, возвращает ссылку на MP4 в Leonardo */
+export function getAnimatedVideoUrl(url?: string): string | undefined {
+	if (!url?.endsWith('#video')) return undefined;
+	const match = /^https:\/\/leonardo\.osnova\.io\/([^/]+)\//.exec(url);
+	return match ? `https://leonardo.osnova.io/${match[1]}/-/format/mp4/` : undefined;
 }
 
 /** Файл блока audio: Leonardo отдаёт его с Range, плееру этого хватает */

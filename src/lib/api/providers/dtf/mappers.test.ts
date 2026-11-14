@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { REDTF_WATERMARK } from '$lib/watermark';
-import { mapAvatarUrl, mapBadges, mapUser, mapComment, mapCurrentUser, mapDonationAccount, mapEntryToPost, mapIgnoredSubsite, mapLikes, mapNotification, mapQuizResult, mapSearchSnippet, parseNotificationHtml } from './mappers';
+import { mapAvatarUrl, mapBadges, mapUser, mapComment, mapCurrentUser, mapDonationAccount, mapEntryToPost, mapIgnoredSubsite, mapLikes, mapNotification, mapProfile, mapQuizResult, mapSearchSnippet, parseNotificationHtml } from './mappers';
 
 describe('mapQuizResult', () => {
 	it('неизвестный hash приходит пустым массивом — это пустой опрос', () => {
@@ -30,7 +30,24 @@ describe('mapAvatarUrl', () => {
 	it('берёт готовый url или собирает адрес по uuid', () => {
 		expect(mapAvatarUrl({ avatar: { url: 'https://x/a.png' } })).toBe('https://x/a.png');
 		expect(mapAvatarUrl({ avatar: { data: { uuid: 'abc' } } }, '80x80')).toContain('/abc/-/scale_crop/80x80/');
+		expect(mapAvatarUrl({ avatar: { type: 'image', data: { uuid: 'anim', type: 'gif', duration: 2 } } })).toBe(
+			'https://leonardo.osnova.io/anim/-/scale_crop/64x64/-/format/webp/#video'
+		);
 		expect(mapAvatarUrl({})).toBeUndefined();
+	});
+});
+
+describe('mapProfile', () => {
+	it('помечает анимированную аватарку и обложку и добавляет video в avatarMedia', () => {
+		const profile = mapProfile({
+			id: 1,
+			name: 'User',
+			avatar: { type: 'image', data: { uuid: 'av-1', width: 200, height: 200, type: 'gif', isVideo: true } },
+			cover: { type: 'image', data: { uuid: 'cov-1', type: 'gif', duration: 5 } }
+		});
+		expect(profile.avatarUrl).toBe('https://leonardo.osnova.io/av-1/-/scale_crop/200x200/-/format/webp/#video');
+		expect(profile.avatarMedia).toEqual({ uuid: 'av-1', width: 200, height: 200, video: true, type: 'gif' });
+		expect(profile.coverUrl).toBe('https://leonardo.osnova.io/cov-1/-/preview/1920/-/format/webp/#video');
 	});
 });
 

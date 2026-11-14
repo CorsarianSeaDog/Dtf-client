@@ -162,7 +162,7 @@ export interface Profile {
 	description?: string;
 	avatarUrl?: string;
 	/** Исходная аватарка для просмотра на весь экран; нет, если пришла только готовая ссылка */
-	avatarMedia?: { uuid: string; width: number; height: number };
+	avatarMedia?: { uuid: string; width: number; height: number; video?: boolean; type?: string };
 	coverUrl?: string;
 	/** Обложка как её отдаёт DTF: нужна, чтобы сохранить новую позицию, не загружая файл заново */
 	coverRaw?: unknown;

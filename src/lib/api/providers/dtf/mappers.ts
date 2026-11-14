@@ -1,5 +1,5 @@
 import type { Badge, Comment, CommentEditorState, CurrentUser, DonationAccount, IgnoredSubsite, Likes, Notification, NotificationPart, Post, Profile, ProfileListItem, QuizResult, Reactions, SearchSubsite, User } from '../../types';
-import { getLeonardoUrl } from '../../utils';
+import { getLeonardoUrl, isAnimatedMedia } from '../../utils';
 import { embedToPost } from '../../embed';
 import { extractWatermark } from '$lib/watermark';
 
@@ -13,7 +13,9 @@ const decodeEntities = (s: string) => s.replace(/&(amp|lt|gt|quot|#39|nbsp);/g, 
 
 export function mapAvatarUrl(subsite: any, size = '64x64'): string | undefined {
 	return subsite?.avatar?.url
-		|| (subsite?.avatar?.data?.uuid ? getLeonardoUrl(subsite.avatar.data.uuid, { scale_crop: size }) : subsite?.avatar_url);
+		|| (subsite?.avatar?.data?.uuid
+			? getLeonardoUrl(subsite.avatar.data.uuid, { scale_crop: size, animated: isAnimatedMedia(subsite.avatar) })
+			: subsite?.avatar_url);
 }
 
 export function mapUser(author: any): User {
@@ -261,14 +263,19 @@ export function mapNotification(item: any): Notification {
 
 export function mapProfile(subsite: any): Profile {
 	const avatar = subsite.avatar?.data;
+	const avatarAnimated = isAnimatedMedia(subsite.avatar);
 	return {
 		id: subsite.id,
 		sourceId: 'dtf',
 		name: subsite.name || 'Аноним',
 		description: subsite.description || undefined,
 		avatarUrl: mapAvatarUrl(subsite, '200x200'),
-		avatarMedia: avatar?.uuid && avatar.width && avatar.height ? { uuid: avatar.uuid, width: avatar.width, height: avatar.height } : undefined,
-		coverUrl: subsite.cover?.data?.uuid ? getLeonardoUrl(subsite.cover.data.uuid, { width: 1920 }) : undefined,
+		avatarMedia: avatar?.uuid && avatar.width && avatar.height
+			? { uuid: avatar.uuid, width: avatar.width, height: avatar.height, ...(avatarAnimated && { video: true, type: avatar.type }) }
+			: undefined,
+		coverUrl: subsite.cover?.data?.uuid
+			? getLeonardoUrl(subsite.cover.data.uuid, { width: 1920, animated: isAnimatedMedia(subsite.cover) })
+			: undefined,
 		coverRaw: subsite.cover?.data?.uuid ? subsite.cover : undefined,
 		coverY: subsite.coverY ?? undefined,
 		isPlus: !!subsite.isPlus,

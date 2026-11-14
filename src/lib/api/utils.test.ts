@@ -3,6 +3,8 @@ import {
 	getAudioUrl,
 	getLeonardoUrl,
 	getLeonardoOriginalUrl,
+	isAnimatedMedia,
+	getAnimatedVideoUrl,
 	resolveImageExtension,
 	getDownloadFilename,
 	downloadImage
@@ -41,6 +43,24 @@ describe('api/utils', () => {
 			expect(getLeonardoUrl('test-uuid-4', { original: true })).toBe(
 				'https://leonardo.osnova.io/test-uuid-4/'
 			);
+		});
+
+		it('помечает анимированные ссылки фрагментом #video', () => {
+			const url = getLeonardoUrl('anim-uuid', { scale_crop: '64x64', animated: true });
+			expect(url).toBe('https://leonardo.osnova.io/anim-uuid/-/scale_crop/64x64/-/format/webp/#video');
+			expect(getAnimatedVideoUrl(url)).toBe('https://leonardo.osnova.io/anim-uuid/-/format/mp4/');
+			expect(getAnimatedVideoUrl('https://leonardo.osnova.io/static-uuid/-/scale_crop/64x64/-/format/webp/')).toBeUndefined();
+		});
+	});
+
+	describe('isAnimatedMedia', () => {
+		it('распознаёт гифки и видео по полям ответа DTF', () => {
+			expect(isAnimatedMedia({ type: 'image', data: { type: 'gif', isVideo: false } })).toBe(true);
+			expect(isAnimatedMedia({ type: 'image', data: { type: 'mp4', isVideo: true } })).toBe(true);
+			expect(isAnimatedMedia({ type: 'movie', data: { type: 'jpg' } })).toBe(true);
+			expect(isAnimatedMedia({ type: 'image', data: { type: 'jpg', duration: 2 } })).toBe(true);
+			expect(isAnimatedMedia({ type: 'image', data: { type: 'webp' } })).toBe(false);
+			expect(isAnimatedMedia(undefined)).toBe(false);
 		});
 	});
 
