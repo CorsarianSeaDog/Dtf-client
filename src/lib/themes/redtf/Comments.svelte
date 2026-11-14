@@ -21,6 +21,10 @@
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { themeSettings } from './themeSettings.svelte';
 	import { commentSwipe, type SwipeView } from './comments/commentSwipe';
+	import { reflow } from './comments/branchMotion';
+	import { slide } from 'svelte/transition';
+	import { cubicOut } from 'svelte/easing';
+	import { reducedMotion } from '$lib/motion';
 
 	let {
 		postId,
@@ -238,13 +242,23 @@
 		highlight = { line, from, to };
 	}
 
+	let listEl = $state<HTMLElement>();
+
 	function collapseBranch(owner: string) {
 		highlight = null;
-		collapsed.add(owner);
-		// Начало ветки выше экрана или уже вне окна строк
+		// Начало ветки выше экрана или уже вне окна строк: сразу к нему, анимировать там нечего
 		const node = document.getElementById(`comment-${owner}`);
-		if (!node || node.getBoundingClientRect().top < 0) virtual.focus(owner, { highlight: false, behavior: 'instant' });
+		if (!node || node.getBoundingClientRect().top < 0) {
+			collapsed.add(owner);
+			virtual.focus(owner, { highlight: false, behavior: 'instant' });
+			return;
+		}
+		const hidden = new Set(shown.filter((row) => row.owners.includes(owner)).map((row) => `comment-${row.key}`));
+		reflow(listEl, () => collapsed.add(owner), (row) => hidden.has(row.id));
 	}
+
+	/** Ответ раскрылся под комментарием: когда дорос, докручиваем, если он ушёл за край экрана */
+	const revealEditor = (e: Event) => (e.currentTarget as HTMLElement).scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'instant' : 'smooth' });
 
 	/* Свайп влево по комментарию: ответ, а под ним по порядку — оценка или любимые реакции */
 	type SwipeAction = { label: string; icon?: string; image?: string; run: (key: string) => void };
@@ -288,7 +302,9 @@
 </script>
 
 {#snippet editor(continueBranch = false)}
-	<CommentEditor bind:text={draft} bind:media bind:donation {paymentLink} {canDonate} replying editing={editMode} {sending} error={sendError} {continueBranch} oncancel={cancel} onsubmit={submit} />
+	<div class="comment-reply" transition:slide={{ duration: reducedMotion() ? 0 : 260, easing: cubicOut }} onintroend={revealEditor}>
+		<CommentEditor bind:text={draft} bind:media bind:donation {paymentLink} {canDonate} replying editing={editMode} {sending} error={sendError} {continueBranch} oncancel={cancel} onsubmit={submit} />
+	</div>
 {/snippet}
 
 <section class={['comments-section', { autopan: isAutopan }]} id="comments" aria-label="Комментарии">
@@ -358,6 +374,7 @@
 				class={['comments-list', { 'comments-list--swipe': activeTheme.gestures }]}
 				style:padding-top="{virtual.padTop}px"
 				style:padding-bottom="{virtual.padBottom}px"
+				bind:this={listEl}
 				{@attach virtual.attach}
 				{@attach swipeComment}
 			>
@@ -375,7 +392,7 @@
 						onedit={() => edit(row.key, row.comment.content, row.comment.media)}
 						onlinehover={(line) => highlightBranch(index, line)}
 						onlineclick={collapseBranch}
-						onexpand={() => collapsed.delete(row.key)}
+						onexpand={() => reflow(listEl, () => collapsed.delete(row.key))}
 						onparent={(key) => virtual.focus(key)}
 						measure={virtual.measure}
 						onpatch={(patch) => patchRow(row.key, patch)}
@@ -576,6 +593,12 @@
 
 	.comment-swipe__column--drum:not(.comment-swipe__column--armed) .comment-swipe__selection {
 		transform: scale(0.8);
+	}
+
+	/* Обёртка ответа под комментарием: строка целиком, растёт по высоте при открытии */
+	.comment-reply {
+		flex: 1 0 100%;
+		min-width: 0;
 	}
 
 	.comment-swipe__action img {
