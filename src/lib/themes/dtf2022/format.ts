@@ -1,3 +1,5 @@
+import type { DonationAccount } from '$lib/api/types';
+
 const MONTHS = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 
 const pluralRules = new Intl.PluralRules('ru-RU');
@@ -12,6 +14,13 @@ export function plural(n: number, [one, few, many]: [string, string, string]): s
 /** 41437 → «41 437» (с неразрывным пробелом) */
 export function formatNumber(n: number): string {
 	return numberFormat.format(n);
+}
+
+/** Подпись к «Донатам»: баланс подключённых, «Не подключены» или ничего, пока ответа нет */
+export function donationsNote(account: DonationAccount | null | undefined): string | undefined {
+	if (account === undefined) return undefined;
+	// Как баланс на DTF: «1 500 ₽», перед знаком неразрывный пробел
+	return account?.isConfirmed ? `${numberFormat.format(account.balance)} ₽` : 'Не подключены';
 }
 
 /** Рейтинг со знаком: 690337 → «+690 337» */

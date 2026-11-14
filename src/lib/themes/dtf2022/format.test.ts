@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDay, formatNotificationTime, formatTime, plural, formatRating } from './format';
+import { donationsNote, formatDay, formatNotificationTime, formatTime, plural, formatRating } from './format';
 import { parseCommentText } from './comments/commentText';
 import { flattenComments } from './comments/flatten';
 import { isWideMedia, mediaMaxWidth } from './media';
@@ -96,5 +96,14 @@ describe('flattenComments', () => {
 			[2, ['dtf_1']],
 			[4, ['dtf_1', 'dtf_2']]
 		]);
+	});
+});
+
+describe('donationsNote', () => {
+	it('баланс у подключённых, «Не подключены» без счёта или без подтверждения, пусто до ответа', () => {
+		expect(donationsNote({ balance: 1500, isConfirmed: true })).toBe('1 500 ₽');
+		expect(donationsNote(null)).toBe('Не подключены');
+		expect(donationsNote({ balance: 0, isConfirmed: false })).toBe('Не подключены');
+		expect(donationsNote(undefined)).toBeUndefined();
 	});
 });
