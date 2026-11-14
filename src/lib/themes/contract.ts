@@ -64,6 +64,8 @@ export interface ThemeComponents {
 		loadMore: () => void;
 		/** Профиль изменился (своя аватарка или обложка): показать новый вместо старого */
 		onProfileUpdate?: (profile: Profile) => void;
+		/** Поиск по записям профиля: пустой `query` — обычная лента. Тема без поиска не вызывает */
+		onSearch?: (query: string, sorting: SearchSorting) => void;
 	};
 	/** Страница уведомлений (оверлей notifications) */
 	Notifications: {};

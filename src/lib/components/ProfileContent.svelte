@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { CursorData, Post, Profile, ProfileListItem, ProfileSorting as Sorting } from '$lib/api/types';
+	import type { CursorData, Post, Profile, ProfileListItem, ProfileSorting as Sorting, SearchSorting } from '$lib/api/types';
 	import { api } from '$lib/api/index.svelte';
 	import { appendUnique, postKey } from '$lib/api/utils';
 	import Reveal from './Reveal.svelte';
@@ -16,7 +16,7 @@
 
 	let lastLoadedId: number | string | undefined;
 	let lastPostsId: number | undefined;
-	let lastSorting: Sorting | undefined;
+	let lastFeedKey: string | undefined;
 
 	let profile = $state.raw<Profile>();
 	let profileError = $state<unknown>();
@@ -32,6 +32,9 @@
 	const CHUNK_SIZE = 5;
 
 	let sorting = $state<Sorting>('new');
+	// Поиск по записям профиля: пока `query` не пуст, лента — выдача поиска
+	let query = $state('');
+	let searchSorting = $state<SearchSorting>('relevance');
 	let allPosts: Post[] = [];
 	let posts = $state.raw<Post[]>([]);
 	let cursor: CursorData | undefined;
@@ -70,7 +73,9 @@
 		postsError = null;
 		const run = (async () => {
 			try {
-				const result = await api.getProfilePosts(currentId, sorting, cursor);
+				const result = query
+					? await api.searchPosts(query, searchSorting, { title: false, editorial: false, strict: false, authorId: currentId }, cursor)
+					: await api.getProfilePosts(currentId, sorting, cursor);
 				if (id !== requestId) return false;
 				allPosts = appendUnique(allPosts, result.items, postKey);
 				hasMore = result.items.length > 0 && result.lastId !== undefined;
@@ -93,6 +98,7 @@
 
 	function loadProfile(currentId: number | string) {
 		lastLoadedId = currentId;
+		query = '';
 
 		profile = profileError = undefined;
 		api.getProfile(currentId).then(
@@ -124,10 +130,10 @@
 	$effect(() => {
 		const currentId = resolvedProfileId;
 		if (currentId === undefined) return;
-		const currentSorting = sorting;
-		if (currentId === lastPostsId && currentSorting === lastSorting) return;
+		const feedKey = query ? `search\0${query}\0${searchSorting}` : sorting;
+		if (currentId === lastPostsId && feedKey === lastFeedKey) return;
 		lastPostsId = currentId;
-		lastSorting = currentSorting;
+		lastFeedKey = feedKey;
 		untrack(() => loadPosts(true));
 	});
 </script>
@@ -147,6 +153,10 @@
 				{subscribersPromise}
 				{subscriptionsPromise}
 				onSortingChange={(value: Sorting) => (sorting = value)}
+				onSearch={(text: string, order: SearchSorting) => {
+					query = text;
+					searchSorting = order;
+				}}
 				loadMore={() => loadPosts()}
 				onProfileUpdate={(value: Profile) => (profile = value)}
 			/>

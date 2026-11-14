@@ -3,6 +3,7 @@
 	import { api } from '$lib/api/index.svelte';
 	import type { SearchSubsite } from '$lib/api/types';
 	import { getProfilePath, openProfile, openSearch } from '$lib/navigation';
+	import { SEARCH_DEBOUNCE, SEARCH_MIN_LENGTH } from '$lib/search';
 	import { clickOnKey } from './a11y';
 	import { formatNumber, plural } from './format';
 	import Preloader from './ui/Preloader.svelte';
@@ -21,8 +22,6 @@
 	 * Пока печатают, под полем плавают быстрые результаты: пользователи с блогами и темы (запросы `search/subsites`).
 	 * Enter или «Все результаты» открывают страницу поиска.
 	 */
-	const MIN_LENGTH = 2;
-	const DEBOUNCE = 2000;
 	const SHOWN = 4;
 
 	let value = $state('');
@@ -39,7 +38,7 @@
 	let requestId = 0;
 
 	let query = $derived(value.trim());
-	let ready = $derived(query.length >= MIN_LENGTH);
+	let ready = $derived(query.length >= SEARCH_MIN_LENGTH);
 	let open = $derived(focused && ready);
 	let nothing = $derived(answered === query && !loading && !blogs.length && !topics.length);
 
@@ -75,7 +74,7 @@
 			return;
 		}
 		loading = true;
-		timer = setTimeout(() => find(query), DEBOUNCE);
+		timer = setTimeout(() => find(query), SEARCH_DEBOUNCE);
 	}
 
 	function onFocus() {

@@ -208,6 +208,7 @@ export default defineTheme({
 	id: 'redtf',
 	name: 'Re:DTF',
 	gestures: true,
+	profileSearch: true,
 	description: 'Основная тема. Вдохновлена DTF 2022-23 года, но с адаптацией под современность.',
 	palettes,
 	settings: [

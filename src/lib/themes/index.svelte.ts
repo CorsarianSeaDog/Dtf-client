@@ -15,6 +15,10 @@ export const activeTheme = {
 	get gestures(): boolean {
 		return getTheme(activeTheme.id)?.gestures === true;
 	},
+	/** Включён ли у выбранной темы поиск в профиле */
+	get profileSearch(): boolean {
+		return getTheme(activeTheme.id)?.profileSearch === true;
+	},
 	get id(): string {
 		return getTheme(settings.value.theme) ? settings.value.theme : DEFAULT_THEME;
 	},

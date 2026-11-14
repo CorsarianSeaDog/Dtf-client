@@ -28,6 +28,7 @@ export default defineTheme({
 	extends: undefined,            // id темы-основы, если это форк
 	motion: undefined,             // анимации темы (например fluent из $lib/motion), см. motion.md; не наследуется
 	gestures: undefined,           // true — жесты пальцем (свайп лент, «назад», по комментарию), см. navigation.md; не наследуется
+	profileSearch: undefined,      // true — поиск по записям и комментариям в профиле; не наследуется
 	settings: [/* поля настроек, см. settings.md */]
 });
 ```

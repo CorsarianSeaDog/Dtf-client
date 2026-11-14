@@ -1,6 +1,9 @@
 <script lang="ts">
-	import type { Comment, CursorData, Post, Profile, ProfileListItem, ProfileSorting as Sorting } from '$lib/api/types';
+	import type { Comment, CursorData, Post, Profile, ProfileListItem, ProfileSorting as Sorting, SearchSorting } from '$lib/api/types';
 	import { api } from '$lib/api/index.svelte';
+	import { SEARCH_DEBOUNCE, searchableQuery } from '$lib/search';
+	import { activeTheme } from '$lib/themes/index.svelte';
+	import ProfileSearch from './ProfileSearch.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import { resolve } from '$app/paths';
 	import { getProfilePath, isNewTabClick, openLightbox, openOverlay, openProfile, preloadLightbox } from '$lib/navigation';
@@ -31,7 +34,8 @@
 		subscriptionsPromise,
 		onSortingChange,
 		loadMore,
-		onProfileUpdate
+		onProfileUpdate,
+		onSearch
 	}: {
 		profile: Profile;
 		posts: Post[];
@@ -44,11 +48,16 @@
 		onSortingChange: (sorting: Sorting) => void;
 		loadMore: () => void;
 		onProfileUpdate?: (profile: Profile) => void;
+		onSearch?: (query: string, sorting: SearchSorting) => void;
 	} = $props();
 
 	const SORTINGS: { value: Sorting; label: string }[] = [
 		{ value: 'popular', label: 'Популярное' },
 		{ value: 'new', label: 'Свежее' }
+	];
+	const SEARCH_SORTINGS: { value: SearchSorting; label: string }[] = [
+		{ value: 'relevance', label: 'По релевантности' },
+		{ value: 'date', label: 'Новые' }
 	];
 
 	// Ссылки на подробности ведут на DTF для «открыть в новой вкладке»; обычный клик открывает вкладку у нас
@@ -146,6 +155,8 @@
 	let loadingComments = $state(false);
 	let commentsError = $state<string | null>(null);
 	let commentsRequestId = 0;
+	// У поиска по комментариям страницы нумеруются с единицы, курсора нет
+	let commentsPage = 0;
 
 	async function loadComments(reset = false) {
 		if (!reset && (loadingComments || !commentsHasMore)) return;
@@ -153,6 +164,7 @@
 		if (reset) {
 			comments = [];
 			commentsCursor = undefined;
+			commentsPage = 0;
 			commentsHasMore = true;
 			commentsLoaded = false;
 		}
@@ -160,6 +172,14 @@
 		commentsError = null;
 		const sortingForRequest = commentsSorting;
 		try {
+			if (query) {
+				const result = await api.searchComments({ query, sorting: searchSorting, authorId: profile.id, page: commentsPage + 1 });
+				if (requestId !== commentsRequestId) return;
+				commentsPage++;
+				comments = appendUnique(comments, result.items, (c) => c.id);
+				commentsHasMore = result.hasMore;
+				return;
+			}
 			const result = await api.getProfileComments(profile.id, sortingForRequest, commentsCursor);
 			if (requestId !== commentsRequestId) return;
 			comments = appendUnique(comments, result.items, (c) => c.id);
@@ -183,6 +203,46 @@
 		loadComments(true);
 	}
 
+	/*
+	 * Поиск по записям и комментариям профиля. Лупа в строке сортировки превращает её в поле; запрос уходит
+	 * после паузы в наборе или сразу по Enter. Пока запрос не пуст, порядок выдачи — «По релевантности / Новые».
+	 */
+	let searchOpen = $state(false);
+	let draft = $state('');
+	let query = $state('');
+	let searchSorting = $state<SearchSorting>('relevance');
+	let searchTimer: ReturnType<typeof setTimeout> | undefined;
+	$effect(() => () => clearTimeout(searchTimer));
+
+	function applySearch(nextQuery: string, nextSorting: SearchSorting) {
+		clearTimeout(searchTimer);
+		if (nextQuery === query && nextSorting === searchSorting) return;
+		query = nextQuery;
+		searchSorting = nextSorting;
+		onSearch?.(nextQuery, nextSorting);
+		// Комментарии, найденные по прежнему запросу, устарели: открытую вкладку грузим заново, закрытую — при открытии
+		if (tab === 'comments') loadComments(true);
+		else {
+			commentsRequestId++;
+			commentsLoaded = false;
+			loadingComments = false;
+		}
+	}
+
+	function onSearchInput() {
+		clearTimeout(searchTimer);
+		const next = searchableQuery(draft);
+		if (next === query) return;
+		if (!next) applySearch('', 'relevance');
+		else searchTimer = setTimeout(() => applySearch(next, searchSorting), SEARCH_DEBOUNCE);
+	}
+
+	function closeSearch() {
+		searchOpen = false;
+		draft = '';
+		applySearch('', 'relevance');
+	}
+
 	function openTab(next: 'posts' | 'comments' | 'details') {
 		tab = next;
 		if (next === 'comments' && !commentsLoaded) loadComments();
@@ -204,6 +264,12 @@
 		};
 	}
 </script>
+
+{#snippet plate(label: string, active: boolean, pick: () => void)}
+	<button type="button" class={['profile-feed-sorting__button', { 'profile-feed-sorting__button--active': active }]} aria-pressed={active} onclick={pick}>
+		{label}
+	</button>
+{/snippet}
 
 {#snippet sidebarBlock(title: string, count: number | undefined, promise: Promise<ProfileListItem[]>, grid: boolean, limit: number, showAll: string, showAllUrl: string, target: DetailsPage)}
 	{#await promise then items}
@@ -417,17 +483,30 @@
 		{@const activeSorting = tab === 'posts' ? sorting : commentsSorting}
 		{@const setActiveSorting = tab === 'posts' ? onSortingChange : onCommentsSortingChange}
 		<div class="profile-feed">
-			<div class="profile-feed-sorting">
-				{#each SORTINGS as item (item.value)}
-					<button
-						type="button"
-						class={['profile-feed-sorting__button', { 'profile-feed-sorting__button--active': activeSorting === item.value }]}
-						aria-pressed={activeSorting === item.value}
-						onclick={() => setActiveSorting(item.value)}
-					>
-						{item.label}
-					</button>
-				{/each}
+			<div class={['profile-feed-sorting', { 'profile-feed-sorting--search': searchOpen }]}>
+				{#if searchOpen}
+					<ProfileSearch
+						bind:value={draft}
+						label={tab === 'posts' ? 'Поиск по статьям' : 'Поиск по комментариям'}
+						oninput={onSearchInput}
+						onsubmit={() => applySearch(searchableQuery(draft), searchSorting)}
+						onclose={closeSearch}
+					/>
+					{#if query}
+						{#each SEARCH_SORTINGS as item (item.value)}
+							{@render plate(item.label, searchSorting === item.value, () => applySearch(query, item.value))}
+						{/each}
+					{/if}
+				{:else}
+					{#each SORTINGS as item (item.value)}
+						{@render plate(item.label, activeSorting === item.value, () => setActiveSorting(item.value))}
+					{/each}
+					{#if activeTheme.profileSearch}
+						<button type="button" class="profile-feed-sorting__search" aria-label="Поиск" onclick={() => (searchOpen = true)}>
+							<svg class="icon" width="20" height="20" aria-hidden="true"><use href="#v_search"></use></svg>
+						</button>
+					{/if}
+				{/if}
 			</div>
 
 			{#if tab === 'posts'}
@@ -440,7 +519,7 @@
 				{#if postsError}
 					<p class="profile-feed__status">{postsError}</p>
 				{:else if !loadingPosts && posts.length === 0}
-					<p class="profile-feed__status">Постов пока нет</p>
+					<p class="profile-feed__status">{query ? 'Ничего не найдено' : 'Постов пока нет'}</p>
 				{/if}
 
 				{#if hasMore}
@@ -458,7 +537,7 @@
 				{#if commentsError}
 					<p class="profile-feed__status">{commentsError}</p>
 				{:else if commentsLoaded && !loadingComments && comments.length === 0}
-					<p class="profile-feed__status">Комментариев пока нет</p>
+					<p class="profile-feed__status">{query ? 'Ничего не найдено' : 'Комментариев пока нет'}</p>
 				{/if}
 
 				{#if commentsHasMore}
@@ -875,6 +954,32 @@
 		.profile-feed-sorting__button:hover {
 			background: var(--bg-card);
 		}
+	}
+
+	/* Лупа прижата вправо и по размеру равна плашке; с поиском строка переносится: на телефоне поле на всю ширину, плашки под ним */
+	.profile-feed-sorting__search {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		margin-left: auto;
+		padding: 0;
+		border-radius: 20px;
+		color: inherit;
+		cursor: pointer;
+	}
+
+	@media (hover: hover) {
+		.profile-feed-sorting__search:hover {
+			background: var(--bg-card);
+			color: var(--color-accent);
+		}
+	}
+
+	.profile-feed-sorting--search {
+		flex-wrap: wrap;
+		gap: 8px 4px;
 	}
 
 	/* Первая карточка — сразу под сортировкой, между карточками — как в ленте */
