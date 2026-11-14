@@ -1,5 +1,9 @@
 import { api } from '$lib/api/index.svelte';
 import { getLeonardoUrl } from '$lib/api/utils';
+import { activeTheme } from '$lib/themes/index.svelte';
+import { play } from '$lib/motion';
+import { mountUploadProgress, type UploadProgressHandle } from '$lib/components/mountUploadProgress.svelte';
+import { isAbortError, waitMediaReady } from '../upload';
 
 export default class PersonTool {
 	static get toolbox() {
@@ -15,6 +19,9 @@ export default class PersonTool {
 	private data: { title: string; description: string; image: any };
 	private wrapper: HTMLElement;
 	private imagePreview: HTMLImageElement;
+	private abortController: AbortController | null = null;
+	private progressHandle: UploadProgressHandle | null = null;
+	private previewUrl: string | null = null;
 
 	constructor({ data }: { data: any }) {
 		this.data = data || { title: '', description: '', image: null };
@@ -49,37 +56,76 @@ export default class PersonTool {
 		fileInput.type = 'file';
 		fileInput.accept = 'image/*';
 		fileInput.style.display = 'none';
-		
+
 		fileInput.addEventListener('change', async (e) => {
 			const file = (e.target as HTMLInputElement).files?.[0];
-			if (file) {
-				placeholder.textContent = '...';
-				placeholder.style.display = 'block';
-				this.imagePreview.style.display = 'none';
-				try {
-					const result = await api.uploadMedia(file);
-					this.data.image = {
-						uuid: result.uuid,
-						url: getLeonardoUrl(result.uuid),
-						width: result.width,
-						height: result.height,
-						type: result.type,
-						size: result.size,
-						color: result.color
-					};
+			fileInput.value = '';
+			if (!file) return;
+
+			this.clearUpload();
+			const controller = new AbortController();
+			this.abortController = controller;
+
+			const previewUrl = URL.createObjectURL(file);
+			this.previewUrl = previewUrl;
+			this.imagePreview.src = previewUrl;
+			this.imagePreview.style.display = 'block';
+			placeholder.style.display = 'none';
+			placeholder.style.color = '';
+
+			const progress = mountUploadProgress(avatarContainer, { size: 'sm' });
+			this.progressHandle = progress;
+
+			try {
+				const result = await api.uploadMedia(file, {
+					signal: controller.signal,
+					onProgress: (info) => {
+						progress.update({ progress: info.progress, processing: !!info.processing });
+					}
+				});
+
+				if (controller.signal.aborted) return;
+
+				this.data.image = {
+					uuid: result.uuid,
+					url: getLeonardoUrl(result.uuid),
+					width: result.width,
+					height: result.height,
+					type: result.type,
+					size: result.size,
+					color: result.color
+				};
+
+				progress.update({ progress: 1, processing: true });
+				this.imagePreview.src = this.data.image.url;
+				await waitMediaReady(this.imagePreview);
+
+				if (controller.signal.aborted) return;
+
+				URL.revokeObjectURL(previewUrl);
+				if (this.previewUrl === previewUrl) this.previewUrl = null;
+				play(this.imagePreview, activeTheme.motion?.mediaIn);
+				await progress.finish();
+				if (this.progressHandle === progress) this.progressHandle = null;
+			} catch (err) {
+				if (controller.signal.aborted || isAbortError(err)) return;
+				console.error('Failed to upload person image', err);
+				this.clearUpload();
+				if (this.data.image?.url) {
 					this.imagePreview.src = this.data.image.url;
 					this.imagePreview.style.display = 'block';
 					placeholder.style.display = 'none';
-				} catch (err) {
-					console.error("Failed to upload person image", err);
+				} else {
+					this.imagePreview.style.display = 'none';
 					placeholder.textContent = '+ Фото';
 					placeholder.style.color = 'red';
+					placeholder.style.display = 'block';
 				}
 			}
 		});
 
 		avatarContainer.addEventListener('click', () => {
-			fileInput.click();
+			if (!this.progressHandle) fileInput.click();
 		});
 
 		avatarContainer.appendChild(fileInput);
@@ -119,5 +165,20 @@ export default class PersonTool {
 			description: this.data.description,
 			image: this.data.image
 		};
+	}
+
+	private clearUpload() {
+		this.abortController?.abort();
+		this.abortController = null;
+		this.progressHandle?.destroy();
+		this.progressHandle = null;
+		if (this.previewUrl) {
+			URL.revokeObjectURL(this.previewUrl);
+			this.previewUrl = null;
+		}
+	}
+
+	destroy() {
+		this.clearUpload();
 	}
 }

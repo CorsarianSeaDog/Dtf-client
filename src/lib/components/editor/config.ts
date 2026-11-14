@@ -1,10 +1,10 @@
 import type { EditorConfig } from '@editorjs/editorjs';
-import { uploadToFile } from './upload';
 import SpoilerTune from './tools/SpoilerTune';
 import AnchorTune from './tools/AnchorTune';
 import QuizTool from './tools/QuizTool';
 import PersonTool from './tools/PersonTool';
 import GalleryTool from './tools/GalleryTool';
+import { createImageTool } from './tools/ImageTool';
 
 function createCustomList(List: any) {
 	return class CustomList extends List {
@@ -35,6 +35,7 @@ export async function getEditorConfig(): Promise<{ tools: EditorConfig['tools'],
 	const ImageTool = (await import('@editorjs/image')).default;
 
 	const CustomList = createCustomList(List);
+	const ProgressImageTool = createImageTool(ImageTool);
 
 	return {
 		tunes: ['spoiler', 'anchor'],
@@ -47,25 +48,12 @@ export async function getEditorConfig(): Promise<{ tools: EditorConfig['tools'],
 			delimiter: Delimiter,
 			code: Code,
 			image: {
-				class: ImageTool,
+				class: ProgressImageTool as any,
 				config: {
 					types: 'image/*, video/mp4, video/webm, image/gif, video/quicktime',
 					features: { border: false, background: false, stretch: false },
 					endpoints: {
 						byFile: ''
-					},
-					uploader: {
-						async uploadByFile(file: File) {
-							try {
-								return { success: 1, file: await uploadToFile(file) };
-							} catch (e: any) {
-								console.error('Upload failed:', e);
-								return {
-									success: 0,
-									file: {}
-								};
-							}
-						}
 					}
 				}
 			},
