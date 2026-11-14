@@ -12,7 +12,7 @@ import { reactionSettings, voteReaction } from '$lib/storage/reactions.svelte';
 import { settings } from '$lib/storage/settings.svelte';
 import { applyReaction, rankByScore } from '$lib/reactions';
 import { trackComment, trackFavorite, trackReaction, trackSubscription } from '$lib/storage/stats.svelte';
-import { cachePost, cachePosts, loadPost, peekPost } from '$lib/postCache';
+import { cachePost, cachePosts, isPostFresh, loadPost, peekPost } from '$lib/postCache';
 
 /*
  * Единственная точка, через которую UI получает данные. Компоненты вызывают api.getPosts() и так далее
@@ -126,6 +126,10 @@ export const api = {
 
 	peekPost(id: number, sourceId: string = DTF): Post | undefined {
 		return peekPost(id, sourceId);
+	},
+
+	isPostFresh(id: number, sourceId: string = DTF): boolean {
+		return isPostFresh(id, sourceId);
 	},
 
 	cachePost(post: Post): void {

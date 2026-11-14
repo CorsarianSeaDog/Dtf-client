@@ -5,6 +5,7 @@ import { api } from '$lib/api/index.svelte';
 vi.mock('$lib/api/index.svelte', () => ({
 	api: {
 		peekPost: vi.fn(),
+		isPostFresh: vi.fn(),
 		getPost: vi.fn().mockResolvedValue({})
 	}
 }));
@@ -41,8 +42,8 @@ describe('preloadIntent', () => {
 		vi.useRealTimers();
 	});
 
-	it('не делает запрос, если пост уже в кэше', () => {
-		vi.mocked(api.peekPost).mockReturnValue({} as any);
+	it('не делает запрос, если пост свежий в кэше', () => {
+		vi.mocked(api.isPostFresh).mockReturnValue(true);
 		const action = preloadIntent(element, { id: 123, sourceId: 'dtf' });
 
 		element.dispatch('pointerdown', { clientX: 100, clientY: 100, button: 0 });
@@ -53,7 +54,7 @@ describe('preloadIntent', () => {
 	});
 
 	it('запускает предзагрузку при удержании пальца на месте более 35мс', () => {
-		vi.mocked(api.peekPost).mockReturnValue(undefined);
+		vi.mocked(api.isPostFresh).mockReturnValue(false);
 		const action = preloadIntent(element, { id: 123, sourceId: 'dtf' });
 
 		element.dispatch('pointerdown', { clientX: 100, clientY: 100, button: 0 });

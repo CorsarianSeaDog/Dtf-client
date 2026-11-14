@@ -30,7 +30,7 @@ export function preloadIntent(node: HTMLElement, target: PreloadTarget | (() => 
 	function onPointerDown(e: PointerEvent) {
 		if (e.button !== 0 && e.pointerType === 'mouse') return;
 		const { id, sourceId = 'dtf' } = getTarget();
-		if (!id || api.peekPost(id, sourceId)) return;
+		if (!id || api.isPostFresh(id, sourceId)) return;
 
 		cancel();
 		startPos = { x: e.clientX, y: e.clientY };
