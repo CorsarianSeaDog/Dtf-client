@@ -18,6 +18,7 @@
 	const ORG_URL = 'https://github.com/re-dtf';
 	const CLIENT_URL = `${ORG_URL}/client`;
 	const TELEGRAM_URL = 'https://t.me/re_dtf';
+	const PLANE_URL = 'https://plane.redtf.org';
 	const DOCS_URL = `${ORG_URL}/.github/blob/main`;
 
 	const PRINCIPLES = [
@@ -211,6 +212,10 @@
 	<SettingsRow title="Организация на Github" subtitle="Все репозитории проекта: клиент, прокси, документы">
 		{#snippet prefix()}{@render icon('M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM21 19v-1a4 4 0 0 0-3-3.9M15 4.1a3 3 0 0 1 0 5.8')}{/snippet}
 		<span class="action"><SettingsButton href={ORG_URL}>Открыть</SettingsButton></span>
+	</SettingsRow>
+	<SettingsRow title="Проект в Plane" subtitle="Что мы делаем: прогресс по задачам">
+		{#snippet prefix()}{@render icon('M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8 7v10M12 7v5M16 7v7')}{/snippet}
+		<span class="action"><SettingsButton href={PLANE_URL}>Открыть</SettingsButton></span>
 	</SettingsRow>
 	<SettingsRow title="Исходный код клиента" subtitle="Репозиторий re-dtf/client">
 		{#snippet prefix()}{@render icon('M8 7l-5 5 5 5M16 7l5 5-5 5')}{/snippet}
