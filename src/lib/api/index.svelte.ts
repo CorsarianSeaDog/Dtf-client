@@ -1,4 +1,4 @@
-import type { ApiProvider, Comment, CommentPatch, CursorData, GetPostsOptions, PaginatedResult, Post, User } from './types';
+import type { ApiProvider, Comment, CommentPatch, CursorData, GetPostsOptions, PaginatedResult, Post, SearchSubsite, User } from './types';
 import { dtfApiProvider } from './providers/dtf';
 import { createSourceProvider } from './providers/source';
 import { sourceRegistry } from './sources/registry.svelte';
@@ -25,6 +25,8 @@ import { cachePost, cachePosts, loadPost, peekPost } from '$lib/postCache';
  */
 
 const DTF = 'dtf';
+const SUBSITE_SEARCH_TTL = 60_000;
+const subsiteSearchCache = new Map<string, { expires: number; promise: Promise<{ items: SearchSubsite[]; total: number }> }>();
 
 export { ApiError, ProxyError } from './errors';
 export type Cursors = Record<string, CursorData>;
@@ -318,7 +320,26 @@ export const api = {
 		cachePosts(res.items);
 		return res;
 	},
-	searchSubsites: dtfApiProvider.searchSubsites,
+	searchSubsites(query: string, communities = false) {
+		const trimmed = query.trim();
+		const normalized = trimmed.toLowerCase();
+		if (!normalized) return dtfApiProvider.searchSubsites(query, communities);
+		const key = `${normalized}\0${communities ? 1 : 0}`;
+		const now = Date.now();
+		const cached = subsiteSearchCache.get(key);
+		if (cached && cached.expires > now) return cached.promise;
+		if (subsiteSearchCache.size > 30) {
+			for (const [k, entry] of subsiteSearchCache) {
+				if (entry.expires <= now) subsiteSearchCache.delete(k);
+			}
+		}
+		const promise = dtfApiProvider.searchSubsites(trimmed, communities).catch((e) => {
+			if (subsiteSearchCache.get(key)?.promise === promise) subsiteSearchCache.delete(key);
+			throw e;
+		});
+		subsiteSearchCache.set(key, { expires: now + SUBSITE_SEARCH_TTL, promise });
+		return promise;
+	},
 	searchComments: dtfApiProvider.searchComments,
 	getDrafts: dtfApiProvider.getDrafts,
 

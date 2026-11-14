@@ -3,7 +3,7 @@ import type { Comment, Post } from './types';
 import type { SourceState } from './sources/types';
 
 const mocks = vi.hoisted(() => ({
-	dtf: { getPosts: vi.fn(), getPost: vi.fn(), getComments: vi.fn(), reactToComment: vi.fn(), addComment: vi.fn() },
+	dtf: { getPosts: vi.fn(), getPost: vi.fn(), getComments: vi.fn(), reactToComment: vi.fn(), addComment: vi.fn(), searchSubsites: vi.fn() },
 	sourceProvider: { getPosts: vi.fn(), getPost: vi.fn(), getComments: vi.fn(), getReplacedComments: undefined as any, reactToComment: undefined as any },
 	registry: { activeSources: [] as any[] }
 }));
@@ -346,5 +346,43 @@ describe('api.addComment', () => {
 
 		expect(mocks.dtf.addComment).toHaveBeenCalledWith(1, 'Привет');
 		expect(result.id).toBe(123);
+	});
+});
+
+describe('api.searchSubsites', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('кеширует запрос с нормализацией, сбрасывает при ошибке и обновляет после TTL', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+		try {
+			const hit = { items: [{ id: 1, name: 'Test' }], total: 1 };
+			mocks.dtf.searchSubsites.mockResolvedValue(hit);
+
+			const [a, b] = await Promise.all([api.searchSubsites('  Game ', false), api.searchSubsites('game', false)]);
+			expect(a).toBe(hit);
+			expect(b).toBe(hit);
+			expect(mocks.dtf.searchSubsites).toHaveBeenCalledTimes(1);
+			expect(mocks.dtf.searchSubsites).toHaveBeenCalledWith('Game', false);
+
+			// Другой тип (темы) не попадает в кеш блогов
+			await api.searchSubsites('game', true);
+			expect(mocks.dtf.searchSubsites).toHaveBeenCalledTimes(2);
+
+			// После истечения TTL (60с) запрашивает снова
+			vi.advanceTimersByTime(60_000);
+			await api.searchSubsites('game', false);
+			expect(mocks.dtf.searchSubsites).toHaveBeenCalledTimes(3);
+
+			// Ошибка удаляет запись из кеша, следующий вызов повторяет запрос
+			mocks.dtf.searchSubsites.mockRejectedValueOnce(new Error('fail')).mockResolvedValueOnce(hit);
+			await expect(api.searchSubsites('retry-key', false)).rejects.toThrow('fail');
+			await expect(api.searchSubsites('retry-key', false)).resolves.toBe(hit);
+			expect(mocks.dtf.searchSubsites).toHaveBeenCalledTimes(5);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });
