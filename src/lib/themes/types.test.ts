@@ -61,6 +61,10 @@ describe('isFieldVisible', () => {
 		expect(isFieldVisible(fieldWithoutDeps, { votes: 'likes' })).toBe(true);
 	});
 
+	it('скрытое поле (hidden) не показывается, как бы ни были заданы значения', () => {
+		expect(isFieldVisible({ ...fieldWithoutDeps, hidden: true }, { votes: 'likes' })).toBe(false);
+	});
+
 	it('видимо только при совпадении одиночного значения dependsOn', () => {
 		expect(isFieldVisible(fieldWithSingleDep, { votes: 'likes' })).toBe(false);
 		expect(isFieldVisible(fieldWithSingleDep, { votes: 'rating' })).toBe(true);

@@ -24,6 +24,8 @@ interface FieldBase {
 	dependsOn?: FieldDependency;
 	/** Устройство, на котором доступна настройка: только смартфоны ('mobile') или десктопы ('desktop') */
 	device?: SettingDevice | SettingDevice[];
+	/** Настройка временно не показывается в настройках; значение по умолчанию и сохранённое продолжают действовать */
+	hidden?: boolean;
 }
 
 export interface ChoiceOption {
@@ -79,6 +81,7 @@ export function isFieldVisible(
 	allFields?: SettingField[],
 	device?: SettingDevice
 ): boolean {
+	if (field.hidden) return false;
 	if (field.device) {
 		const currentDevice = device ?? getCurrentDevice();
 		const matches = Array.isArray(field.device)
