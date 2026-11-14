@@ -1,10 +1,13 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import type { Attachment } from 'svelte/attachments';
 	import type { CommentMedia, GifResult, UploadResult } from '$lib/api/types';
 	import { api } from '$lib/api/index.svelte';
 	import { getLeonardoUrl } from '$lib/api/utils';
+	import { activeTheme } from '$lib/themes/index.svelte';
+	import { play } from '$lib/motion';
+	import UploadProgress from '$lib/components/UploadProgress.svelte';
 	import Button from '../ui/Button.svelte';
-	import Preloader from '../ui/Preloader.svelte';
 	import { notify } from '../ui/notify.svelte';
 	import DonateAttacher from './DonateAttacher.svelte';
 	import { formatDonation } from './donation';
@@ -48,7 +51,8 @@
 	} = $props();
 
 	let focused = $state(false);
-	let isEmpty = $derived(!text.trim() && media.length === 0);
+	let isTextEmpty = $derived(!text.trim());
+	let isEmpty = $derived(isTextEmpty && media.length === 0);
 	let submitLabel = $derived(editing ? 'Сохранить' : donation > 0 ? `Оплатить ${formatDonation(donation)}` : replying ? 'Ответить' : 'Отправить');
 	let placeholder = $derived(replying ? 'Написать ответ...' : 'Написать комментарий...');
 
@@ -58,24 +62,144 @@
 		return { type: type === 'movie' ? 'movie' : 'image', data: { uuid, width, height, size, type, color } };
 	}
 
-	let uploadCount = $state(0);
-	let uploading = $derived(uploadCount > 0);
-	let fileInput = $state<HTMLInputElement>();
+	interface PendingUpload {
+		id: number;
+		file: File;
+		previewUrl: string;
+		isVideo: boolean;
+		progress: number;
+		processing: boolean;
+		queued: boolean;
+		finishing: boolean;
+		controller: AbortController;
+	}
 
-	async function uploadFiles(files: FileList | File[]) {
-		const list = Array.from(files);
-		if (list.length === 0) return;
-		uploadCount += list.length;
-		for (const file of list) {
-			try {
-				media = [...media, mediaOf(await api.uploadMedia(file))];
-			} catch (err) {
-				notify.error((err as Error).message);
-			} finally {
-				uploadCount--;
+	let nextUploadId = 0;
+	let pendingUploads = $state<PendingUpload[]>([]);
+	let uploading = $derived(pendingUploads.length > 0);
+	let fileInput = $state<HTMLInputElement>();
+	const freshUuids = new Set<string>();
+	const overlayNodes = new Map<number, HTMLElement>();
+	let draining = false;
+
+	/** Предзагружаем миниатюру до снятия локального превью, чтобы замена прошла без моргания */
+	function preloadImage(src: string, signal: AbortSignal): Promise<void> {
+		if (!src || typeof Image === 'undefined' || signal.aborted) return Promise.resolve();
+		return new Promise((resolve) => {
+			const img = new Image();
+			const done = () => {
+				clearTimeout(timer);
+				signal.removeEventListener('abort', done);
+				resolve();
+			};
+			const timer = setTimeout(done, 3000);
+			img.addEventListener('load', done, { once: true });
+			img.addEventListener('error', done, { once: true });
+			signal.addEventListener('abort', done, { once: true });
+			img.src = src;
+			if (img.complete) done();
+		});
+	}
+
+	async function drainQueue() {
+		if (draining) return;
+		draining = true;
+		try {
+			while (pendingUploads.length > 0) {
+				const item = pendingUploads[0];
+				if (item.controller.signal.aborted) {
+					URL.revokeObjectURL(item.previewUrl);
+					pendingUploads = pendingUploads.filter((p) => p.id !== item.id);
+					continue;
+				}
+				item.queued = false;
+				item.progress = 0;
+				item.processing = false;
+				try {
+					const result = await api.uploadMedia(item.file, {
+						signal: item.controller.signal,
+						onProgress: (info) => {
+							item.progress = info.progress;
+							item.processing = !!info.processing;
+						}
+					});
+					if (!item.controller.signal.aborted) {
+						const uploaded = mediaOf(result);
+						// Превью уже на экране: плавно гасим оверлей и дожидаемся кэша миниатюры без скрытия тайла
+						item.finishing = true;
+						item.processing = false;
+						item.progress = 1;
+						const overlay = overlayNodes.get(item.id);
+						const anim = overlay ? play(overlay, activeTheme.motion?.uploadOut, 'forwards') : undefined;
+						await Promise.all([
+							anim?.finished.catch(() => {}),
+							preloadImage(getLeonardoUrl(uploaded.data.uuid, { width: 160 }), item.controller.signal)
+						]);
+						if (!item.controller.signal.aborted) {
+							media = [...media, uploaded];
+						}
+					}
+				} catch (err) {
+					const isAbort = item.controller.signal.aborted || (err instanceof DOMException && err.name === 'AbortError');
+					if (!isAbort) notify.error((err as Error).message);
+				} finally {
+					URL.revokeObjectURL(item.previewUrl);
+					pendingUploads = pendingUploads.filter((p) => p.id !== item.id);
+				}
 			}
+		} finally {
+			draining = false;
 		}
 	}
+
+	function uploadFiles(files: FileList | File[]) {
+		const list = Array.from(files);
+		if (list.length === 0) return;
+		const next: PendingUpload[] = list.map((file) => ({
+			id: ++nextUploadId,
+			file,
+			previewUrl: URL.createObjectURL(file),
+			isVideo: file.type.startsWith('video/'),
+			progress: 0,
+			processing: false,
+			queued: true,
+			finishing: false,
+			controller: new AbortController()
+		}));
+		pendingUploads = [...pendingUploads, ...next];
+		void drainQueue();
+	}
+
+	function cancelUpload(id: number) {
+		const item = pendingUploads.find((p) => p.id === id);
+		if (!item) return;
+		item.controller.abort();
+		URL.revokeObjectURL(item.previewUrl);
+		pendingUploads = pendingUploads.filter((p) => p.id !== id);
+	}
+
+	const animatePending: Attachment<HTMLElement> = (node) => {
+		void untrack(() => play(node, activeTheme.motion?.uploadIn));
+	};
+
+	const trackOverlay = (id: number): Attachment<HTMLElement> => (node) => {
+		overlayNodes.set(id, node);
+		return () => {
+			if (overlayNodes.get(id) === node) overlayNodes.delete(id);
+		};
+	};
+
+	const revealFreshMedia = (uuid: string): Attachment<HTMLElement> => (node) => {
+		if (!freshUuids.delete(uuid)) return;
+		void untrack(() => play(node, activeTheme.motion?.mediaIn));
+	};
+
+	const cleanupUploads: Attachment<HTMLElement> = () => () => {
+		for (const item of pendingUploads) {
+			item.controller.abort();
+			URL.revokeObjectURL(item.previewUrl);
+		}
+	};
 
 	function upload(e: Event & { currentTarget: HTMLInputElement }) {
 		if (e.currentTarget.files?.length) {
@@ -108,6 +232,7 @@
 	}
 
 	function addGif(gif: GifResult) {
+		freshUuids.add(gif.media.data.uuid);
 		media = [...media, gif.media];
 		gifsOpen = false;
 	}
@@ -124,8 +249,8 @@
 	</div>
 
 	<div class="comment-editor-container__content">
-		<div class={['comment-editor', { 'comment-editor--focused': focused }]} onpaste={handlePaste}>
-			<div class={['comment-editor-box', { 'comment-editor-box--empty': isEmpty }]}>
+		<div class={['comment-editor', { 'comment-editor--focused': focused }]} onpaste={handlePaste} {@attach cleanupUploads}>
+			<div class={['comment-editor-box', { 'comment-editor-box--empty': isTextEmpty }]}>
 				<div class="comment-editor-box__placeholder" aria-hidden="true">{placeholder}</div>
 				<div class="comment-editor-box__content">
 					<div
@@ -157,12 +282,35 @@
 				{#if media.length > 0 || uploading}
 					<div class="comment-editor-box__media">
 						{#each media as item, index (item.data.uuid + index)}
-							<div class="comment-editor-box__media-item">
+							<div
+								class="comment-editor-box__media-item"
+								style:aspect-ratio={item.data.width && item.data.height ? `${item.data.width} / ${item.data.height}` : undefined}
+								{@attach revealFreshMedia(item.data.uuid)}
+							>
 								<img src={getLeonardoUrl(item.data.uuid, { width: 160 })} alt="" />
 								<button type="button" class="comment-editor-box__media-remove" aria-label="Убрать вложение" onclick={() => (media = media.filter((_, i) => i !== index))}>×</button>
 							</div>
 						{/each}
-						{#if uploading}<Preloader />{/if}
+						{#each pendingUploads as item (item.id)}
+							<div class="comment-editor-box__media-item comment-editor-box__media-item--pending" {@attach animatePending}>
+								{#if item.isVideo}
+									<video src={item.previewUrl} muted playsinline preload="metadata"></video>
+								{:else}
+									<img src={item.previewUrl} alt="" />
+								{/if}
+								<div class="comment-editor-box__media-overlay" {@attach trackOverlay(item.id)}>
+									<UploadProgress
+										progress={item.progress}
+										processing={item.processing}
+										queued={item.queued}
+										size="sm"
+									/>
+								</div>
+								{#if !item.finishing}
+									<button type="button" class="comment-editor-box__media-remove" aria-label="Отменить загрузку" onclick={() => cancelUpload(item.id)}>×</button>
+								{/if}
+							</div>
+						{/each}
 					</div>
 				{/if}
 
@@ -179,7 +327,7 @@
 				<div class="comment-editor-box__footer">
 						<div class="comment-editor-box__attaches">
 						<input bind:this={fileInput} type="file" accept="image/*" multiple hidden onchange={upload} />
-						<button type="button" class="comment-editor-box__attach-btn comment-editor-box__attach-btn--image" aria-label="Прикрепить картинку" disabled={uploading} onclick={() => fileInput?.click()}>
+						<button type="button" class="comment-editor-box__attach-btn comment-editor-box__attach-btn--image" aria-label="Прикрепить картинку" onclick={() => fileInput?.click()}>
 							<svg class="icon" width="20" height="20" aria-hidden="true">
 								<use href="#v_image"></use>
 							</svg>
@@ -353,18 +501,33 @@
 	.comment-editor-box__media-item {
 		position: relative;
 		height: 72px;
+		border-radius: 6px;
+		overflow: hidden;
+		background-color: var(--bg-secondary);
 	}
 
-	.comment-editor-box__media-item img {
+	.comment-editor-box__media-item--pending {
+		min-width: 56px;
+	}
+
+	.comment-editor-box__media-overlay {
+		position: absolute;
+		inset: 0;
+		z-index: 2;
+	}
+
+	.comment-editor-box__media-item :is(img, video) {
 		display: block;
 		height: 100%;
 		border-radius: 6px;
+		object-fit: cover;
 	}
 
 	.comment-editor-box__media-remove {
 		position: absolute;
 		top: 2px;
 		right: 2px;
+		z-index: 3;
 		width: 20px;
 		height: 20px;
 		border-radius: 50%;

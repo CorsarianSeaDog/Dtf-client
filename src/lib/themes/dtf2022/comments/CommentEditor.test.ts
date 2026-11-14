@@ -55,4 +55,25 @@ describe('CommentEditor', () => {
 		expect(body).toContain('#v_send');
 		expect(body).toContain('aria-label="Ответить"');
 	});
+
+	it('сохраняет плейсхолдер при прикреплённом медиа без текста и разблокирует отправку', () => {
+		const withMediaOnly = render(CommentEditor, {
+			props: {
+				text: '',
+				media: [{ type: 'image', data: { uuid: 'img-1', width: 100, height: 100, size: 1024, type: 'jpg' } }]
+			}
+		});
+
+		expect(withMediaOnly.body).toContain('comment-editor-box--empty');
+		expect(withMediaOnly.body).not.toContain('btn--disabled');
+
+		const withText = render(CommentEditor, {
+			props: {
+				text: 'Текст',
+				media: [{ type: 'image', data: { uuid: 'img-1', width: 100, height: 100, size: 1024, type: 'jpg' } }]
+			}
+		});
+
+		expect(withText.body).not.toContain('comment-editor-box--empty');
+	});
 });
