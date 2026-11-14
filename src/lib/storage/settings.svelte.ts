@@ -65,6 +65,8 @@ export interface AppSettings {
 	restoreExpanded: boolean;
 	/** Показывать у восстановленного комментария автора из архива, а не заглушку DTF */
 	restoreAuthor: boolean;
+	/** Умный ввод тире (--) и кавычек ("") в редакторе постов и комментариев */
+	smartTypography: boolean;
 	/** Показывать визуальную подсветку Safe Area и панелей поверх интерфейса */
 	debugSafeAreaOverlay?: boolean;
 	/** Показывать плавающий индикатор метрик (HUD) */
@@ -145,6 +147,7 @@ export const settings = persistedState<AppSettings>(
 		appIcon: 'default',
 		customIconData: null,
 		autoCheckUpdates: true,
+		smartTypography: true,
 		debugSafeAreaOverlay: false,
 		debugHud: false,
 		devMode: false

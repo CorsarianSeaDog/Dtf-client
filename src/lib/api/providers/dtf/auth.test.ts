@@ -56,7 +56,8 @@ describe('auth & proxy failover', () => {
 			restoreAuthor: true,
 			commentVirtualization: 'auto',
 			recommendations: 'auto',
-			appIcon: 'default'
+			appIcon: 'default',
+			smartTypography: true
 		};
 	});
 

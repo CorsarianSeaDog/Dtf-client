@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import type { OutputData } from '@editorjs/editorjs';
+	import { smartTypography } from '$lib/smartTypography';
 	import './editor.css';
 	import { getEditorConfig } from './config';
 
@@ -58,7 +59,7 @@
 	});
 </script>
 
-<div bind:this={editorElement} class="editor-container"></div>
+<div bind:this={editorElement} class="editor-container" {@attach smartTypography}></div>
 
 <style>
 	.editor-container {

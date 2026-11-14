@@ -215,6 +215,14 @@
 		]
 	};
 
+	const smartTypographyField: ToggleField = {
+		key: 'smartTypography',
+		type: 'toggle',
+		title: 'Типографика при вводе',
+		description: 'Заменять в редакторе постов и комментариев два дефиса (--) на длинное тире (—), а двойные кавычки ("") — на кавычки-ёлочки («»)',
+		default: true
+	};
+
 	// --- Настройки темы ---
 	let themeFields = $derived(themeSettingsSchema(activeTheme.id));
 	let themeValues = $derived(activeThemeSettings());
@@ -975,7 +983,12 @@
 								</SettingsRow>
 							</SettingsGroup>
 						{:else if selectedPageId === 'interface-editor'}
-							{#if visibleEditorFields.length > 0}
+							<div class="settings-cards">
+								<FieldControl
+									field={smartTypographyField}
+									value={settings.value.smartTypography}
+									onchange={(value) => settings.patch({ smartTypography: Boolean(value) })}
+								/>
 								{#each visibleEditorFields as field (field.key)}
 									<FieldControl
 										{field}
@@ -983,9 +996,7 @@
 										onchange={(value) => themeValues.patch({ [field.key]: value })}
 									/>
 								{/each}
-							{:else}
-								<p class="section-hint">У выбранной темы нет отдельных настроек редактора.</p>
-							{/if}
+							</div>
 						{/if}
 					</div>
 				{:else}

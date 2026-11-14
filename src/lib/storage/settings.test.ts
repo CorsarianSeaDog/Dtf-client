@@ -57,6 +57,7 @@ describe('settings & shouldVirtualizeComments', () => {
 			recommendations: 'auto',
 			appIcon: 'default',
 			autoCheckUpdates: true,
+			smartTypography: true,
 			debugSafeAreaOverlay: false,
 			debugHud: false,
 			devMode: false,
@@ -138,6 +139,16 @@ describe('settings & shouldVirtualizeComments', () => {
 
 		const saved = JSON.parse(localStorage.getItem('redtf:settings')!);
 		expect(saved.d.autoCheckUpdates).toBe(false);
+	});
+
+	it('smartTypography по умолчанию включен (true) и сохраняется через patch', () => {
+		expect(settings.value.smartTypography).toBe(true);
+
+		settings.patch({ smartTypography: false });
+		expect(settings.value.smartTypography).toBe(false);
+
+		const saved = JSON.parse(localStorage.getItem('redtf:settings')!);
+		expect(saved.d.smartTypography).toBe(false);
 	});
 
 	it('patch обновляет значение disableMobileTopBar и сохраняет в localStorage', () => {

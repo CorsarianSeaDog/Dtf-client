@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy, type Snippet } from 'svelte';
 	import Editor from '$lib/components/editor/Editor.svelte';
+	import { smartTypography } from '$lib/smartTypography';
 	import { Button, Popover } from './ui';
 	import Select from './ui/Select.svelte';
 	import PostCard from './post/PostCard.svelte';
@@ -110,7 +111,7 @@
 	</div>
 
 	<div class="writing__body">
-		<textarea class="writing__title" rows="1" placeholder="Заголовок" bind:value={session.title} onkeydown={titleKeydown}></textarea>
+		<textarea class="writing__title" rows="1" placeholder="Заголовок" bind:value={session.title} onkeydown={titleKeydown} {@attach smartTypography}></textarea>
 
 		{#if session.ready}
 			<Editor bind:editorInstance={session.editorInstance} initialData={session.initialData} onChange={session.queueSave} />

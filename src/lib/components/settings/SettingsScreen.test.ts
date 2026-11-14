@@ -324,4 +324,16 @@ describe('SettingsScreen', () => {
 		expect(body).toContain('Виртуализация комментариев');
 		expect(body).toContain('Подпись reDTF');
 	});
+
+	it('рендерит настройку типографики на странице Редактор', () => {
+		const { body } = render(SettingsScreen, {
+			props: {
+				onclose: () => {},
+				page: 'interface-editor'
+			}
+		});
+
+		expect(body).toContain('Редактор');
+		expect(body).toContain('Типографика при вводе');
+	});
 });

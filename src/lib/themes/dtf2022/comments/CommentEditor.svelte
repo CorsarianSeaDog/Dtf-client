@@ -6,6 +6,7 @@
 	import { getLeonardoUrl } from '$lib/api/utils';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { play } from '$lib/motion';
+	import { smartTypography } from '$lib/smartTypography';
 	import UploadProgress from '$lib/components/UploadProgress.svelte';
 	import Button from '../ui/Button.svelte';
 	import { notify } from '../ui/notify.svelte';
@@ -265,6 +266,7 @@
 						onblur={() => (focused = false)}
 						onkeydown={handleKeydown}
 						{@attach focusOnReply}
+						{@attach smartTypography}
 					></div>
 				</div>
 
