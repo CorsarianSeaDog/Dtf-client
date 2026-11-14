@@ -131,8 +131,10 @@
 	}
 
 	.news-widget__load-more {
-		display: inline-flex;
+		display: flex;
 		align-items: center;
+		width: 100%;
+		height: 100%;
 		font-size: 17px;
 		line-height: 26px;
 		font-weight: 500;
@@ -142,13 +144,6 @@
 
 	.news-widget__load-more .icon {
 		margin-left: 6px;
-	}
-
-	@media (max-width: 719px) {
-		.news-widget__load-more {
-			width: 100%;
-			height: 100%;
-		}
 	}
 
 	@media (hover: hover) {
