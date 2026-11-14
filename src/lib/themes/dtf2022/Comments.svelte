@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { scrollBehavior } from '$lib/motion';
-	import { tick, untrack } from 'svelte';
+	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import type { Comment, CommentEditorState, CommentMedia } from '$lib/api/types';
 	import { api } from '$lib/api/index.svelte';
@@ -14,6 +13,7 @@
 	import CommentItem from './comments/CommentItem.svelte';
 	import CommentRestriction from './comments/CommentRestriction.svelte';
 	import { commentKey, flattenComments } from './comments/flatten';
+	import { VirtualRows } from './comments/virtualRows.svelte';
 	import { reactionSettings } from '$lib/storage/reactions.svelte';
 
 	let {
@@ -62,26 +62,10 @@
 		if (next) rows = rows.map((row) => (row.key === key ? { ...row, comment: next } : row));
 	}
 
-	const CHUNK_SIZE = 40;
-	let renderedCount = $state(CHUNK_SIZE);
-	let renderedRows = $derived(rows.slice(0, renderedCount));
-	let chunkSentinel = $state<HTMLElement>();
-
-	$effect(() => {
-		if (!chunkSentinel) return;
-		const observer = new IntersectionObserver(
-			(entries) => {
-				if (entries[0].isIntersecting) {
-					untrack(() => {
-						renderedCount = Math.min(rows.length, renderedCount + CHUNK_SIZE);
-					});
-				}
-			},
-			{ rootMargin: '1000px' }
-		);
-		observer.observe(chunkSentinel);
-		return () => observer.disconnect();
-	});
+	/** Строки без свёрнутых веток: строка скрыта, если свёрнут кто-то из её предков */
+	let shown = $derived(collapsed.size ? rows.filter((row) => !row.owners.some((o) => collapsed.has(o))) : rows);
+	/** В DOM только строки около экрана (решение 0015); строка с открытым редактором остаётся */
+	const virtual = new VirtualRows(() => shown, () => replyTo);
 
 	let replyTo = $state<string | null>(null);
 	/** Редактор под комментарием правит его, а не отвечает */
@@ -170,13 +154,11 @@
 				const created = await api.addComment(postId, text, target?.id, media);
 				logic.addComment(created);
 				key = commentKey(created);
-				renderedCount = Math.max(renderedCount, rows.length);
 			}
 			clearDraft();
 			replyTo = null;
 			editMode = false;
-			await tick();
-			document.getElementById(`comment-${key}`)?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() });
+			virtual.focus(key, { block: 'nearest', highlight: false });
 		} catch (e) {
 			sendError = (e as Error).message;
 		} finally {
@@ -202,63 +184,6 @@
 	let lastScrolledKey: string | undefined;
 	let refetchAttempted = false;
 
-	function scrollToTarget(key: string) {
-		tick().then(() => {
-			const targetIndex = rows.findIndex((r) => r.key === key);
-			if (targetIndex >= 0 && renderedCount <= targetIndex + 10) {
-				renderedCount = Math.min(rows.length, targetIndex + CHUNK_SIZE);
-			}
-			return tick();
-		}).then(() => {
-			requestAnimationFrame(() => {
-				requestAnimationFrame(() => {
-					const node = document.getElementById(`comment-${key}`);
-					if (!node) return;
-
-					// Раскрываем геометрию предшествующих комментариев, чтобы браузер рассчитал точные высоты до цели
-					const list = node.closest('.comments-list');
-					if (list) {
-						const items = list.querySelectorAll('.comment-item');
-						for (const item of items) {
-							(item as HTMLElement).style.contentVisibility = 'visible';
-							if (item === node) break;
-						}
-					}
-					void node.offsetHeight;
-
-					// Подсвечиваем комментарий сразу, а угасание запускаем только по прибытии скролла
-					for (const anim of node.getAnimations?.() ?? []) anim.cancel();
-					node.style.backgroundColor = 'var(--color-blue-tint, var(--bg-highlight, #e8f3ff))';
-					node.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
-
-					let arrived = false;
-					const onArrival = () => {
-						if (arrived) return;
-						arrived = true;
-						window.removeEventListener('scrollend', onArrival);
-
-						// После завершения скролла возвращаем content-visibility: браузер уже сохранил реальные высоты через contain-intrinsic-size: auto
-						if (list) {
-							const items = list.querySelectorAll('.comment-item');
-							for (const item of items) {
-								(item as HTMLElement).style.removeProperty('content-visibility');
-								if (item === node) break;
-							}
-						}
-
-						node.style.removeProperty('background-color');
-						node.animate(
-							[{ backgroundColor: 'var(--color-blue-tint, var(--bg-highlight, #e8f3ff))' }, { backgroundColor: 'transparent' }],
-							{ duration: 2500, easing: 'ease-out' }
-						);
-					};
-
-					window.addEventListener('scrollend', onArrival, { once: true });
-					setTimeout(onArrival, 2500);
-				});
-			});
-		});
-	}
 	$effect(() => {
 		if (!focusCommentId) return;
 
@@ -279,7 +204,7 @@
 			}
 
 			onfocused?.();
-			scrollToTarget(key);
+			virtual.focus(key);
 		} else if (!logic.loading && logic.hasMore && !logic.error) {
 			untrack(() => logic.loadComments());
 		} else if (!logic.loading && !refetchAttempted && !logic.error) {
@@ -300,16 +225,17 @@
 		// Ветка тянется вверх и вниз, пока у соседних комментариев есть линия с тем же номером
 		let from = index;
 		let to = index;
-		while (from > 0 && renderedRows[from - 1]?.lines.length > line) from--;
-		while (to < renderedRows.length - 1 && renderedRows[to + 1]?.lines.length > line) to++;
+		while (from > 0 && shown[from - 1].lines.length > line) from--;
+		while (to < shown.length - 1 && shown[to + 1].lines.length > line) to++;
 		highlight = { line, from, to };
 	}
 
 	function collapseBranch(owner: string) {
 		highlight = null;
 		collapsed.add(owner);
+		// Начало ветки выше экрана или уже вне окна строк
 		const node = document.getElementById(`comment-${owner}`);
-		if (node && node.getBoundingClientRect().top < 0) node.scrollIntoView({ block: 'start' });
+		if (!node || node.getBoundingClientRect().top < 0) virtual.focus(owner, { highlight: false, behavior: 'instant' });
 	}
 </script>
 
@@ -379,29 +305,27 @@
 			<p class="comments-status">Комментариев пока нет</p>
 		{/if}
 
-		<div class="comments-list">
-			{#each renderedRows as row, index (row.key)}
+		<div class="comments-list" style:padding-top="{virtual.padTop}px" style:padding-bottom="{virtual.padBottom}px" {@attach virtual.attach}>
+			{#each virtual.items as row, i (row.key)}
+				{@const index = virtual.start + i}
 				<CommentItem
 					{row}
 					{postAuthorId}
 					highlightedLine={highlight && index >= highlight.from && index <= highlight.to ? highlight.line : -1}
 					replying={replyTo === row.key}
 					canReply={!blocked}
-					hidden={row.owners.some((o) => collapsed.has(o))}
 					hiddenReplies={collapsed.has(row.key) && row.comment.children.length > 0 ? (row.comment._totalReplies ?? row.comment.children.length) : 0}
 					onreply={() => reply(row.key)}
 					onedit={() => edit(row.key, row.comment.content, row.comment.media)}
 					onlinehover={(line) => highlightBranch(index, line)}
 					onlineclick={collapseBranch}
 					onexpand={() => collapsed.delete(row.key)}
-					onparent={scrollToTarget}
+					onparent={(key) => virtual.focus(key)}
+					measure={virtual.measure}
 					onpatch={(patch) => patchRow(row.key, patch)}
 					{editor}
 				/>
 			{/each}
-			{#if renderedCount < rows.length}
-				<div bind:this={chunkSentinel} class="comments-chunk-sentinel" style="height: 1px;"></div>
-			{/if}
 		</div>
 
 		{#if logic.error}

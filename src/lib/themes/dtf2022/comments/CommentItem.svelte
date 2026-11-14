@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { scrollBehavior } from '$lib/motion';
 	import type { Snippet } from 'svelte';
+	import type { Attachment } from 'svelte/attachments';
 	import { fromAction } from 'svelte/attachments';
 	import { resolve } from '$app/paths';
 	import { lazyVideo } from '$lib/actions/lazyVideo';
@@ -28,7 +29,7 @@
 	import { commentKey, type CommentRow } from './flatten';
 	import type { Comment } from '$lib/api/types';
 	import { toggleCommentFavorite, toggleCommentReaction, voteComment } from './votes.svelte';
-	import { settings, shouldVirtualizeComments } from '$lib/storage/settings.svelte';
+	import { settings } from '$lib/storage/settings.svelte';
 	import { getCommentBadge } from '$lib/clientBadge';
 	import { filterSettings, matchCommentFilter } from '$lib/storage/filter.svelte';
 	import BadgeInfoModal from '../BadgeInfoModal.svelte';
@@ -42,8 +43,8 @@
 		highlightedLine = -1,
 		replying = false,
 		canReply = true,
-		hidden = false,
 		hiddenReplies = 0,
+		measure,
 		panObserver,
 		onreply,
 		onedit,
@@ -62,8 +63,9 @@
 		replying?: boolean;
 		/** Писать нельзя (бан, чёрный список): кнопки «Ответить» нет */
 		canReply?: boolean;
-		hidden?: boolean;
 		hiddenReplies?: number;
+		/** Замер высоты строки для окна списка */
+		measure?: Attachment<HTMLElement>;
 		panObserver?: IntersectionObserver;
 		onreply: () => void;
 		/** Открыть редактор с текстом этого комментария */
@@ -194,7 +196,6 @@
 			notify.error('Не удалось скопировать ссылку');
 		}
 	}
-	let virtualize = $derived(shouldVirtualizeComments());
 </script>
 
 {#snippet vote()}
@@ -238,15 +239,14 @@
 		'comment-item',
 		{
 			'comment-item--reply': row.level > 1,
-			'comment-item--virtual': virtualize,
 			'comment-item--elevated': replying || menuOpen || pickerOpen
 		}
 	]}
 	style:--level={row.level}
 	id="comment-{row.key}"
 	data-depth={row.level - 1}
-	hidden={hidden || undefined}
 	bind:this={itemNode}
+	{@attach measure}
 >
 	<!--
 		линии — div, а не button: у кнопки Chrome центрирует содержимое по вертикали
@@ -623,19 +623,8 @@
 		scroll-margin-top: calc(var(--header-height, 60px) + 8px);
 	}
 
-	.comment-item[hidden] {
-		display: none;
-	}
-
-	.comment-item--virtual {
-		content-visibility: auto;
-		contain-intrinsic-size: auto none auto 128px;
-		overflow-clip-margin: 20px;
-	}
-
 	/* Класс состояния вместо селектора :has, чтобы браузер не пересматривал 1000+ комментариев при открытии редактора или меню */
 	.comment-item--elevated {
-		content-visibility: visible;
 		position: relative;
 		z-index: 20;
 	}

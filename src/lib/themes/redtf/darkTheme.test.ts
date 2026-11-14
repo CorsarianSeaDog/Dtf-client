@@ -154,15 +154,11 @@ describe('redtf dark mode configuration', () => {
 		const cssContent = fs.readFileSync(cssPath, 'utf-8');
 		expect(cssContent).toContain('--color-blue-tint: rgba(70, 131, 217, 0.25);');
 
-		const redtfCommentsPath = path.resolve(__dirname, 'Comments.svelte');
-		const redtfCommentsContent = fs.readFileSync(redtfCommentsPath, 'utf-8');
-		expect(redtfCommentsContent).toContain("node.style.backgroundColor = 'var(--color-blue-tint, var(--bg-highlight, #e8f3ff))';");
-		expect(redtfCommentsContent).toContain("{ backgroundColor: 'var(--color-blue-tint, var(--bg-highlight, #e8f3ff))' }");
-
-		const dtfCommentsPath = path.resolve(__dirname, '../dtf2022/Comments.svelte');
-		const dtfCommentsContent = fs.readFileSync(dtfCommentsPath, 'utf-8');
-		expect(dtfCommentsContent).toContain("node.style.backgroundColor = 'var(--color-blue-tint, var(--bg-highlight, #e8f3ff))';");
-		expect(dtfCommentsContent).toContain("{ backgroundColor: 'var(--color-blue-tint, var(--bg-highlight, #e8f3ff))' }");
+		// Подсветку перехода к комментарию обеим темам рисует общее окно строк
+		const virtualRowsPath = path.resolve(__dirname, '../dtf2022/comments/virtualRows.svelte.ts');
+		const virtualRowsContent = fs.readFileSync(virtualRowsPath, 'utf-8');
+		expect(virtualRowsContent).toContain("const HIGHLIGHT = 'var(--color-blue-tint, var(--bg-highlight, #e8f3ff))';");
+		expect(virtualRowsContent).toContain('node.style.backgroundColor = HIGHLIGHT;');
 
 		const appCssPath = path.resolve(__dirname, '../../../app.css');
 		const appCssContent = fs.readFileSync(appCssPath, 'utf-8');

@@ -169,12 +169,12 @@
 		key: 'commentVirtualization',
 		type: 'radio',
 		title: 'Виртуализация комментариев',
-		description: 'Оптимизирует отрисовку длинных веток (content-visibility). В Firefox может приводить к пропуску отображения.',
+		description: 'На странице держатся только комментарии около экрана: длинные ветки прокручиваются быстрее. Поиск по странице и экранный чтец видят только их.',
 		default: 'auto',
 		options: [
-			{ value: 'auto', title: 'Авто (рекомендуется)', description: 'Включено в Chromium и Safari, отключено в Firefox' },
-			{ value: 'enabled', title: 'Всегда включено', description: 'Максимальная скорость рендера' },
-			{ value: 'disabled', title: 'Отключено', description: 'Полная отрисовка всех комментариев' }
+			{ value: 'auto', title: 'Авто (рекомендуется)', description: 'Включено' },
+			{ value: 'enabled', title: 'Всегда включено', description: 'Включено' },
+			{ value: 'disabled', title: 'Отключено', description: 'Все комментарии сразу: работает поиск по странице, но длинные ветки тормозят' }
 		]
 	};
 
