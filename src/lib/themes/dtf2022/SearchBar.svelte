@@ -53,6 +53,8 @@
 		}
 	});
 
+	$effect(() => () => clearTimeout(timer));
+
 	function find(text: string) {
 		const id = ++requestId;
 		loading = true;
@@ -68,7 +70,7 @@
 	function onInput() {
 		clearTimeout(timer);
 		requestId++;
-		if (!ready) {
+		if (!ready || query === answered) {
 			loading = false;
 			return;
 		}
@@ -76,7 +78,15 @@
 		timer = setTimeout(() => find(query), DEBOUNCE);
 	}
 
+	function onFocus() {
+		focused = true;
+		if (ready && query !== answered && !loading) onInput();
+	}
+
 	function close() {
+		clearTimeout(timer);
+		requestId++;
+		loading = false;
 		focused = false;
 		active = false;
 		input?.blur();
@@ -103,9 +113,7 @@
 	function closeOnOutside(e: MouseEvent) {
 		if (!root?.contains(e.target as Node)) {
 			if ((e.target as Element)?.closest?.('.header-search-toggle')) return;
-			focused = false;
-			active = false;
-			onclose?.();
+			close();
 		}
 	}
 </script>
@@ -131,7 +139,7 @@
 				autocomplete="off"
 				enterkeyhint="search"
 				oninput={onInput}
-				onfocus={() => (focused = true)}
+				onfocus={onFocus}
 			/>
 		</div>
 
