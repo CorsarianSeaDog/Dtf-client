@@ -13,7 +13,6 @@
 	import MediaSheet from '$lib/components/MediaSheet.svelte';
 	import { overlayReuser, preloadLightbox } from '$lib/navigation';
 	import ModalShell from '$lib/components/overlays/ModalShell.svelte';
-	import Welcome from '$lib/components/Welcome.svelte';
 	import { dotsAtRest, hideSplash, holdSplash, introDone, showWelcomeBackdrop } from '$lib/splash';
 	import { pageReady } from '$lib/ready';
 	import { setupCompleted } from '$lib/storage/setup.svelte';
@@ -27,8 +26,6 @@
 	import { applyAppIcon } from '$lib/icons';
 	import { pwa } from '$lib/pwa.svelte';
 	import { initCapacitor, updateStatusBar } from '$lib/capacitor';
-	import SafeAreaOverlay from '$lib/components/debug/SafeAreaOverlay.svelte';
-	import DebugHud from '$lib/components/debug/DebugHud.svelte';
 	
 	import '../app.css';
 	import svgSpriteDefs from 'virtual:svg-sprite';
@@ -44,6 +41,7 @@
 	
 	let { children } = $props();
 	let showWelcome = $state(false);
+	let WelcomeComp = $state<typeof import('$lib/components/Welcome.svelte').default>();
 
 	// Компонент темы, который окно должно загрузить до показа (иначе оно мелькает спиннером)
 	const MODAL_COMPONENT: Partial<Record<App.OverlayData['type'], keyof ThemeComponents>> = {
@@ -392,11 +390,13 @@
 		if (setupCompleted.value) {
 			document.getElementById('splash')?.remove();
 		} else {
+			const welcomeImport = import('$lib/components/Welcome.svelte');
 			(async () => {
 				await introDone();
 				// Под заставкой должна быть готовая лента, а не спиннеры; точки логотипа пока прыгают как индикатор загрузки
 				if (page.route.id === '/') await holdSplash(pageReady());
-				await dotsAtRest();
+				const [{ default: Welcome }] = await Promise.all([welcomeImport, dotsAtRest()]);
+				WelcomeComp = Welcome;
 				showWelcomeBackdrop();
 				showWelcome = true;
 			})();
@@ -493,15 +493,19 @@
 	{/if}
 </div>
 
-{#if showWelcome}
-	<Welcome ondone={() => (showWelcome = false)} />
+{#if showWelcome && WelcomeComp}
+	<WelcomeComp ondone={() => (showWelcome = false)} />
 {/if}
 
 {#if settings.value.debugSafeAreaOverlay}
-	<SafeAreaOverlay />
+	{#await import('$lib/components/debug/SafeAreaOverlay.svelte') then { default: SafeAreaOverlay }}
+		<SafeAreaOverlay />
+	{/await}
 {/if}
 {#if settings.value.debugHud}
-	<DebugHud />
+	{#await import('$lib/components/debug/DebugHud.svelte') then { default: DebugHud }}
+		<DebugHud />
+	{/await}
 {/if}
 
 {#if dev}
