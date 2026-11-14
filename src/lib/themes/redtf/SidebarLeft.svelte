@@ -163,7 +163,6 @@
 					<div class="sidebar-footer__links">
 						<a href={resolve('/settings')} onclick={openSettings}>Настройки</a>
 						<a href="{resolve('/settings')}?page=about" onclick={(e) => openSettings(e, 'about')}>О проекте</a>
-						<a href="https://github.com/re-dtf" target="_blank" rel="noreferrer">Наш Github</a>
 						<a href="{resolve('/settings')}?page=help" onclick={(e) => openSettings(e, 'help')}>Поддержать развитие</a>
 						<span>Правила DTF</span>
 						<a href="{resolve('/settings')}?page=about&section=documents" onclick={(e) => openSettings(e, 'about', 'documents')}>Правовая информация</a>
