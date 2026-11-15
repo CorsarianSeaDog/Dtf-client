@@ -2,6 +2,7 @@
 	import type { Post } from '$lib/api/types';
 	import { addIgnoredTag, filterSettings, normalizeTag, removeIgnoredTag } from '$lib/storage/filter.svelte';
 	import PostCard from './post/PostCard.svelte';
+	import { isPostHidden } from './actions.svelte';
 	import Popover from './ui/Popover.svelte';
 	import { notify } from './ui/notify.svelte';
 
@@ -48,7 +49,9 @@
 
 	<!-- Отступ между заголовком и первой записью тот же, что между записями ленты -->
 	{#each posts as post (post.sourceId + '_' + post.id)}
-		<PostCard {post} />
+		{#if !isPostHidden(post)}
+			<PostCard {post} />
+		{/if}
 	{/each}
 
 	{#if posts.length === 0}

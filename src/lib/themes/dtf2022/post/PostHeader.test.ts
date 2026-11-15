@@ -24,4 +24,13 @@ describe('PostHeader menu items', () => {
 		expect(svelteContent).toContain("notify.success('Ссылка скопирована')");
 		expect(svelteContent).toContain("notify.error('Не удалось скопировать ссылку')");
 	});
+
+	it('проверяет etcControls.remove и подтверждает удаление своего поста', () => {
+		const svelteContent = fs.readFileSync(path.join(__dirname, 'PostHeader.svelte'), 'utf8');
+
+		expect(svelteContent).toContain('api.getContentControls(post.id)');
+		expect(svelteContent).toContain("value: 'delete_post' as const, label: 'Удалить', icon: 'v_delete'");
+		expect(svelteContent).toContain('ConfirmPopup');
+		expect(svelteContent).toContain('api.deletePost(post.id)');
+	});
 });

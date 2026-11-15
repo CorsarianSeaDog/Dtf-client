@@ -7,7 +7,7 @@
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import { resolve } from '$app/paths';
 	import { getProfilePath, isNewTabClick, openLightbox, openOverlay, openProfile, preloadLightbox } from '$lib/navigation';
-	import { authorMenuItems, runAuthorAction, subscriptions } from './actions.svelte';
+	import { authorMenuItems, isPostHidden, runAuthorAction, subscriptions } from './actions.svelte';
 	import { loadOnVisible } from './loadOnVisible';
 	import { formatDate, formatNumber, formatRating, plural } from './format';
 	import PostCard from './post/PostCard.svelte';
@@ -515,7 +515,9 @@
 			{#if tab === 'posts'}
 				<div class="profile-feed__posts">
 					{#each posts as post (post.sourceId + '_' + post.id)}
-						<PostCard {post} subscribe={false} />
+						{#if !isPostHidden(post)}
+							<PostCard {post} subscribe={false} />
+						{/if}
 					{/each}
 				</div>
 
