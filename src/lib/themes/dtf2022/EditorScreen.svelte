@@ -3,8 +3,11 @@
 	import Editor from '$lib/components/editor/Editor.svelte';
 	import { smartTypography } from '$lib/smartTypography';
 	import { Button, Popover } from './ui';
+	import ConfirmPopup from './ui/ConfirmPopup.svelte';
+	import { notify } from './ui/notify.svelte';
 	import Select from './ui/Select.svelte';
 	import PostCard from './post/PostCard.svelte';
+	import { markPostDeleted } from './actions.svelte';
 
 	// windowed и barExtra — точки расширения для форков: класс на корне и место в панели рядом с кнопкой закрытия
 	let { session, windowed = false, barExtra }: { session: any; windowed?: boolean; barExtra?: Snippet } = $props();
@@ -49,6 +52,16 @@
 		e.preventDefault();
 		session.editorInstance?.caret.setToFirstBlock('start');
 	}
+
+	let confirmingDelete = $state(false);
+
+	async function deleteEntry() {
+		const id = session.postId;
+		await session.deletePost();
+		if (id) markPostDeleted({ id, sourceId: 'dtf' });
+		notify.success('Запись удалена');
+		session.goBack();
+	}
 </script>
 
 <div class={['writing', { 'writing--window': windowed }]}>
@@ -77,6 +90,12 @@
 					</svg>
 				</button>
 			</Popover>
+
+			<button type="button" class="writing__icon-button" aria-label="Удалить запись" title="Удалить запись" onclick={() => (confirmingDelete = true)}>
+				<svg class="icon" width="24" height="24" aria-hidden="true">
+					<use href="#v_delete"></use>
+				</svg>
+			</button>
 		{/if}
 
 		<div class="writing__publish">
@@ -124,6 +143,16 @@
 		{/if}
 	</div>
 </div>
+
+{#if confirmingDelete}
+	<ConfirmPopup
+		title="Удалить запись?"
+		message="Запись будет удалена без возможности восстановления."
+		errorMessage="Не удалось удалить запись"
+		onconfirm={deleteEntry}
+		onclose={() => (confirmingDelete = false)}
+	/>
+{/if}
 
 <style>
 	/* В 2023 редактор открывался на всю страницу (vuePopupFullpage), поверх всего остального */

@@ -12,6 +12,7 @@ function createMockSession() {
 		publish: vi.fn(),
 		toggleHistory: vi.fn(),
 		loadVersion: vi.fn(),
+		deletePost: vi.fn(),
 		updateCommentPermission: vi.fn(),
 		queueSave: vi.fn(),
 		subsites: [{ value: 1, label: 'Игры' }],
@@ -55,6 +56,15 @@ describe('EditorScreen', () => {
 		});
 
 		expect(body).toContain('writing--window');
+	});
+
+	it('показывает кнопку удаления только когда у записи есть postId', () => {
+		const withoutId = render(EditorScreen, { props: { session: createMockSession() } });
+		expect(withoutId.body).not.toContain('Удалить запись');
+
+		const withId = render(EditorScreen, { props: { session: { ...createMockSession(), postId: 5388155 } } });
+		expect(withId.body).toContain('Удалить запись');
+		expect(withId.body).toContain('#v_delete');
 	});
 
 	it('содержит стили safe area insets для полноэкранного режима', () => {

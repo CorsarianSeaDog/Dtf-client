@@ -1,15 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const saveDraft = vi.fn(async (entry: any) => ({ ...entry, id: entry.id || 7 }));
-vi.mock('$lib/api/index.svelte', () => ({ api: { saveDraft: (entry: any) => saveDraft(entry) } }));
+const deletePost = vi.fn(async (_id: number) => {});
+vi.mock('$lib/api/index.svelte', () => ({
+	api: {
+		saveDraft: (entry: any) => saveDraft(entry),
+		deletePost: (id: number) => deletePost(id)
+	}
+}));
 vi.mock('$lib/navigation', () => ({ closeOverlay: vi.fn() }));
 
 import { createEditorSession } from './session.svelte';
 
 const content = { blocks: [{ type: 'paragraph', data: { text: 'привет' } }] };
 
-function openSession() {
-	const session = createEditorSession(null);
+function openSession(postId: number | null = null) {
+	const session = createEditorSession(postId);
 	session.editorInstance = { save: async () => content };
 	return session;
 }
@@ -17,6 +23,7 @@ function openSession() {
 describe('createEditorSession', () => {
 	beforeEach(() => {
 		saveDraft.mockClear();
+		deletePost.mockClear();
 	});
 
 	it('закрытие экрана отправляет несохранённые правки', async () => {
@@ -46,5 +53,18 @@ describe('createEditorSession', () => {
 		session.destroy();
 		await Promise.resolve();
 		expect(saveDraft).toHaveBeenCalledTimes(1);
+	});
+
+	it('после deletePost закрытие не сохраняет черновик заново', async () => {
+		const session = openSession(42);
+		session.queueSave();
+		await Promise.resolve();
+		await session.deletePost();
+		expect(deletePost).toHaveBeenCalledWith(42);
+
+		session.editorInstance = null;
+		session.destroy();
+		await Promise.resolve();
+		expect(saveDraft).not.toHaveBeenCalled();
 	});
 });

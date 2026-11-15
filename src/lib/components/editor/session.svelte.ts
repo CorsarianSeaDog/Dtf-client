@@ -41,6 +41,7 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 	let snapshot: OutputData | undefined;
 	/** Сохранения идут по очереди: иначе у новой записи два запроса подряд создали бы два черновика */
 	let saveQueue: Promise<unknown> = Promise.resolve();
+	let deleted = false;
 
 	const DEBOUNCE_MS = 10000;
 	const MAX_WAIT_MS = 120000;
@@ -80,11 +81,11 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 		if (saveTimer) clearTimeout(saveTimer);
 		if (maxWaitTimer) clearTimeout(maxWaitTimer);
 		saveTimer = maxWaitTimer = null;
-		if (changes > savedChanges) performSave(false, snapshot ?? initialData ?? { blocks: [] });
+		if (!deleted && changes > savedChanges) performSave(false, snapshot ?? initialData ?? { blocks: [] });
 	}
 
 	function queueSave() {
-		if (!editorInstance) return;
+		if (!editorInstance || deleted) return;
 
 		changes++;
 		editorInstance.save().then((data: OutputData) => (snapshot = data), () => {});
@@ -117,7 +118,7 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 			maxWaitTimer = null;
 		}
 
-		if (!content && !editorInstance) return;
+		if (deleted || (!content && !editorInstance)) return;
 
 		try {
 			const reached = changes;
@@ -223,6 +224,23 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 		closeOverlay();
 	}
 
+	/** Удаляет текущую запись и отменяет автосохранение при закрытии */
+	async function deletePost() {
+		if (!postId) return;
+		deleted = true;
+		if (saveTimer) clearTimeout(saveTimer);
+		if (maxWaitTimer) clearTimeout(maxWaitTimer);
+		saveTimer = maxWaitTimer = null;
+		await saveQueue;
+		try {
+			await api.deletePost(postId);
+			changes = savedChanges;
+		} catch (e) {
+			deleted = false;
+			throw e;
+		}
+	}
+
 	// We can use $effect inside the session factory because it's called during component initialization
 	$effect(() => {
 		const _t = title;
@@ -268,6 +286,7 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 		updateCommentPermission,
 		toggleHistory,
 		loadVersion,
+		deletePost,
 		goBack
 	};
 }
