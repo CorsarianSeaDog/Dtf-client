@@ -4,13 +4,16 @@
 	import { authStorage } from '$lib/storage/auth.svelte';
 	import NetworkErrorState from '$lib/components/NetworkErrorState.svelte';
 	import PostCard from './post/PostCard.svelte';
+	import { isPostHidden } from './actions.svelte';
 	import { loadOnVisible } from './loadOnVisible';
 	import { Button, Preloader } from './ui';
+	import ConfirmPopup from './ui/ConfirmPopup.svelte';
+	import { notify } from './ui/notify.svelte';
 
 	/*
 	 * Страница черновиков. У DTF она открывается по /u/me/drafts, в архиве 2023 года её нет (нужен вход),
 	 * поэтому черновики рисуются карточками ленты. Сами карточки неактивны (оценки, закладки и меню сервер
-	 * на черновике не принимает), а открыть черновик можно кнопками под ним: «Смотреть» и «Редактировать».
+	 * на черновике не принимает), а открыть черновик можно кнопками под ним: «Смотреть», «Редактировать» и «Удалить».
 	 */
 	let {
 		posts,
@@ -20,7 +23,8 @@
 		hasMore,
 		loadMore,
 		onretry,
-		onedit
+		onedit,
+		ondelete
 	}: {
 		posts: Post[];
 		loaded: boolean;
@@ -30,7 +34,10 @@
 		loadMore: () => void;
 		onretry: () => void;
 		onedit: (post: Post) => void;
+		ondelete: (post: Post) => Promise<void>;
 	} = $props();
+
+	let confirmTarget = $state<Post | null>(null);
 </script>
 
 <div class="drafts-page">
@@ -43,7 +50,9 @@
 		<NetworkErrorState {error} title="Не удалось загрузить черновики" {onretry} />
 	{:else}
 		{#each posts as post (post.id)}
-			<PostCard {post} {onedit} />
+			{#if !isPostHidden(post)}
+				<PostCard {post} {onedit} ondelete={(p) => (confirmTarget = p)} />
+			{/if}
 		{/each}
 
 		{#if loaded && posts.length === 0}
@@ -57,6 +66,20 @@
 		{/if}
 	{/if}
 </div>
+
+{#if confirmTarget}
+	{@const target = confirmTarget}
+	<ConfirmPopup
+		title="Удалить черновик?"
+		message={`Черновик${target.title ? ` «${target.title}»` : ''} будет удалён без возможности восстановления.`}
+		errorMessage="Не удалось удалить черновик"
+		onconfirm={async () => {
+			await ondelete(target);
+			notify.success('Черновик удалён');
+		}}
+		onclose={() => (confirmTarget = null)}
+	/>
+{/if}
 
 <style>
 	.drafts-page {

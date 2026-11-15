@@ -98,7 +98,7 @@ export interface ThemeComponents {
 		loadMore: () => void;
 		onretry: () => void;
 	};
-	/** Черновики вошедшего пользователя; карточки неактивны, под каждой кнопки «Смотреть» и «Редактировать» (`onedit` открывает редактор) */
+	/** Черновики вошедшего пользователя; карточки неактивны, под каждой кнопки «Смотреть», «Редактировать» (`onedit`) и «Удалить» (`ondelete`) */
 	DraftsPage: {
 		posts: Post[];
 		loaded: boolean;
@@ -108,6 +108,7 @@ export interface ThemeComponents {
 		loadMore: () => void;
 		onretry: () => void;
 		onedit: (post: Post) => void;
+		ondelete: (post: Post) => Promise<void>;
 	};
 	/** Страница аккаунта (оверлей account): профиль, черновики, донаты, вход в настройки, выход. Без неё нижняя панель ведёт в настройки */
 	AccountPage: {};

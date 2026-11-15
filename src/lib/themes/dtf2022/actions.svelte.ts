@@ -88,13 +88,19 @@ export function toggleFavoritePost(post: Post) {
  * а до тех пор карточки прячутся здесь.
  */
 const hiddenPosts = new SvelteSet<string>();
+const deletedPosts = new SvelteSet<string>();
 // Чёрный список по id пользователя или темы: профиль и меню поста видят одно состояние
 const mutedSubsites = new SvelteMap<number, boolean>();
 
 export const isSubsiteMuted = (id: number, initial = false) => mutedSubsites.get(id) ?? initial;
 
 export const isPostHidden = (post: Pick<Post, 'id' | 'sourceId' | 'author'>) =>
-	hiddenPosts.has(key(post)) || (post.author ? mutedSubsites.get(post.author.id) === true : false);
+	deletedPosts.has(key(post)) || hiddenPosts.has(key(post)) || (post.author ? mutedSubsites.get(post.author.id) === true : false);
+
+/** Убирает удалённый пост или черновик из всех открытых списков текущей сессии */
+export function markPostDeleted(post: Pick<Post, 'id' | 'sourceId'>) {
+	deletedPosts.add(key(post));
+}
 
 /** «Скрыть пост»: карточка пропадает сразу, при ошибке возвращается; в тосте «Отменить», других способов вернуть пост у DTF нет */
 export function hidePost(post: Pick<Post, 'id' | 'sourceId' | 'author'>) {

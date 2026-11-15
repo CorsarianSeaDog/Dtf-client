@@ -25,7 +25,8 @@
 		embed = false,
 		subscribe = !embed,
 		onoverlaychange,
-		onedit
+		onedit,
+		ondelete
 	}: {
 		post: Post;
 		/** Встроенный пост на странице другого поста — без футера */
@@ -35,6 +36,8 @@
 		onoverlaychange?: (open: boolean) => void;
 		/** Для черновика: открыть в редакторе (кнопка «Редактировать») */
 		onedit?: (post: Post) => void;
+		/** Для черновика: удалить черновик (кнопка «Удалить») */
+		ondelete?: (post: Post) => void;
 	} = $props();
 
 	let post = $derived(withActions(source));
@@ -196,6 +199,9 @@
 				<div class="post-block post-draft">
 					<Button label="Смотреть" icon="v_eye" iconSize={20} onclick={() => openOverlay({ type: 'post', data: { postId: post.id, sourceId: post.sourceId } })} />
 					<Button label="Редактировать" icon="v_pencil" iconSize={20} onclick={() => onedit?.(post)} />
+					{#if ondelete}
+						<Button label="Удалить" icon="v_delete" iconSize={20} onclick={() => ondelete(post)} />
+					{/if}
 				</div>
 			{/if}
 		{/if}

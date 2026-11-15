@@ -67,6 +67,10 @@
 			loadMore={() => load(true)}
 			onretry={() => load()}
 			onedit={(post: Post) => openOverlay({ type: 'editor', data: { postId: post.id } })}
+			ondelete={async (post: Post) => {
+				await api.deletePost(post.id);
+				posts = posts.filter((p) => p.id !== post.id);
+			}}
 		/>
 	</Reveal>
 </div>
