@@ -16,6 +16,9 @@ describe('Popup', () => {
 		expect(svelteContent).toContain('document.body.appendChild');
 		expect(svelteContent).toContain('{@attach portal}');
 		expect(svelteContent).toContain('overscroll-behavior: contain');
+		expect(svelteContent).toContain('backdropShow(node)');
+		expect(svelteContent).toContain('modalShow(node)');
+		expect(svelteContent).toContain('out:modalHide|global');
 	});
 
 	it('рендерит заголовок и оверлей в SSR', () => {
