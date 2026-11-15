@@ -35,7 +35,8 @@
 		onSortingChange,
 		loadMore,
 		onProfileUpdate,
-		onSearch
+		onSearch,
+		commentCard: CommentCard = ProfileComment
 	}: {
 		profile: Profile;
 		posts: Post[];
@@ -49,6 +50,8 @@
 		loadMore: () => void;
 		onProfileUpdate?: (profile: Profile) => void;
 		onSearch?: (query: string, sorting: SearchSorting) => void;
+		/** Карточка комментария на вкладке «Комментарии»: форк темы подставляет свою */
+		commentCard?: typeof ProfileComment;
 	} = $props();
 
 	const SORTINGS: { value: Sorting; label: string }[] = [
@@ -528,9 +531,9 @@
 					</div>
 				{/if}
 			{:else}
-				<div class="profile-comments">
+				<div class={['profile-comments', { 'profile-comments--cards': CommentCard !== ProfileComment }]}>
 					{#each comments as comment (comment.id)}
-						<ProfileComment {comment} />
+						<CommentCard {comment} />
 					{/each}
 				</div>
 
@@ -924,6 +927,20 @@
 	/* Лента профиля */
 	.profile-feed {
 		min-width: 0;
+	}
+
+	.profile-comments--cards {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+		margin-bottom: 28px;
+	}
+
+	@media (max-width: 859px) {
+		.profile-comments--cards {
+			gap: 12px;
+			margin-bottom: 20px;
+		}
 	}
 
 	.profile-feed-sorting {
