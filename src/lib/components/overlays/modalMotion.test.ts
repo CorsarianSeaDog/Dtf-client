@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { backdropHide, backdropShow, modalHide, modalShow } from './modalMotion';
 import { fluent } from '$lib/motion';
+import { activeTheme } from '$lib/themes/index.svelte';
 
 describe('modalMotion', () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
+		activeTheme.set('redtf');
 	});
 
 	it('backdropShow вызывает animate с backdropIn', () => {
@@ -63,5 +65,18 @@ describe('modalMotion', () => {
 		expect(node.style.overflow).toBe('hidden');
 		expect(nodeAnimate).toHaveBeenCalledTimes(1);
 		expect(childAnimate).toHaveBeenCalledTimes(1);
+	});
+
+	it('в теме без motion (dtf2022) не анимирует появление и закрывает окно сразу', () => {
+		activeTheme.set('dtf2022');
+		const animate = vi.fn();
+		const child = { animate, children: [] } as unknown as HTMLElement;
+		const node = { animate, children: [child], style: {} } as unknown as HTMLElement;
+
+		modalShow(node);
+		const res = modalHide(node);
+
+		expect(res.duration).toBe(0);
+		expect(animate).not.toHaveBeenCalled();
 	});
 });
