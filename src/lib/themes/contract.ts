@@ -1,8 +1,8 @@
 import type { Snippet } from 'svelte';
-import type { CommentEditorState, Post, Profile, ProfileListItem, ProfileSorting, SearchFilters, SearchSorting, SearchSubsite } from '$lib/api/types';
+import type { Comment, CommentEditorState, Post, Profile, ProfileListItem, ProfileSorting, SearchFilters, SearchSorting, SearchSubsite } from '$lib/api/types';
 import type { Period } from '$lib/feed.svelte';
 
-export type SearchTab = 'posts' | 'blogs' | 'topics';
+export type SearchTab = 'posts' | 'comments' | 'blogs' | 'topics';
 
 /**
  * Какие компоненты есть у темы и какие пропсы им передают.
@@ -74,7 +74,7 @@ export interface ThemeComponents {
 		tag: string;
 		posts: Post[];
 	};
-	/** Результаты поиска: записи (с подгрузкой), блоги или темы (только первая страница) */
+	/** Результаты поиска: записи и комментарии (с подгрузкой), блоги или темы (только первая страница) */
 	SearchPage: {
 		query: string;
 		tab: SearchTab;
@@ -84,6 +84,7 @@ export interface ThemeComponents {
 		filters: SearchFilters;
 		onFiltersChange: (filters: SearchFilters) => void;
 		posts: Post[];
+		comments: Comment[];
 		subsites: SearchSubsite[];
 		/** Сколько всего нашлось на вкладке */
 		total?: number;

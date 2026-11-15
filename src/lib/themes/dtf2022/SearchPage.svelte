@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import type { Post, SearchFilters, SearchSorting, SearchSubsite } from '$lib/api/types';
+	import type { Comment, Post, SearchFilters, SearchSorting, SearchSubsite } from '$lib/api/types';
 	import type { SearchTab } from '$lib/themes/contract';
 	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 	import { reducedMotion } from '$lib/motion';
 	import { getProfilePath, openProfile } from '$lib/navigation';
 	import NetworkErrorState from '$lib/components/NetworkErrorState.svelte';
+	import CommentCard from './comments/CommentCard.svelte';
 	import { formatNumber, plural } from './format';
 	import { loadOnVisible } from './loadOnVisible';
 	import SearchPost from './SearchPost.svelte';
@@ -25,6 +26,7 @@
 		filters,
 		onFiltersChange,
 		posts,
+		comments,
 		subsites,
 		total,
 		totals,
@@ -43,6 +45,7 @@
 		filters: SearchFilters;
 		onFiltersChange: (filters: SearchFilters) => void;
 		posts: Post[];
+		comments: Comment[];
 		subsites: SearchSubsite[];
 		total?: number;
 		totals?: Partial<Record<SearchTab, number>>;
@@ -56,6 +59,7 @@
 
 	const TABS: { value: SearchTab; label: string }[] = [
 		{ value: 'posts', label: 'Записи' },
+		{ value: 'comments', label: 'Комментарии' },
 		{ value: 'blogs', label: 'Блоги' },
 		{ value: 'topics', label: 'Темы' }
 	];
@@ -72,8 +76,9 @@
 
 	let sortingOpen = $state(false);
 	let currentSorting = $derived(SORTINGS.find((item) => item.value === sorting) ?? SORTINGS[0]);
-	let hasItems = $derived(tab === 'posts' ? posts.length > 0 : subsites.length > 0);
+	let hasItems = $derived((tab === 'posts' ? posts : tab === 'comments' ? comments : subsites).length > 0);
 	let empty = $derived(loaded && !error && !hasItems);
+	let visibleFilters = $derived(tab === 'posts' ? FILTERS : tab === 'comments' ? FILTERS.filter((f) => f.key === 'strict') : []);
 
 	// Полоска под активной вкладкой переезжает от прежней вкладки к новой (FLIP через WAAPI)
 	let lineEl: HTMLElement | undefined;
@@ -113,26 +118,28 @@
 	</div>
 
 	<div class="search-bar">
-		<div class="search-tabs" role="tablist">
-			{#each TABS as item (item.value)}
-				{@const tabTotal = totals?.[item.value] ?? (tab === item.value ? total : undefined)}
-				{@const countText = tabTotal ? formatNumber(tabTotal) : ''}
-				<button
-					type="button"
-					role="tab"
-					class={['search-tab', { 'search-tab--active': tab === item.value }]}
-					aria-selected={tab === item.value}
-					onclick={() => onTabChange(item.value)}
-				>
-					{item.label}
-					{#if countText}<span class="search-tab__count">{countText}</span>{/if}
-					{#if tab === item.value}
-						<span class="search-tab__line" {@attach slideLine}></span>
-					{/if}
-				</button>
-			{/each}
+		<div class="search-tabs">
+			<div class="search-tabs__list" role="tablist">
+				{#each TABS as item (item.value)}
+					{@const tabTotal = totals?.[item.value] ?? (tab === item.value ? total : undefined)}
+					{@const countText = tabTotal ? formatNumber(tabTotal) : ''}
+					<button
+						type="button"
+						role="tab"
+						class={['search-tab', { 'search-tab--active': tab === item.value }]}
+						aria-selected={tab === item.value}
+						onclick={() => onTabChange(item.value)}
+					>
+						{item.label}
+						{#if countText}<span class="search-tab__count">{countText}</span>{/if}
+						{#if tab === item.value}
+							<span class="search-tab__line" {@attach slideLine}></span>
+						{/if}
+					</button>
+				{/each}
+			</div>
 
-			{#if tab === 'posts'}
+			{#if tab === 'posts' || tab === 'comments'}
 				<div class="search-sorting">
 					<Popover bind:open={sortingOpen} items={SORTINGS} selected={sorting} onselect={onSortingChange} width={190} label="Порядок">
 						<button type="button" class="search-sorting__button" aria-expanded={sortingOpen} onclick={() => (sortingOpen = !sortingOpen)}>
@@ -147,9 +154,9 @@
 			{/if}
 		</div>
 
-		{#if tab === 'posts'}
+		{#if visibleFilters.length}
 			<div class="search-filters">
-				{#each FILTERS as item (item.key)}
+				{#each visibleFilters as item (item.key)}
 					<button
 						type="button"
 						class={['search-chip', { 'search-chip--active': filters[item.key] }]}
@@ -172,6 +179,10 @@
 					{#if tab === 'posts'}
 						{#each posts as post (post.sourceId + '_' + post.id)}
 							<SearchPost {post} />
+						{/each}
+					{:else if tab === 'comments'}
+						{#each comments as comment (comment.sourceId + '_' + comment.id)}
+							<CommentCard {comment} />
 						{/each}
 					{:else}
 						{#each subsites as subsite (subsite.id)}
@@ -266,10 +277,24 @@
 		padding: 0 20px;
 	}
 
+	.search-tabs__list {
+		display: flex;
+		align-items: stretch;
+		flex: 1;
+		min-width: 0;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+
+	.search-tabs__list::-webkit-scrollbar {
+		display: none;
+	}
+
 	.search-tab {
 		position: relative;
 		display: flex;
 		align-items: center;
+		flex-shrink: 0;
 		gap: 6px;
 		margin-right: 20px;
 		padding: 0;
@@ -278,6 +303,10 @@
 		font-size: 15px;
 		cursor: pointer;
 		transition: color 0.15s ease;
+	}
+
+	.search-tab:last-child {
+		margin-right: 0;
 	}
 
 	.search-tab:hover,
@@ -306,6 +335,8 @@
 
 		display: flex;
 		align-items: center;
+		flex-shrink: 0;
+		margin-left: 16px;
 	}
 
 	.search-sorting__button {
@@ -496,6 +527,10 @@
 
 		.search-tab {
 			margin-right: 16px;
+		}
+
+		.search-sorting {
+			margin-left: 12px;
 		}
 
 		.search-head {
