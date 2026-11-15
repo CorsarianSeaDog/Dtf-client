@@ -72,6 +72,50 @@ describe('parseCommentText', () => {
 			{ quote: false, lines: [[{ type: 'text', text: 'второй абзац' }]] }
 		]);
 	});
+	it('упоминания в формате [@id|имя] и незакрытая скобка в обычном тексте', () => {
+		expect(parseCommentText('и [@494450|Vino] закрепи, [черновик')).toEqual([
+			{
+				quote: false,
+				lines: [[
+					{ type: 'text', text: 'и ' },
+					{ type: 'mention', id: 494450, name: 'Vino' },
+					{ type: 'text', text: ' закрепи, [черновик' }
+				]]
+			}
+		]);
+	});
+	it('выделение <mark> из поиска в тексте, упоминании и ссылке', () => {
+		expect(parseCommentText('[@1|<mark>Vino</mark>] <mark>см</mark> https://<mark>dtf.ru</mark>/x.')).toEqual([
+			{
+				quote: false,
+				lines: [[
+					{ type: 'mention', id: 1, name: 'Vino', parts: [{ text: 'Vino', mark: true }] },
+					{ type: 'text', text: ' ' },
+					{ type: 'text', text: 'см', mark: true },
+					{ type: 'text', text: ' ' },
+					{ type: 'link', url: 'https://dtf.ru/x', parts: [{ text: 'https://', mark: false }, { text: 'dtf.ru', mark: true }, { text: '/x', mark: false }] },
+					{ type: 'text', text: '.' }
+				]]
+			}
+		]);
+	});
+	it('сниппеты поиска: <mark> в атрибуте упоминания, обрезанные теги и скобки на краях', () => {
+		const lineOf = (raw: string) => parseCommentText(raw)[0].lines[0];
+		expect(lineOf('<mention id="1" <mark>nickname</mark>="">Asuka</mention > <mention id="2" nickname="">Megumin')).toEqual([
+			{ type: 'mention', id: 1, name: 'Asuka' },
+			{ type: 'text', text: ' ' },
+			{ type: 'mention', id: 2, name: 'Megumin' }
+		]);
+		expect(lineOf('Начало </mention > и <mention id="99" <mark>nickname</mark>')).toEqual([
+			{ type: 'text', text: 'Начало ' },
+			{ type: 'text', text: ' и ' }
+		]);
+		expect(lineOf('и [@12|<mark>Бо</mark>')).toEqual([
+			{ type: 'text', text: 'и ' },
+			{ type: 'mention', id: 12, name: 'Бо', parts: [{ text: 'Бо', mark: true }] }
+		]);
+		expect(lineOf('обрыв [@494')).toEqual([{ type: 'text', text: 'обрыв ' }]);
+	});
 });
 
 describe('flattenComments', () => {
