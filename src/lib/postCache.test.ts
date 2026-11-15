@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { cachePost, cachePosts, clearPostCache, isPostFresh, loadPost, peekPost } from './postCache';
+import { cachePost, cachePosts, clearPostCache, isPostFresh, loadPost, peekPost, uncachePost } from './postCache';
 import type { Post } from '$lib/api/types';
 
 const makePost = (id: number, sourceId = 'dtf', title = `Post ${id}`): Post =>
@@ -116,5 +116,13 @@ describe('postCache', () => {
 		for (let i = 6; i <= 105; i++) {
 			expect(peekPost(i)).toBeDefined();
 		}
+	});
+
+	it('uncachePost удаляет только указанный пост из кэша', () => {
+		cachePost(makePost(1, 'dtf'));
+		cachePost(makePost(1, 'extra'));
+		uncachePost(1, 'dtf');
+		expect(peekPost(1, 'dtf')).toBeUndefined();
+		expect(peekPost(1, 'extra')).toBeDefined();
 	});
 });

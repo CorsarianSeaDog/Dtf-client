@@ -6,6 +6,7 @@ import type {
 	CommentControls,
 	CommentMedia,
 	CommentPermission,
+	ContentControls,
 	CurrentUser,
 	CursorData,
 	DonationAccount,
@@ -352,6 +353,26 @@ export const dtfApiProvider = {
 		requireAuth();
 		const response = await fetchWithAuth(`${apiV('2.10')}/new/posts/drafts?markdown=false&offset=${offset}&limit=20`);
 		return entriesOf((await resultOf(response, 'Не удалось получить черновики')).items).map(mapEntryToPost);
+	},
+
+	/** Доступные действия над постом текущего пользователя (правка, закреп, удаление) */
+	async getContentControls(postId: number): Promise<ContentControls> {
+		requireAuth();
+		const response = await fetchWithAuth(`${apiV('2.4')}/content/etcControls?id=${postId}`);
+		const controls = (await resultOf(response, 'Не удалось получить доступные действия'))?.etcControls;
+		return {
+			editEntry: !!controls?.editEntry,
+			pinContent: !!controls?.pinContent,
+			remove: !!controls?.remove
+		};
+	},
+
+	/** Удаляет запись (пост или черновик) */
+	async deletePost(postId: number): Promise<void> {
+		requireAuth();
+		const response = await fetchWithAuth(`${apiV('2.4')}/content/${postId}`, { method: 'DELETE' });
+		const result = await resultOf(response, 'Не удалось удалить запись');
+		if (result?.success === false) throw new Error('Не удалось удалить запись');
 	},
 
 	async getComments(postId: number, cursor?: CursorData, sorting: string = 'date'): Promise<PaginatedResult<Comment>> {

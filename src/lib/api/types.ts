@@ -428,6 +428,13 @@ export interface CommentControls {
 	edit: boolean;
 }
 
+/** Что пользователь может сделать с постом */
+export interface ContentControls {
+	editEntry: boolean;
+	pinContent: boolean;
+	remove: boolean;
+}
+
 /** Кусок текста уведомления: DTF присылает его с ссылками и выделением */
 export interface NotificationPart {
 	text: string;
@@ -557,6 +564,8 @@ export interface ApiProvider {
 	// Редактор
 	getEditorEntry?(postId: number): Promise<DtfEditorEntry>;
 	saveDraft?(entry: DtfEditorEntry): Promise<DtfEditorEntry>;
+	getContentControls?(postId: number): Promise<ContentControls>;
+	deletePost?(postId: number): Promise<void>;
 	uploadMedia?(file: File, options?: UploadOptions): Promise<UploadResult>;
 	getSubsites?(): Promise<SubsiteItem[]>;
 	getCommentPermissions?(postId: number): Promise<CommentPermission>;

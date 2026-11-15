@@ -12,7 +12,7 @@ import { reactionSettings, voteReaction } from '$lib/storage/reactions.svelte';
 import { settings } from '$lib/storage/settings.svelte';
 import { applyReaction, rankByScore } from '$lib/reactions';
 import { trackComment, trackFavorite, trackReaction, trackSubscription } from '$lib/storage/stats.svelte';
-import { cachePost, cachePosts, isPostFresh, loadPost, peekPost } from '$lib/postCache';
+import { cachePost, cachePosts, isPostFresh, loadPost, peekPost, uncachePost } from '$lib/postCache';
 
 /*
  * Единственная точка, через которую UI получает данные. Компоненты вызывают api.getPosts() и так далее
@@ -351,6 +351,11 @@ export const api = {
 
 	getEditorEntry: dtfApiProvider.getEditorEntry,
 	saveDraft: dtfApiProvider.saveDraft,
+	getContentControls: dtfApiProvider.getContentControls,
+	async deletePost(postId: number): Promise<void> {
+		await dtfApiProvider.deletePost(postId);
+		uncachePost(postId);
+	},
 	uploadMedia: dtfApiProvider.uploadMedia,
 	getSubsites: dtfApiProvider.getSubsites,
 	getCommentPermissions: dtfApiProvider.getCommentPermissions,

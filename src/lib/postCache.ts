@@ -33,6 +33,11 @@ export function cachePost(post: Post): void {
 	}
 }
 
+/** Удалить пост из кэша */
+export function uncachePost(id: number, sourceId = 'dtf'): void {
+	posts.delete(postCacheKey(id, sourceId));
+}
+
 /** Сохранить список постов */
 export function cachePosts(items: Post[]): void {
 	for (const post of items) {
