@@ -96,6 +96,7 @@ const BASE_ROOT_NAVIGATION: RootNavSection[] = [
 		items: [
 			{ id: 'theme-select', type: 'page', title: 'Выбор темы', icon: 'theme-select' },
 			{ id: 'interface', type: 'folder', title: 'Интерфейс', icon: 'interface' },
+			{ id: 'pinned', type: 'page', title: 'Закреплённые', icon: 'pinned' },
 			{ id: 'animations', type: 'page', title: 'Анимации', icon: 'animations' },
 			{ id: 'reactions', type: 'page', title: 'Реестр реакций', icon: 'reactions' },
 			{ id: 'app', type: 'page', title: 'Приложение', icon: 'app' }
@@ -134,6 +135,7 @@ export const INTERFACE_SUBNAV: SubNavGroup[] = [
 
 const PAGE_KEYWORDS: Record<string, string> = {
 	notifications: 'оповещения ответы комментарии лайки почта push',
+	pinned: 'подсайты показывать боковое меню панель сообщества блоги избранные',
 	'theme-select': 'оформление внешний вид скин палитра светлая тёмная amoled',
 	supporters: 'спонсоры донатеры благодарности',
 	network: 'прокси proxy cors failover вход',

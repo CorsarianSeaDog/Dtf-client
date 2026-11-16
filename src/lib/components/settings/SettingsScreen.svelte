@@ -10,6 +10,7 @@
 	import HelpSettings from './HelpSettings.svelte';
 	import IgnoredSettings from './IgnoredSettings.svelte';
 	import NotificationSettings from './NotificationSettings.svelte';
+	import PinnedSubsiteSettings from './PinnedSubsiteSettings.svelte';
 	import ProxySettings from './ProxySettings.svelte';
 	import ReactionsSettings from './ReactionsSettings.svelte';
 	import SettingsButton from './SettingsButton.svelte';
@@ -530,6 +531,8 @@
 							<NotificationSettings />
 						{:else if selectedPageId === 'ignored'}
 							<IgnoredSettings />
+						{:else if selectedPageId === 'pinned'}
+							<PinnedSubsiteSettings />
 						{:else if selectedPageId === 'feed'}
 							<FeedSettings
 								onopencontent={() =>

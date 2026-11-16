@@ -2,22 +2,23 @@
 	import type { Snippet } from 'svelte';
 
 	/* Кнопка настроек: обычная серая, «suggested» (акцент) и «destructive» (красный текст). С href это ссылка в новой вкладке */
-	let { variant = 'flat', disabled = false, href, type = 'button', onclick, children }: {
+	let { variant = 'flat', disabled = false, href, type = 'button', label, onclick, children }: {
 		variant?: 'flat' | 'suggested' | 'destructive';
 		disabled?: boolean;
 		href?: string;
 		type?: 'button' | 'submit';
+		label?: string;
 		onclick?: (e: MouseEvent) => void;
 		children: Snippet;
 	} = $props();
 </script>
 
 {#if href}
-	<a class="btn btn--{variant}" {href} target="_blank" rel="noopener noreferrer">
+	<a class="btn btn--{variant}" {href} aria-label={label} target="_blank" rel="noopener noreferrer">
 		{@render children()}
 	</a>
 {:else}
-	<button class="btn btn--{variant}" {type} {disabled} {onclick}>
+	<button class="btn btn--{variant}" {type} {disabled} aria-label={label} {onclick}>
 		{@render children()}
 	</button>
 {/if}

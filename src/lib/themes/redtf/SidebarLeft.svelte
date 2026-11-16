@@ -6,6 +6,7 @@
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { reducedMotion } from '$lib/motion';
 	import { getProfilePath, getSidebarActive, openFeed, openPost, openProfile, openSettings, openSupport } from '$lib/navigation';
+	import { pinnedSubsites } from '$lib/storage/pinnedSubsites.svelte';
 	import { startWriting } from '../dtf2022/actions.svelte';
 	import { clickOnKey } from '../dtf2022/a11y';
 	import { sidebar } from '../dtf2022/sidebar.svelte';
@@ -17,15 +18,6 @@
 		{ id: 'popular', label: 'Популярное', icon: 'ui_sidebar_feed' },
 		{ id: 'new', label: 'Свежее', icon: 'ui_sidebar_recent_big' },
 		{ id: 'my', label: 'Подписки', icon: 'ui_sidebar_subscriptions' }
-	];
-
-	// Темы DTF: открываются как профиль подсайта, ленту отдаёт timeline. id узнаны по /subsite?uri=<адрес>
-	const subsites = [
-		{ id: 64953, label: 'Игры', image: 'e5348320-b11a-9419-fb85-f7b63e2de194' },
-		{ id: 64957, label: 'Кино и сериалы', image: '5d198df0-3ba4-6837-b9c3-ac8c04fb9181' },
-		{ id: 87855, label: 'Индустрия', image: 'f488fca4-88d6-c978-d052-4d49a3a62a44' },
-		{ id: 64954, label: 'Gamedev', image: '9e71f64c-f452-321b-e24b-901bd6b01757' },
-		{ id: 128871, label: 'Жизнь', image: '968a91e7-3a3c-5c79-a0cb-2b3df974a697' }
 	];
 
 	let node = $state<HTMLElement>();
@@ -143,25 +135,25 @@
 					<Button label="Новая запись" fullWidth onclick={startWriting} />
 				</div>
 
-				<nav class="subsites-switcher" aria-label="Темы">
-					{#each subsites as subsite (subsite.label)}
-						<a
-							class={['switch-button', { active: active.profileId === String(subsite.id) }]}
-							aria-current={active.profileId === String(subsite.id) ? 'page' : undefined}
-							href={resolve(getProfilePath(subsite.id) as any)}
-							onclick={(e) => openProfile(e, subsite.id)}
-						>
-							<img
-								height="24"
-								width="24"
-								class="icon"
-								alt=""
-								src="https://leonardo.osnova.io/{subsite.image}/-/scale_crop/64x64/-/format/webp/"
-							/>
-							<span class="label">{subsite.label}</span>
-						</a>
-					{/each}
-				</nav>
+				{#if pinnedSubsites.value.visible && pinnedSubsites.value.items.length}
+					<nav class="subsites-switcher" aria-label="Закреплённые подсайты">
+						{#each pinnedSubsites.value.items as subsite (subsite.id)}
+							<a
+								class={['switch-button', { active: active.profileId === String(subsite.id) }]}
+								aria-current={active.profileId === String(subsite.id) ? 'page' : undefined}
+								href={resolve(getProfilePath(subsite.id) as any)}
+								onclick={(e) => openProfile(e, subsite.id)}
+							>
+								<span class="icon subsite-avatar" aria-hidden="true">
+									{#if subsite.avatarUrl}
+										<img height="24" width="24" alt="" src={subsite.avatarUrl} />
+									{/if}
+								</span>
+								<span class="label">{subsite.name}</span>
+							</a>
+						{/each}
+					</nav>
+				{/if}
 			</div>
 
 			<div class="sidebar-bottom">
@@ -278,6 +270,14 @@
 
 	.subsites-switcher {
 		padding: 12px 10px 48px 10px;
+	}
+
+	.subsite-avatar {
+		flex: none;
+		width: 24px;
+		height: 24px;
+		overflow: hidden;
+		background: var(--bg-sidebar-hover);
 	}
 
 	.switch-button {
