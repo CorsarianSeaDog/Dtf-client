@@ -6,6 +6,7 @@ import {
 	getLeonardoUrl,
 	getLeonardoOriginalUrl,
 	isAnimatedMedia,
+	isGifMedia,
 	getAnimatedVideoUrl,
 	resolveImageExtension,
 	getDownloadFilename,
@@ -74,6 +75,15 @@ describe('api/utils', () => {
 			expect(isAnimatedMedia({ type: 'image', data: { type: 'jpg', duration: 2 } })).toBe(true);
 			expect(isAnimatedMedia({ type: 'image', data: { type: 'webp' } })).toBe(false);
 			expect(isAnimatedMedia(undefined)).toBe(false);
+		});
+	});
+
+	describe('isGifMedia', () => {
+		it('отличает гифки без звука от видео со звуком и обычных картинок', () => {
+			expect(isGifMedia({ type: 'image', data: { type: 'gif', isVideo: true, has_audio: false } })).toBe(true);
+			expect(isGifMedia({ type: 'movie', data: { type: 'mp4', has_audio: false } })).toBe(true);
+			expect(isGifMedia({ type: 'image', data: { type: 'gif', isVideo: true, has_audio: true } })).toBe(false);
+			expect(isGifMedia({ type: 'image', data: { type: 'jpg', isVideo: false, has_audio: false } })).toBe(false);
 		});
 	});
 

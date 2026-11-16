@@ -208,7 +208,8 @@ export function mapComment(item: any, postId: number): Comment {
 				color: m.data?.color,
 				base64preview: m.data?.base64preview,
 				duration: m.data?.duration,
-				has_audio: m.data?.has_audio
+				has_audio: m.data?.has_audio,
+				isVideo: m.data?.isVideo
 			}
 		})) : undefined,
 		donation: item.donation || undefined,

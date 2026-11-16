@@ -139,6 +139,35 @@ describe('response-mapping', () => {
 			});
 		});
 
+		it('should preserve isVideo and has_audio for animated comment media', () => {
+			const media = sanitizeMediaItem({
+				type: 'image',
+				data: {
+					uuid: '8d516466-ea43-5a2f-9ec8-e979b191af41',
+					width: 220,
+					height: 124,
+					size: 65567,
+					type: 'gif',
+					isVideo: true,
+					has_audio: false,
+					duration: 4.7
+				}
+			});
+			expect(media).toEqual({
+				type: 'image',
+				data: {
+					uuid: '8d516466-ea43-5a2f-9ec8-e979b191af41',
+					width: 220,
+					height: 124,
+					size: 65567,
+					type: 'gif',
+					isVideo: true,
+					has_audio: false,
+					duration: 4.7
+				}
+			});
+		});
+
 		it('should reject video: comments do not show it', () => {
 			expect(sanitizeMediaItem({ type: 'video', data: { external_service: { name: 'youtube', id: 'D2N8BSvANAM' } } })).toBeNull();
 		});

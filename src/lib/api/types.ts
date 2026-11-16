@@ -252,6 +252,7 @@ export interface CommentMedia {
 		base64preview?: string;
 		duration?: number;
 		has_audio?: boolean;
+		isVideo?: boolean;
 	};
 }
 

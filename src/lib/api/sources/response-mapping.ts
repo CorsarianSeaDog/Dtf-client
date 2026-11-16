@@ -117,6 +117,7 @@ export function sanitizeMediaItem(raw: unknown): CommentMedia | null {
 	if (typeof d.color === 'string' && /^[0-9a-f]{3,8}$/i.test(d.color)) data.color = d.color;
 	if (typeof d.duration === 'number' && Number.isFinite(d.duration) && d.duration >= 0) data.duration = d.duration;
 	if (typeof d.has_audio === 'boolean') data.has_audio = d.has_audio;
+	if (typeof d.isVideo === 'boolean') data.isVideo = d.isVideo;
 	if (typeof d.base64preview === 'string' && d.base64preview.startsWith('/9j/')) {
 		data.base64preview = d.base64preview.slice(0, 4096);
 	}

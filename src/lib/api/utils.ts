@@ -60,6 +60,11 @@ export function isAnimatedMedia(media: any): boolean {
 	);
 }
 
+/** Для меню медиа: анимированный ролик без звуковой дорожки считаем GIF, со звуком — видео */
+export function isGifMedia(media: any): boolean {
+	return isAnimatedMedia(media) && !media?.data?.has_audio;
+}
+
 /** Если адрес помечен `#video`, возвращает ссылку на MP4 в Leonardo */
 export function getAnimatedVideoUrl(url?: string): string | undefined {
 	if (!url?.endsWith('#video')) return undefined;

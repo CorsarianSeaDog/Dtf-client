@@ -186,6 +186,18 @@ describe('mapComment', () => {
 		expect(mapComment({ id: 14, text: 'c', lastModificationDate: Number.NaN }, 1).lastModificationDate).toBeUndefined();
 	});
 
+	it('сохраняет media с isVideo, has_audio и duration для гифок и видео в комментариях', () => {
+		const comment = mapComment({
+			id: 12,
+			media: [{ type: 'image', data: { uuid: 'u-1', type: 'gif', isVideo: true, has_audio: true, duration: 7.6 } }]
+		}, 1);
+
+		expect(comment.media?.[0]).toMatchObject({
+			type: 'image',
+			data: { uuid: 'u-1', type: 'gif', isVideo: true, has_audio: true, duration: 7.6 }
+		});
+	});
+
 	it('замороженный автор и бан помечают заглушку; заморозка не считается модерацией', () => {
 		const frozen = mapComment({ id: 1, text: 'Комментарий недоступен', author: { id: 20, isFrozen: true } }, 1);
 		expect(frozen.author.isFrozen).toBe(true);
