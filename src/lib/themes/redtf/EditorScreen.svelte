@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { MediaQuery } from 'svelte/reactivity';
 	import { MOBILE_BREAKPOINT } from '../types';
-	import BaseEditorScreen from '../dtf2022/EditorScreen.svelte';
+	import BaseEditorScreen, { type EditorBarActions } from '../dtf2022/EditorScreen.svelte';
 	import EditorSettings from '../dtf2022/EditorSettings.svelte';
 	import PublishSheet from './PublishSheet.svelte';
+	import EditorMenu from './EditorMenu.svelte';
 	import { activeThemeSettings } from '../settings.svelte';
 
 	let { session }: { session: any } = $props();
@@ -22,8 +23,13 @@
 	}
 </script>
 
+<!-- История и удаление уходят в «⋯» только на телефоне; на десктопе остаются штатные кнопки -->
+{#snippet menu(actions: EditorBarActions)}
+	<EditorMenu {actions} />
+{/snippet}
+
 <!-- Окно или весь экран, плавно: геометрия .writing--window и переход заданы в theme.css -->
-<BaseEditorScreen {session} windowed={!fullscreen} {onpublish}>
+<BaseEditorScreen {session} windowed={!fullscreen} {onpublish} barActions={mobile.current ? menu : undefined}>
 	{#snippet barExtra()}
 		<button
 			type="button"

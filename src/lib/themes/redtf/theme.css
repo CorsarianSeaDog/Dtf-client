@@ -211,6 +211,27 @@
 	}
 }
 
+/* Шапка редактора на телефоне: закрыть, индикатор сохранения, «⋯», «Опубликовать» в одну строку.
+   Самая длинная подпись («Не удалось сохранить») помещается на 375px, на более узких переносится на вторую строку */
+@media (max-width: 719px) {
+	:root[data-theme~="redtf"] .writing__bar {
+		gap: 4px;
+		padding-left: calc(12px + env(safe-area-inset-left, 0px));
+		padding-right: calc(12px + env(safe-area-inset-right, 0px));
+	}
+
+	:root[data-theme~="redtf"] .writing__publish {
+		--btn-offset: 10px;
+		--btn-font-size: 15px;
+	}
+
+	:root[data-theme~="redtf"] .writing__status {
+		font-size: 12px;
+		line-height: 14px;
+		white-space: normal;
+	}
+}
+
 /* Раскладка. --page-gutter — поля области контента, --text-gap — минимальное поле у колонки текста внутри белых блоков
    поста и комментариев. На узком экране блоки идут от края до края, как у DTF (на ≤639px поле текста задают сами блоки) */
 :root[data-theme~="redtf"] {
