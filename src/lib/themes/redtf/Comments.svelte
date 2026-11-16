@@ -116,6 +116,7 @@
 	/** Подписка на новые комментарии поста (колокольчик): начальное состояние берём из поста */
 	// svelte-ignore state_referenced_locally
 	let subscribedToComments = $state(subscribed);
+	let subscriptionPending = false;
 	let sending = $state(false);
 	let sendError = $state('');
 	let sortingOpen = $state(false);
@@ -201,7 +202,8 @@
 	}
 
 	async function toggleCommentsSubscription() {
-		if (sourceId !== 'dtf' || !ensureLogin()) return;
+		if (subscriptionPending || sourceId !== 'dtf' || !ensureLogin()) return;
+		subscriptionPending = true;
 
 		const was = subscribedToComments;
 		subscribedToComments = !was;
@@ -210,6 +212,8 @@
 		} catch (e) {
 			subscribedToComments = was;
 			notify.error((e as Error).message);
+		} finally {
+			subscriptionPending = false;
 		}
 	}
 
