@@ -60,10 +60,17 @@
 	let lastCommentsHeight = $state<number>(0);
 
 	$effect(() => {
-		if (commentsBox && depth <= 1) {
-			const h = commentsBox.offsetHeight;
+		if (!commentsBox || depth > 1) return;
+		const box = commentsBox;
+		const sync = () => {
+			const h = box.offsetHeight;
 			if (h > 0) lastCommentsHeight = h;
-		}
+		};
+		sync();
+		if (typeof ResizeObserver === 'undefined') return;
+		const ro = new ResizeObserver(sync);
+		ro.observe(box);
+		return () => ro.disconnect();
 	});
 
 	function scrollToAnchor(targetAnchor: string, attempts = 5) {
@@ -188,7 +195,31 @@
 			{#await commentsTurn then}
 				<div class="comments-container" bind:this={commentsBox} {@attach (commentId === undefined && !toComments ? appear('feedIn') : undefined)}>
 					{#if !loaded.commentsDisabled}
-						<ThemeLoader componentName="Comments" postId={loaded.id} sourceId={loaded.sourceId} commentsCount={loaded.commentsCount} subscribed={loaded.isSubscribedToComments} postAuthorId={loaded.author.id} commentEditor={loaded.commentEditor} focusCommentId={commentId} {focusNonce} />
+						<ThemeLoader
+							componentName="Comments"
+							postId={loaded.id}
+							sourceId={loaded.sourceId}
+							commentsCount={loaded.commentsCount}
+							subscribed={loaded.isSubscribedToComments}
+							postAuthorId={loaded.author.id}
+							commentEditor={loaded.commentEditor}
+							focusCommentId={commentId}
+							{focusNonce}
+							onCountChange={(delta) => {
+								if (post && post.id === postId && post.sourceId === sourceId) {
+									post = { ...post, commentsCount: Math.max(0, (post.commentsCount ?? 0) + delta) };
+								}
+							}}
+							onReconnect={() => {
+								api.getPost(postId, sourceId, true)
+									.then((fresh) => {
+										if (post && post.id === postId && post.sourceId === sourceId) {
+											post = { ...post, commentsCount: fresh.commentsCount };
+										}
+									})
+									.catch(() => {});
+							}}
+						/>
 					{/if}
 					{#if loaded.sourceId === 'dtf' && hasThemeComponent(activeTheme.chain, 'Recommendations')}
 						<ThemeLoader componentName="Recommendations" postId={loaded.id} />

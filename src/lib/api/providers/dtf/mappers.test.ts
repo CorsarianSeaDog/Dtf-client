@@ -180,6 +180,12 @@ describe('mapComment', () => {
 		expect(comment.deviceSource).toBe('android-app');
 	});
 
+	it('мапит валидный lastModificationDate и игнорирует некорректные значения', () => {
+		expect(mapComment({ id: 12, text: 'a', lastModificationDate: 1700000123 }, 1).lastModificationDate).toBe(1700000123);
+		expect(mapComment({ id: 13, text: 'b', lastModificationDate: null }, 1).lastModificationDate).toBeUndefined();
+		expect(mapComment({ id: 14, text: 'c', lastModificationDate: Number.NaN }, 1).lastModificationDate).toBeUndefined();
+	});
+
 	it('замороженный автор и бан помечают заглушку; заморозка не считается модерацией', () => {
 		const frozen = mapComment({ id: 1, text: 'Комментарий недоступен', author: { id: 20, isFrozen: true } }, 1);
 		expect(frozen.author.isFrozen).toBe(true);
@@ -196,11 +202,12 @@ describe('mapComment', () => {
 });
 
 describe('mapNotification', () => {
-	it('статус 1 — не прочитано, аватар берётся у первого пользователя', () => {
-		const unread = mapNotification({ id: 1, status: 1, text: 'Ответили', date: 1700000000, users: [{ avatar_url: 'https://x/a.png' }] });
+	it('прочитано только со статусом 2 (0 — новое, 1 — увидено), аватар берётся у первого пользователя', () => {
+		const unread = mapNotification({ id: 1, status: 0, text: 'Ответили', date: 1700000000, users: [{ avatar_url: 'https://x/a.png' }] });
 
 		expect(unread).toMatchObject({ id: 1, isRead: false, text: 'Ответили', avatarUrl: 'https://x/a.png' });
-		expect(mapNotification({ id: 2, status: 2 }).isRead).toBe(true);
+		expect(mapNotification({ id: 2, status: 1 }).isRead).toBe(false);
+		expect(mapNotification({ id: 3, status: 2 }).isRead).toBe(true);
 	});
 
 	it('обрезает аватар первого пользователя через scale_crop при наличии uuid', () => {

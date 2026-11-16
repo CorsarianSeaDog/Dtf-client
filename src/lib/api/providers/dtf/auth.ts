@@ -97,9 +97,12 @@ export async function loginByToken(input: string): Promise<Session> {
 		accessExpTimestamp: 0,
 		refreshExpTimestamp: 0
 	};
+	const gen = authStorage.generation;
 
-	if (!(await refreshSession())) {
-		authStorage.logout();
+	if (!(await refreshSession(true))) {
+		if (authStorage.generation === gen) {
+			authStorage.logout();
+		}
 		if (isNative()) {
 			throw new ApiError('Не удалось войти по токену. Возможно, он устарел или сервер DTF недоступен.', { status: 401 });
 		}

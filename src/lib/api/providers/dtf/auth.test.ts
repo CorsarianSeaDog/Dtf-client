@@ -250,6 +250,140 @@ describe('auth & proxy failover', () => {
 		expect(authStorage.session?.refreshToken).toBe('saved-refresh-token');
 	});
 
+	it('refreshSession игнорирует запоздалый ответ, если пользователь вышел до его завершения', async () => {
+		authStorage.session = {
+			type: 'Bearer',
+			accessToken: 'acc-1',
+			refreshToken: 'ref-1',
+			accessExpTimestamp: 1000,
+			refreshExpTimestamp: 2000
+		};
+
+		let resolveFetch!: (res: Response) => void;
+		const fetchMock = vi.fn().mockImplementation(
+			() => new Promise<Response>((resolve) => { resolveFetch = resolve; })
+		);
+		vi.stubGlobal('fetch', fetchMock);
+
+		const refreshPromise = refreshSession(true);
+		// Пользователь выходит пока запрос в полёте
+		authStorage.logout();
+
+		resolveFetch(new Response(
+			JSON.stringify({ data: { accessToken: 'zombie-acc', refreshToken: 'zombie-ref' } }),
+			{ status: 200, headers: { 'Content-Type': 'application/json' } }
+		));
+
+		expect(await refreshPromise).toBe(false);
+		expect(authStorage.session).toBeNull();
+	});
+
+	it('refreshSession не перезаписывает сессию нового аккаунта и даёт ему свой refresh', async () => {
+		authStorage.session = {
+			type: 'Bearer',
+			accessToken: 'acc-A',
+			refreshToken: 'ref-A',
+			accessExpTimestamp: 1000,
+			refreshExpTimestamp: 2000
+		};
+
+		let resolveA!: (res: Response) => void;
+		let resolveB!: (res: Response) => void;
+		const fetchMock = vi.fn()
+			.mockImplementationOnce(() => new Promise<Response>((resolve) => { resolveA = resolve; }))
+			.mockImplementationOnce(() => new Promise<Response>((resolve) => { resolveB = resolve; }));
+		vi.stubGlobal('fetch', fetchMock);
+
+		const promiseA = refreshSession(true);
+		// Переключение на аккаунт B до ответа первого refresh
+		authStorage.session = {
+			type: 'Bearer',
+			accessToken: 'acc-B',
+			refreshToken: 'ref-B',
+			accessExpTimestamp: 3000,
+			refreshExpTimestamp: 4000
+		};
+		const promiseB = refreshSession(true);
+
+		resolveA(new Response(
+			JSON.stringify({ data: { accessToken: 'stale-A-acc', refreshToken: 'stale-A-ref' } }),
+			{ status: 200, headers: { 'Content-Type': 'application/json' } }
+		));
+		expect(await promiseA).toBe(false);
+		expect(authStorage.session?.accessToken).toBe('acc-B');
+
+		resolveB(new Response(
+			JSON.stringify({ data: { accessToken: 'fresh-B-acc', refreshToken: 'fresh-B-ref' } }),
+			{ status: 200, headers: { 'Content-Type': 'application/json' } }
+		));
+		expect(await promiseB).toBe(true);
+		expect(authStorage.session?.accessToken).toBe('fresh-B-acc');
+		expect(authStorage.session?.refreshToken).toBe('fresh-B-ref');
+	});
+
+	it('fetchWithAuth не повторяет запрос и не трогает токены, если аккаунт сменился во время 401 refresh', async () => {
+		authStorage.session = {
+			type: 'Bearer',
+			accessToken: 'acc-A',
+			refreshToken: 'ref-A',
+			accessExpTimestamp: 1000,
+			refreshExpTimestamp: 2000
+		};
+
+		let resolveRefresh!: (res: Response) => void;
+		const seenHeaders: Array<string | null> = [];
+		const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+			if (url.includes('/v3.4/auth/refresh')) {
+				return new Promise<Response>((resolve) => { resolveRefresh = resolve; });
+			}
+			const auth = (init?.headers as Headers)?.get('JWTAuthorization') ?? null;
+			seenHeaders.push(auth);
+			if (auth === 'Bearer acc-A') {
+				return new Response(JSON.stringify({ message: 'Unauthorized' }), {
+					status: 401,
+					headers: { 'Content-Type': 'application/json' }
+				});
+			}
+			return new Response(JSON.stringify({ result: { ok: true } }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' }
+			});
+		});
+		vi.stubGlobal('fetch', fetchMock);
+
+		const reqPromise = fetchWithAuth('https://api.dtf.ru/v2.31/feed');
+		const rejected = expect(reqPromise).rejects.toThrow('Unauthorized');
+		await vi.waitFor(() => expect(resolveRefresh).toBeDefined());
+
+		// Пока шёл refresh для аккаунта A, пользователь переключился на аккаунт B
+		authStorage.session = {
+			type: 'Bearer',
+			accessToken: 'acc-B',
+			refreshToken: 'ref-B',
+			accessExpTimestamp: 3000,
+			refreshExpTimestamp: 4000
+		};
+
+		resolveRefresh(new Response('Unauthorized', { status: 401 }));
+		await rejected;
+
+		// Чужой запрос ушёл один раз со своим токеном: ни повтора под аккаунтом B, ни запроса без токена
+		expect(seenHeaders).toEqual(['Bearer acc-A']);
+		expect(authStorage.session?.accessToken).toBe('acc-B');
+		expect(authStorage.session?.refreshToken).toBe('ref-B');
+	});
+
+	it('повторная запись той же сессии не меняет поколение (вход не считается сменой аккаунта дважды)', () => {
+		authStorage.session = { type: 'Bearer', accessToken: 'acc', refreshToken: 'ref', accessExpTimestamp: 1, refreshExpTimestamp: 2 };
+		const gen = authStorage.generation;
+
+		authStorage.session = authStorage.session;
+		expect(authStorage.generation).toBe(gen);
+
+		authStorage.session = { ...authStorage.session!, accessToken: 'other' };
+		expect(authStorage.generation).toBe(gen + 1);
+	});
+
 	describe('Capacitor native auth (без прокси)', () => {
 		beforeEach(() => {
 			vi.stubGlobal('window', {});

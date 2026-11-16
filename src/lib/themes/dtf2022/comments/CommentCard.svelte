@@ -8,7 +8,7 @@
 	import { preloadIntent } from '$lib/actions/preloadIntent';
 	import { api } from '$lib/api/index.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
-	import type { Comment } from '$lib/api/types';
+	import type { Comment, CommentUpdate } from '$lib/api/types';
 	import { getLeonardoUrl } from '$lib/api/utils';
 	import { getCommentBadge } from '$lib/clientBadge';
 	import { dtfTargetToPath, parseDtfUrl } from '$lib/dtfLinks';
@@ -36,7 +36,7 @@
 
 	// Закладки и оценки правят локальную копию: списки поиска и профиля лежат в $state.raw. Новый comment её сбрасывает
 	let item = $derived(comment);
-	const onpatch = (patch: Partial<Comment>) => (item = { ...item, ...patch });
+	const onpatch = (update: CommentUpdate) => (item = { ...item, ...(typeof update === 'function' ? update(item) : update) });
 
 	let filterMatch = $derived(matchCommentFilter(item));
 	let revealed = $state(false);

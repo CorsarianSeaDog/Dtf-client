@@ -10,7 +10,7 @@
 	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 
 	/** page — страница уведомлений: список целиком, без ссылки «Все уведомления» */
-	let { page = false }: { page?: boolean } = $props();
+	let { page = false, active = true }: { page?: boolean; active?: boolean } = $props();
 
 	// Значок в кружке на аватаре (`icon` в ответе DTF → символ нашего спрайта)
 	const BADGES: Record<string, string> = { like_up: 'ui_arrow_up', comment: 'ui_comments_fill', reply: 'ui_reply' };
@@ -24,7 +24,13 @@
 	let closeTimer: ReturnType<typeof setTimeout> | undefined;
 	let startTime = 0;
 
-	const isOpen = $derived(page || notificationsPopup.open);
+	const isOpen = $derived(page ? active : notificationsPopup.open);
+
+	$effect(() => {
+		if (authStorage.isAuthenticated && isOpen) {
+			return notifications.trackVisible();
+		}
+	});
 
 	/** У кого раскрыт текст комментария («Развернуть») */
 	const expanded = new SvelteSet<number>();
@@ -87,7 +93,7 @@
 			Обновляем<span class="notifications__dots" aria-hidden="true"><span class="notifications__dot">.</span><span class="notifications__dot">.</span><span class="notifications__dot">.</span></span>
 		</span>
 	</span>
-	{#if notifications.highlighted}
+	{#if notifications.canMarkAll}
 		<button type="button" class="notifications__mark-all" onclick={() => notifications.markRead()}>Пометить все как прочитанные</button>
 	{/if}
 </header>

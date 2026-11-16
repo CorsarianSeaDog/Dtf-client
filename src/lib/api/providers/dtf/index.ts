@@ -25,6 +25,9 @@ import type {
 	ProfileSorting,
 	QuizResult,
 	Reactions,
+	RealtimeCommentEvent,
+	RealtimeNotificationEvent,
+	RealtimeSubscriptionOptions,
 	RecommendationsCursor,
 	SearchCommentsOptions,
 	SearchCommentsResult,
@@ -38,10 +41,12 @@ import type {
 import { getLeonardoUrl } from '../../utils';
 import { API_URL, COMMENTS_API_URL, UPLOAD_URL, apiV, fetchSearch, fetchWithAuth, requireAuth, uploadWithAuth } from './client';
 import { untrack } from 'svelte';
+import { authStorage } from '$lib/storage/auth.svelte';
 import { addWatermark } from '$lib/watermark';
 import { settings } from '$lib/storage/settings.svelte';
 import { login, loginByToken } from './auth';
 import { mapBadges, mapComment, mapCurrentUser, mapDonationAccount, mapEntryToPost, mapIgnoredSubsite, mapNotification, mapProfile, mapProfileListItem, mapQuizResult, mapReactions, mapSearchSnippet, mapSearchSubsite } from './mappers';
+import { parseNotificationRealtimeEvent, subscribeChannel, subscribeDtfComments } from './realtime';
 
 /** Загружает файл в хранилище DTF; возвращает запись как есть (`{ type, data }`): в таком виде её принимают поля вроде avatar и cover */
 async function uploadItem(file: File, options?: UploadOptions): Promise<any> {
@@ -95,6 +100,20 @@ function entriesOf(items: any[] | undefined): any[] {
 	return (items || []).map((item) => item.data || item).filter((entry) => entry.id !== undefined);
 }
 
+/** Личный хеш канала `mobile:{userHash}` приходит в /subsite/me; живёт в памяти только для текущего поколения сессии */
+let userHash: { gen: number; value: string } | undefined;
+let meInFlight: { gen: number; promise: Promise<CurrentUser> } | undefined;
+
+function currentSessionGen(): number {
+	return untrack(() => authStorage.generation);
+}
+
+/** Запомненный хеш или, если его ещё нет, свежий /subsite/me; `undefined`, если сервер хеш не дал */
+async function resolveUserHash(): Promise<string | undefined> {
+	if (userHash?.gen !== currentSessionGen()) await dtfApiProvider.getMe();
+	return userHash?.gen === currentSessionGen() ? userHash.value : undefined;
+}
+
 /** Официальный API DTF. Все остальные части приложения ходят сюда только через фасад api. */
 export const dtfApiProvider = {
 	name: 'DTF Official API',
@@ -104,14 +123,27 @@ export const dtfApiProvider = {
 
 	async getMe(): Promise<CurrentUser> {
 		requireAuth();
-		// /user/me на всех версиях API отвечает 404; текущий профиль отдаёт /subsite/me (плоский объект,
-		// markdown=false — чтобы description (bio) пришёл сырым текстом)
-		const response = await fetchWithAuth(`${API_URL}/subsite/me?markdown=false`);
-		const json = await response.json();
+		const gen = currentSessionGen();
+		if (meInFlight?.gen === gen) return meInFlight.promise;
 
-		if (!json.result?.id) throw new Error('Не удалось получить профиль пользователя');
+		const promise = (async () => {
+			// /user/me на всех версиях API отвечает 404; текущий профиль отдаёт /subsite/me (плоский объект,
+			// markdown=false — чтобы description (bio) пришёл сырым текстом)
+			const response = await fetchWithAuth(`${API_URL}/subsite/me?markdown=false`);
+			const json = await response.json();
 
-		return mapCurrentUser(json.result);
+			if (!json.result?.id) throw new Error('Не удалось получить профиль пользователя');
+
+			const hash = json.result.userHash;
+			if (typeof hash === 'string' && hash && currentSessionGen() === gen) userHash = { gen, value: hash };
+
+			return mapCurrentUser(json.result);
+		})().finally(() => {
+			if (meInFlight?.promise === promise) meInFlight = undefined;
+		});
+
+		meInFlight = { gen, promise };
+		return promise;
 	},
 
 	async getDonationAccount(): Promise<DonationAccount | null> {
@@ -544,9 +576,81 @@ export const dtfApiProvider = {
 		return ((await resultOf(response, 'Не удалось получить уведомления')) || []).map(mapNotification);
 	},
 
+	async getNotificationsUnreadCount(): Promise<number> {
+		requireAuth();
+		const response = await fetchWithAuth(`${apiV('2.1')}/subsite/me/updates/count`);
+		return (await resultOf(response, 'Не удалось получить счётчик уведомлений')).count;
+	},
+
 	async markNotificationsRead(ids: number[]): Promise<void> {
 		requireAuth();
-		await fetchWithAuth(`${apiV('2.1')}/subsite/notifications/markAsRead`, { method: 'POST', body: formOf({ notificationIds: JSON.stringify(ids) }) });
+		if (ids.length === 0) return;
+		const response = await fetchWithAuth(`${apiV('2.1')}/subsite/notifications/markAsRead`, {
+			method: 'POST',
+			body: formOf({ notificationIds: JSON.stringify(ids) })
+		});
+		const res = await resultOf(response, 'Не удалось отметить уведомления прочитанными');
+		if (res?.result === false) throw new Error('Не удалось отметить уведомления прочитанными');
+	},
+
+	async markAllNotificationsRead(): Promise<void> {
+		requireAuth();
+		const response = await fetchWithAuth(`${apiV('2.1')}/subsite/notifications/markAsRead`, {
+			method: 'POST',
+			body: formOf({ all: true })
+		});
+		const res = await resultOf(response, 'Не удалось отметить все уведомления прочитанными');
+		if (res?.result === false) throw new Error('Не удалось отметить все уведомления прочитанными');
+	},
+
+	subscribeComments(
+		postId: number,
+		onUpdate: (event: RealtimeCommentEvent) => void,
+		options?: RealtimeSubscriptionOptions
+	): () => void {
+		return subscribeDtfComments(postId, onUpdate, options);
+	},
+
+	subscribeNotifications(
+		onUpdate: (event: RealtimeNotificationEvent) => void,
+		options?: RealtimeSubscriptionOptions
+	): () => void {
+		let active = true;
+		let attempt = 0;
+		let unsubChannel: (() => void) | undefined;
+		let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
+		const attemptSubscribe = () => {
+			resolveUserHash()
+				.then((hash) => {
+					// Нет хеша: сервер его не дал, повторы не помогут
+					if (!active || !hash) return;
+					unsubChannel = subscribeChannel(`mobile:${hash}`, {
+						onEvent: (raw) => {
+							const ev = parseNotificationRealtimeEvent(raw);
+							if (ev) onUpdate(ev);
+						},
+						onReady: options?.onReady
+					});
+				})
+				.catch((err) => {
+					// Профиль не получен (сеть): повторяем с нарастающей задержкой, пока подписку не отменят
+					if (!active) return;
+					const error = err instanceof Error ? err : new Error(String(err));
+					console.warn('[realtime] Не удалось подписаться на уведомления:', error.message);
+					options?.onError?.(error);
+					retryTimer = setTimeout(attemptSubscribe, Math.min(30_000, 2_000 * 2 ** Math.min(attempt++, 4)));
+				});
+		};
+
+		attemptSubscribe();
+
+		return () => {
+			active = false;
+			clearTimeout(retryTimer);
+			unsubChannel?.();
+			unsubChannel = undefined;
+		};
 	},
 
 	/** Новости редакции порциями (как «Показать ещё» у DTF): курсор — id последней новости, первая порция — без него */

@@ -16,10 +16,22 @@ export interface CachedComments {
 	time: number;
 }
 
+export interface CommentsViewState {
+	sorting: string;
+	collapsed: string[];
+	heights: Array<[string, number]>;
+	time: number;
+}
+
 const cache = new Map<string, CachedComments>();
+const viewStateCache = new Map<string, CommentsViewState>();
 
 export function commentsCacheKey(postId: number, sourceId: string = 'dtf', sorting: string = 'hotness'): string {
 	return `${sourceId}:${postId}:${sorting}`;
+}
+
+export function commentsViewStateKey(postId: number, sourceId: string = 'dtf'): string {
+	return `${sourceId}:${postId}`;
 }
 
 /** Сохранить список комментариев поста в памяти */
@@ -44,7 +56,34 @@ export function peekComments(postId: number, sourceId: string = 'dtf', sorting: 
 	return cache.get(commentsCacheKey(postId, sourceId, sorting));
 }
 
+/** Сохранить состояние просмотра комментариев поста в памяти */
+export function saveCommentsViewState(
+	postId: number,
+	sourceId: string = 'dtf',
+	state: Omit<CommentsViewState, 'time'>
+): void {
+	if (!postId) return;
+	const key = commentsViewStateKey(postId, sourceId);
+	viewStateCache.delete(key);
+	viewStateCache.set(key, {
+		sorting: state.sorting,
+		collapsed: [...state.collapsed],
+		heights: state.heights.map(([id, h]) => [id, h]),
+		time: Date.now()
+	});
+	if (viewStateCache.size > MAX_POSTS_COMMENTS) {
+		const oldest = viewStateCache.keys().next().value;
+		if (oldest !== undefined) viewStateCache.delete(oldest);
+	}
+}
+
+/** Получить сохранённое состояние просмотра комментариев поста */
+export function getCommentsViewState(postId: number, sourceId: string = 'dtf'): CommentsViewState | undefined {
+	return viewStateCache.get(commentsViewStateKey(postId, sourceId));
+}
+
 /** Очистить кэш комментариев (для тестов) */
 export function clearCommentsCache(): void {
 	cache.clear();
+	viewStateCache.clear();
 }

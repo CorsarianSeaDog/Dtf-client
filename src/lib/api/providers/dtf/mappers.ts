@@ -187,6 +187,9 @@ export function mapComment(item: any, postId: number): Comment {
 		isRedtf: isRedtf || undefined,
 		deviceSource: item.source || undefined,
 		createdAt: new Date((item.date || Date.now() / 1000) * 1000).toISOString(),
+		lastModificationDate: typeof item.lastModificationDate === 'number' && Number.isFinite(item.lastModificationDate)
+			? item.lastModificationDate
+			: undefined,
 		replyTo: item.replyTo,
 		level: item.level,
 		isIgnored: item.isIgnored,
@@ -247,7 +250,7 @@ export function mapNotification(item: any): Notification {
 
 	return {
 		id: item.id,
-		isRead: item.status !== 1,
+		isRead: item.status === 2,
 		text,
 		parts: parts.length > 0 ? parts : [{ text }],
 		type: item.type || 0,

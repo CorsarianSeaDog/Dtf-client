@@ -25,6 +25,7 @@
 | `src/lib/storage/` | всё, что хранится в localStorage | [storage](docs/architecture/storage.md) |
 | `src/app.html`, `src/lib/splash.ts`, `src/lib/components/Welcome.svelte` | заставка при запуске и приветствие первого входа | [splash](docs/architecture/splash.md) |
 | `src/lib/api/` | фасад `api`, провайдеры, подключаемые источники | [api](docs/architecture/api.md), [data-sources](docs/architecture/data-sources/README.md) |
+| `src/lib/api/providers/dtf/realtime.ts`, подписки `api.subscribe*` в фасаде | сокет DTF: транспорт, разбор событий, подписки на комментарии и уведомления | [realtime](docs/architecture/realtime.md) |
 | `docs/` | документация, решения (ADR), заготовки пользовательских доков | [docs/README.md](docs/README.md) |
 
 Рядом лежат отдельные репозитории: `reDTF-proxy` (CORS-прокси для входа), `reDTF-html` (старый статичный макет, **не эталон**).

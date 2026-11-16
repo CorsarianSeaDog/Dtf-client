@@ -46,6 +46,10 @@ export class VirtualRows {
 	private width = 0;
 	private dirty = false;
 	private raf = 0;
+	private touchActive = false;
+	private scrolling = false;
+	private scrollIdleTimer: ReturnType<typeof setTimeout> | undefined;
+	private ignoringScroll = false;
 	private observer: ResizeObserver | undefined;
 
 	/** pinned — строка, которая не уходит из окна (с открытым редактором) */
@@ -93,19 +97,131 @@ export class VirtualRows {
 		const parent = list.parentElement;
 		if (parent) this.resizes().observe(parent);
 		const schedule = () => this.schedule();
-		addEventListener('scroll', schedule, { passive: true });
+		const clearScrollIdle = () => {
+			if (this.scrollIdleTimer !== undefined) {
+				clearTimeout(this.scrollIdleTimer);
+				this.scrollIdleTimer = undefined;
+			}
+			this.scrolling = false;
+		};
+		const onScroll = () => {
+			if (!this.ignoringScroll) {
+				this.scrolling = true;
+				clearTimeout(this.scrollIdleTimer);
+				this.scrollIdleTimer = setTimeout(clearScrollIdle, 160);
+			}
+			this.ignoringScroll = false;
+			this.schedule();
+		};
+		const onTouchStart = () => {
+			this.touchActive = true;
+		};
+		const onTouchEnd = () => {
+			this.touchActive = false;
+		};
+		addEventListener('scroll', onScroll, { passive: true });
+		addEventListener('scrollend', clearScrollIdle, { passive: true });
 		addEventListener('resize', schedule);
+		addEventListener('touchstart', onTouchStart, { passive: true });
+		addEventListener('touchend', onTouchEnd, { passive: true });
+		addEventListener('touchcancel', onTouchEnd, { passive: true });
 		schedule();
 		return () => {
-			removeEventListener('scroll', schedule);
+			removeEventListener('scroll', onScroll);
+			removeEventListener('scrollend', clearScrollIdle);
 			removeEventListener('resize', schedule);
+			removeEventListener('touchstart', onTouchStart);
+			removeEventListener('touchend', onTouchEnd);
+			removeEventListener('touchcancel', onTouchEnd);
+			clearScrollIdle();
 			cancelAnimationFrame(this.raf);
 			this.raf = 0;
+			this.touchActive = false;
+			this.ignoringScroll = false;
 			this.observer?.disconnect();
 			this.observer = undefined;
 			this.list = undefined;
 		};
 	};
+
+	/** Снимок измеренных высот строк для сохранения в памяти */
+	exportHeights(): Array<[string, number]> {
+		return [...this.heights.entries()];
+	}
+
+	/** Восстановление ранее измеренных высот строк */
+	restoreHeights(entries: Iterable<[string, number]>): void {
+		let restored = false;
+		for (const [key, height] of entries) {
+			if (Number.isFinite(height) && height > 0) {
+				this.heights.set(key, height);
+				restored = true;
+			}
+		}
+		if (restored) {
+			this.dirty = true;
+			this.version++;
+		}
+	}
+
+	/** Запомнить верхний видимый комментарий для компенсации сдвига при внешней вставке */
+	captureAnchor(): { key: string; top: number } | null {
+		if (
+			!this.list ||
+			this.touchActive ||
+			this.scrolling ||
+			this.list.checkVisibility?.() === false ||
+			typeof window === 'undefined' ||
+			window.scrollY <= 0 ||
+			this.viewTop <= 0
+		) {
+			return null;
+		}
+		for (const el of this.list.children) {
+			if (!el.id.startsWith(PREFIX)) continue;
+			const rect = el.getBoundingClientRect();
+			if (rect.bottom > 0) {
+				return { key: el.id.slice(PREFIX.length), top: rect.top };
+			}
+		}
+		return null;
+	}
+
+	/** Скомпенсировать сдвиг прокрутки после внешней вставки по сохранённому якорю */
+	restoreAnchor(anchor: { key: string; top: number } | null): void {
+		if (
+			!anchor ||
+			!this.list ||
+			this.touchActive ||
+			this.scrolling ||
+			this.list.checkVisibility?.() === false ||
+			typeof window === 'undefined'
+		) {
+			return;
+		}
+		const targetId = `${PREFIX}${anchor.key}`;
+		let node: Element | null = null;
+		for (const el of this.list.children) {
+			if (el.id === targetId) {
+				node = el;
+				break;
+			}
+		}
+		if (!node) return;
+		const delta = node.getBoundingClientRect().top - anchor.top;
+		if (Math.abs(delta) > 1) {
+			this.ignoringScroll = true;
+			window.scrollBy({ top: delta, behavior: 'instant' });
+			this.sync();
+			if (typeof requestAnimationFrame === 'function') {
+				requestAnimationFrame(() => {
+					this.ignoringScroll = false;
+				});
+			} else {
+				this.ignoringScroll = false;
+			}
+		}
+	}
 
 	/** Присоединение к строке: её высота */
 	measure = (node: HTMLElement) => {

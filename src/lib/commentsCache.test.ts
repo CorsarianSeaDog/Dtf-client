@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { cacheComments, peekComments, clearCommentsCache } from './commentsCache';
+import {
+	cacheComments,
+	peekComments,
+	saveCommentsViewState,
+	getCommentsViewState,
+	clearCommentsCache
+} from './commentsCache';
 import type { Comment } from '$lib/api/types';
 
 function makeComment(id: number, text: string): Comment {
@@ -52,5 +58,29 @@ describe('commentsCache', () => {
 		expect(peekComments(5, 'dtf', 'hotness')).toBeUndefined();
 		expect(peekComments(6, 'dtf', 'hotness')).toBeDefined();
 		expect(peekComments(25, 'dtf', 'hotness')).toBeDefined();
+	});
+
+	it('сохраняет состояние просмотра по postId и sourceId и вытесняет по LRU', () => {
+		const collapsed = ['10', '20'];
+		const heights: Array<[string, number]> = [['10', 140]];
+		saveCommentsViewState(100, 'dtf', { sorting: 'date', collapsed, heights });
+		saveCommentsViewState(100, 'custom', { sorting: 'worst', collapsed: ['30'], heights: [['30', 90]] });
+		collapsed.push('999');
+		heights[0][1] = 999;
+
+		const dtfView = getCommentsViewState(100, 'dtf');
+		expect(dtfView?.sorting).toBe('date');
+		expect(dtfView?.collapsed).toEqual(['10', '20']);
+		expect(dtfView?.heights).toEqual([['10', 140]]);
+		expect(getCommentsViewState(100, 'custom')?.sorting).toBe('worst');
+
+		for (let i = 1; i <= 25; i++) {
+			saveCommentsViewState(1000 + i, 'dtf', { sorting: 'hotness', collapsed: [], heights: [] });
+		}
+		expect(getCommentsViewState(100, 'dtf')).toBeUndefined();
+		expect(getCommentsViewState(1006, 'dtf')).toBeDefined();
+
+		clearCommentsCache();
+		expect(getCommentsViewState(1006, 'dtf')).toBeUndefined();
 	});
 });

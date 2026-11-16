@@ -97,6 +97,7 @@ docs/                           документация
 - [motion.md](motion.md) — отклик на нажатия, подложка и спиннер окон, анимации темы
 - [splash.md](splash.md) — заставка при запуске и приветствие первого входа
 - [api.md](api.md) — фасад, провайдеры, ошибки, текущий пользователь
+- [realtime.md](realtime.md) — живые обновления: сокет DTF, комментарии, реакции, уведомления
 - [mobile.md](mobile.md) — мобильное приложение (Capacitor 8, Android, OTA-обновления)
 - [data-sources/](data-sources/README.md) — подключаемые источники
 - [../../decisions/](../../decisions/README.md) — почему так сделано
