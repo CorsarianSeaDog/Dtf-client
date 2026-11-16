@@ -150,6 +150,15 @@ describe('Header: настройка searchBarMode', () => {
 	});
 });
 
+describe('Header: условный рендер попапов', () => {
+	it('по умолчанию панель уведомлений и меню аккаунта не монтируются в DOM до открытия', () => {
+		activeTheme.set('redtf');
+		const { body } = render(Header);
+		expect(body).not.toContain('notifications-panel');
+		expect(body).not.toContain('header-profile__menu');
+	});
+});
+
 describe('SidebarLeft: настройка createButtonPos', () => {
 	it('по умолчанию в redtf кнопка в сайдбаре скрыта на десктопе (нет sidebar-write--desktop)', () => {
 		activeTheme.set('redtf');

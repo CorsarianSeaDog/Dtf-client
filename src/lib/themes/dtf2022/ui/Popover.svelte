@@ -1,5 +1,6 @@
 <script lang="ts" generics="T extends string | number">
 	import type { Snippet } from 'svelte';
+	import { appear, disappear } from '$lib/themes/appear';
 	import { clickOnKey } from '../a11y';
 
 	/**
@@ -39,8 +40,8 @@
 
 	// Поле поиска живёт, пока список открыт: в него сразу можно печатать, а запрос не переходит на следующее открытие
 	function searchField(input: HTMLInputElement) {
+		query = '';
 		input.focus();
-		return () => (query = '');
 	}
 
 	function select(value: T) {
@@ -70,7 +71,14 @@
 	{@render children()}
 
 	{#if open}
-		<div class={['popover', { 'popover--left': align === 'left' }]} style:width={typeof width === 'number' ? `${width}px` : width} role="listbox" aria-label={label}>
+		<div
+			class={['popover', { 'popover--left': align === 'left' }]}
+			style:width={typeof width === 'number' ? `${width}px` : width}
+			role="listbox"
+			aria-label={label}
+			{@attach appear('popoverIn')}
+			out:disappear|global={'popoverOut'}
+		>
 			{#if searchable}
 				<input
 					class="popover__search"
@@ -134,12 +142,14 @@
 		font-size: 16px;
 		line-height: 1.5em;
 		text-align: left;
+		transform-origin: top right;
 		user-select: none;
 	}
 
 	.popover--left {
 		right: auto;
 		left: var(--popover-left, 0);
+		transform-origin: top left;
 	}
 
 	/* Длинный список прокручивается внутри себя, а не растягивает страницу */

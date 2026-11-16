@@ -8,10 +8,10 @@ describe('pageTransition', () => {
 		expect(shouldTransition()).toBe(false);
 	});
 
-	it('shouldTransition возвращает false для темы dtf2022 без motion', () => {
+	it('shouldTransition возвращает false для темы dtf2022 без переходов страниц', () => {
 		vi.stubGlobal('window', { matchMedia: () => ({ matches: false }) });
 		activeTheme.set('dtf2022');
-		expect(activeTheme.motion).toBeUndefined();
+		expect(activeTheme.motion?.recede).toBeUndefined();
 		expect(shouldTransition()).toBe(false);
 		vi.unstubAllGlobals();
 	});

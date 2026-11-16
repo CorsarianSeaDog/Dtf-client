@@ -8,14 +8,13 @@
 	import CreateButton from './CreateButton.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
-	import { donationAccount } from '$lib/api/donationAccount.svelte';
 	import { notifications } from '$lib/api/notifications.svelte';
 	import NotificationsPanel from './NotificationsPanel.svelte';
-	import { notificationsPopup } from './notificationsPopup.svelte';
 	import { sidebar } from './sidebar.svelte';
 	import { subscriptions } from './actions.svelte';
 	import { settings } from '$lib/storage/settings.svelte';
 	import { themeSettings } from './themeSettings.svelte';
+	import { appear, disappear } from '$lib/themes/appear';
 	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 
 	let {
@@ -32,7 +31,7 @@
 	let createButtonPos = $derived(createButtonPosProp ?? themeSettings.createButtonPos);
 	let searchBarMode = $derived(searchBarModeProp ?? themeSettings.searchBarMode);
 
-	let isUserMenuOpen = $state(false);
+	let openMenu = $state<'notifications' | 'account' | null>(null);
 	let isSearchExpanded = $state(false);
 	let centerSearch = $state<{ focus: () => void }>();
 	let userNode = $state<HTMLElement>();
@@ -41,14 +40,9 @@
 	$effect(() => {
 		if (!authStorage.isAuthenticated) {
 			subscriptions.clear();
-			isUserMenuOpen = false;
+			if (openMenu === 'account') openMenu = null;
 		}
 	});
-
-	/** Появление меню профиля, как slide-and-fade у DTF */
-	function slideAndFade(_: Element) {
-		return { duration: 200, css: (t: number, u: number) => `opacity: ${t}; transform: translateY(${-5 * u}px)` };
-	}
 
 	function openLogin() {
 		openOverlay({ type: 'login' });
@@ -63,11 +57,11 @@
 	}
 
 	function closeOnOutsideClick(e: MouseEvent) {
-		if (notificationsPopup.open && !(e.target as Element).closest('[data-notifications]')) {
-			notificationsPopup.set(false);
+		if (openMenu === 'notifications' && !(e.target as Element).closest('[data-notifications]')) {
+			openMenu = null;
 		}
-		if (isUserMenuOpen && !userNode?.contains(e.target as Node)) {
-			isUserMenuOpen = false;
+		if (openMenu === 'account' && !userNode?.contains(e.target as Node)) {
+			openMenu = null;
 		}
 		if (
 			isSearchExpanded &&
@@ -84,8 +78,7 @@
 	onclick={closeOnOutsideClick}
 	onkeydown={(e) => {
 		if (e.key === 'Escape') {
-			notificationsPopup.set(false);
-			isUserMenuOpen = false;
+			openMenu = null;
 			if (isSearchExpanded && searchBarMode === 'button') {
 				isSearchExpanded = false;
 			}
@@ -175,16 +168,16 @@
 			{/if}
 
 			<div
-				class={['header-notifications', { 'header-notifications--active': notificationsPopup.open }]}
+				class={['header-notifications', { 'header-notifications--active': openMenu === 'notifications' }]}
 				data-notifications
 			>
 				<div
 					class="bell"
 					aria-label="Уведомления"
-					aria-expanded={notificationsPopup.open}
+					aria-expanded={openMenu === 'notifications'}
 					role="button"
 					tabindex="0"
-					onclick={() => notificationsPopup.toggle()}
+					onclick={() => (openMenu = openMenu === 'notifications' ? null : 'notifications')}
 					onkeydown={clickOnKey}
 				>
 					<svg class="icon" width="28" height="28" aria-hidden="true">
@@ -195,9 +188,11 @@
 					{/if}
 				</div>
 
-				<div class="notifications-panel">
-					<NotificationsPanel />
-				</div>
+				{#if openMenu === 'notifications'}
+					<div class="notifications-panel" {@attach appear('popoverIn')} out:disappear|global={'popoverOut'}>
+						<NotificationsPanel onclose={() => (openMenu = null)} />
+					</div>
+				{/if}
 			</div>
 
 			{#if authStorage.isAuthenticated}
@@ -208,11 +203,11 @@
 							class="header-profile__btn"
 							aria-label="Меню профиля"
 							aria-haspopup="menu"
-							aria-expanded={isUserMenuOpen}
-							onclick={() => (isUserMenuOpen = !isUserMenuOpen)}
+							aria-expanded={openMenu === 'account'}
+							onclick={() => (openMenu = openMenu === 'account' ? null : 'account')}
 						>
 							<div class="header-profile__avatar-image" style:background-image={user?.avatarUrl ? `url('${user.avatarUrl}')` : undefined} {@attach animatedAvatar(user?.avatarUrl)}></div>
-							<span class={['header-profile__arrow', { 'header-profile__arrow--open': isUserMenuOpen }]}>
+							<span class={['header-profile__arrow', { 'header-profile__arrow--open': openMenu === 'account' }]}>
 								<svg class="icon" width="20" height="20" aria-hidden="true">
 									<use href="#v_chevron_down"></use>
 								</svg>
@@ -225,7 +220,7 @@
 							href={user ? resolve(getProfilePath(user.id) as any) : undefined}
 							aria-label="Мой профиль"
 							onclick={(e) => {
-								isUserMenuOpen = false;
+								openMenu = null;
 								if (user) openProfile(e, user.id);
 							}}
 						>
@@ -236,8 +231,8 @@
 							class="header-profile__toggle"
 							aria-label="Меню профиля"
 							aria-haspopup="menu"
-							aria-expanded={isUserMenuOpen}
-							onclick={() => (isUserMenuOpen = !isUserMenuOpen)}
+							aria-expanded={openMenu === 'account'}
+							onclick={() => (openMenu = openMenu === 'account' ? null : 'account')}
 						>
 							<svg class="icon" width="20" height="20" aria-hidden="true">
 								<use href="#v_chevron_down"></use>
@@ -245,9 +240,9 @@
 						</button>
 					{/if}
 
-					{#if isUserMenuOpen}
-						<div class="header-profile__menu" role="menu" transition:slideAndFade>
-							<AccountMenu {user} onclose={() => (isUserMenuOpen = false)} />
+					{#if openMenu === 'account'}
+						<div class="header-profile__menu" role="menu" {@attach appear('menuIn')} out:disappear|global={'popoverOut'}>
+							<AccountMenu {user} onclose={() => (openMenu = null)} />
 						</div>
 					{/if}
 				</div>
@@ -484,7 +479,6 @@
 	}
 
 	.notifications-panel {
-		display: none;
 		position: absolute;
 		top: 100%;
 		right: -5px;
@@ -492,12 +486,9 @@
 		background: var(--bg-card);
 		color: var(--text-primary);
 		box-shadow: var(--shadow-popup);
+		transform-origin: top right;
 		z-index: 2;
 		font-size: 13px;
-	}
-
-	.header-notifications--active .notifications-panel {
-		display: block;
 	}
 
 	/* Вход */
@@ -599,6 +590,7 @@
 		overflow-y: auto;
 		border-radius: 8px;
 		box-shadow: var(--shadow-dropdown);
+		transform-origin: top right;
 	}
 
 	@media (max-width: 859px) {

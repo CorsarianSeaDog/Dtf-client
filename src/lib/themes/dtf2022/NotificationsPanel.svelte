@@ -6,11 +6,10 @@
 	import { openDtfLink, openNotifications } from '$lib/navigation';
 	import { authStorage } from '$lib/storage/auth.svelte';
 	import { formatNotificationTime } from './format';
-	import { notificationsPopup } from './notificationsPopup.svelte';
 	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 
 	/** page — страница уведомлений: список целиком, без ссылки «Все уведомления» */
-	let { page = false, active = true }: { page?: boolean; active?: boolean } = $props();
+	let { page = false, active = true, onclose }: { page?: boolean; active?: boolean; onclose?: () => void } = $props();
 
 	// Значок в кружке на аватаре (`icon` в ответе DTF → символ нашего спрайта)
 	const BADGES: Record<string, string> = { like_up: 'ui_arrow_up', comment: 'ui_comments_fill', reply: 'ui_reply' };
@@ -24,10 +23,8 @@
 	let closeTimer: ReturnType<typeof setTimeout> | undefined;
 	let startTime = 0;
 
-	const isOpen = $derived(page ? active : notificationsPopup.open);
-
 	$effect(() => {
-		if (authStorage.isAuthenticated && isOpen) {
+		if (authStorage.isAuthenticated && active) {
 			return notifications.trackVisible();
 		}
 	});
@@ -36,7 +33,7 @@
 	const expanded = new SvelteSet<number>();
 
 	$effect(() => {
-		const shouldLoad = authStorage.isAuthenticated && isOpen && notifications.loading;
+		const shouldLoad = authStorage.isAuthenticated && active && notifications.loading;
 
 		untrack(() => {
 			if (shouldLoad) {
@@ -47,11 +44,11 @@
 					startTime = performance.now();
 				}
 			} else if (isUpdating) {
-				if (!isOpen) {
+				if (!active) {
 					clearTimeout(closeTimer);
 					closeTimer = undefined;
 					isUpdating = false;
-				} else if (isOpen && !notifications.loading) {
+				} else if (active && !notifications.loading) {
 					const elapsed = performance.now() - startTime;
 					const remaining = Math.max(0, MIN_LOADING - elapsed);
 					clearTimeout(closeTimer);
@@ -71,7 +68,7 @@
 	/** Пост и профиль открываем у себя, всё остальное — на dtf.ru в новой вкладке; уведомление становится прочитанным */
 	function follow(e: MouseEvent, item: Notification, href: string) {
 		notifications.markRead([item.id]);
-		if (openDtfLink(e, href)) notificationsPopup.set(false);
+		if (openDtfLink(e, href)) onclose?.();
 	}
 
 	function toggle(id: number) {
@@ -166,7 +163,7 @@
 			class="notifications__footer-link"
 			onclick={(e) => {
 				openNotifications(e);
-				notificationsPopup.set(false);
+				onclose?.();
 			}}
 		>
 			Все уведомления

@@ -44,6 +44,13 @@
 	}
 }
 
+/* Панель уведомлений: скругление и прокрутка по высоте окна (у основы, как у DTF, — прямоугольник) */
+:root[data-theme~="redtf"] .notifications-panel {
+	max-height: calc(100vh - var(--header-height) - 12px);
+	overflow-y: auto;
+	border-radius: 8px;
+}
+
 /* Блюр верхней панели */
 :root[data-theme~="redtf"][data-header-blur="true"] .header {
 	background-color: rgba(217, 245, 255, 0.5);

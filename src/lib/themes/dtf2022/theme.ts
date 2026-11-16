@@ -11,6 +11,10 @@ export default defineTheme({
 	hidden: true,
 	description: 'Копия дизайна DTF начала 2023 года',
 	palettes,
+	// У DTF анимировалось только меню профиля (slide-and-fade): сдвиг на 5px за 0.2s, прозрачность меняется сразу, уход без анимации
+	motion: {
+		menuIn: { keyframes: [{ transform: 'translateY(-5px)' }, { transform: 'none' }], duration: 200, easing: 'ease' }
+	},
 	settings: [
 		{
 			key: 'votes',

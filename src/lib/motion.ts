@@ -26,6 +26,12 @@ export interface ThemeMotion {
 	modalIn?: Anim;
 	/** Окно закрывается: проигрывается на подложке вместе с окном */
 	modalOut?: Anim;
+	/** Выпадающее меню или панель открываются из кнопки-триггера */
+	popoverIn?: Anim;
+	/** Выпадающее меню или панель закрываются */
+	popoverOut?: Anim;
+	/** Меню профиля в шапке открывается: у оригинального DTF анимировалось только оно */
+	menuIn?: Anim;
 	/** Содержимое экрана пришло: пост, комментарии */
 	contentIn?: Anim;
 	/** Пришёл список ленты */
@@ -63,6 +69,9 @@ export interface ThemeMotion {
 export type AnimKey =
 	| 'modalIn'
 	| 'modalOut'
+	| 'popoverIn'
+	| 'popoverOut'
+	| 'menuIn'
 	| 'contentIn'
 	| 'feedIn'
 	| 'mediaIn'
@@ -91,6 +100,15 @@ export const ease = {
 	smooth: 'cubic-bezier(0.2, 0, 0, 1)'
 };
 
+const popoverIn: Anim = {
+	keyframes: [
+		{ opacity: 0, transform: 'translateY(-6px) scale(0.95)' },
+		{ opacity: 1, transform: 'none' }
+	],
+	duration: 180,
+	easing: ease.emphasizedDecelerate
+};
+
 /** Готовый набор в духе Fluent: плавные «прилёты» с замедлением */
 export const fluent: ThemeMotion = {
 	modalIn: {
@@ -108,6 +126,16 @@ export const fluent: ThemeMotion = {
 		],
 		duration: 240,
 		easing: ease.smooth
+	},
+	popoverIn,
+	menuIn: popoverIn,
+	popoverOut: {
+		keyframes: [
+			{ opacity: 1, transform: 'none' },
+			{ opacity: 0, transform: 'translateY(-4px) scale(0.96)' }
+		],
+		duration: 110,
+		easing: ease.emphasizedAccelerate
 	},
 	contentIn: {
 		keyframes: [{ opacity: 0, transform: 'translateY(40px)' }, { opacity: 1, transform: 'none' }],
