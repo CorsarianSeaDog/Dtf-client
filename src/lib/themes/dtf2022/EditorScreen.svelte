@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy, type Snippet } from 'svelte';
+	import { onMount, onDestroy, untrack, type Snippet } from 'svelte';
 	import Editor from '$lib/components/editor/Editor.svelte';
 	import { smartTypography } from '$lib/smartTypography';
 	import { Button, Popover } from './ui';
@@ -53,12 +53,23 @@
 		session.editorInstance?.caret.setToFirstBlock('start');
 	}
 
-	// Временно, до шага A3: текст успеха и ошибки теперь показывает экран, а не сессия
-	const statusText = $derived(
-		{ idle: '', dirty: 'Не сохранено', saving: 'Сохранение…', saved: 'Сохранено', error: 'Не удалось сохранить' }[
-			session.saveState as 'idle' | 'dirty' | 'saving' | 'saved' | 'error'
-		]
-	);
+	const timeFormat = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+	// Подробный текст ошибки уходит тостом, в шапке остаётся короткая подпись
+	const statusText = $derived.by(() => {
+		switch (session.saveState as 'idle' | 'dirty' | 'saving' | 'saved' | 'error') {
+			case 'dirty':
+				return 'Не сохранено';
+			case 'saving':
+				return 'Сохранение…';
+			case 'saved':
+				return session.savedAt ? `Сохранено в ${timeFormat.format(session.savedAt)}` : 'Сохранено';
+			case 'error':
+				return 'Не удалось сохранить';
+			default:
+				return '';
+		}
+	});
 
 	async function act(run: () => Promise<unknown>, success?: string) {
 		try {
@@ -67,6 +78,36 @@
 		} catch (e: any) {
 			notify.error(e.message);
 		}
+	}
+
+	// Ошибки сохранения (в том числе фонового и при публикации) показываем целиком тостом: в шапке им нет места
+	$effect(() => {
+		// notify читает и пишет список тостов: без untrack эффект подписался бы на него и зациклился
+		if (session.saveState === 'error' && session.error) untrack(() => notify.error(session.error));
+	});
+
+	// Версию можно вернуть назад из самого тоста, пока не было новых правок
+	async function restoreVersion(id: string | number) {
+		try {
+			await session.loadVersion(Number(id));
+		} catch (e: any) {
+			notify.error(e.message);
+			return;
+		}
+		notify.success('Версия восстановлена', {
+			label: 'Отменить',
+			onclick: () => session.canUndoLoad && act(session.undoLoadVersion, 'Изменения отменены')
+		});
+	}
+
+	// Свернули вкладку или приложение: правки сохраняем сразу, потом может не представиться случая
+	function onvisibilitychange() {
+		if (document.visibilityState === 'hidden') session.flush();
+	}
+
+	// Ошибку публикации уже показал эффект выше
+	function publish() {
+		session.publish().then(() => notify.success('Запись опубликована'), () => {});
 	}
 
 	let confirmingDelete = $state(false);
@@ -79,6 +120,8 @@
 		session.goBack();
 	}
 </script>
+
+<svelte:document {onvisibilitychange} />
 
 <div class={['writing', { 'writing--window': windowed }]}>
 	<div class="writing__bar">
@@ -96,7 +139,7 @@
 			<Popover
 				bind:open={() => session.showHistory, (open) => !open && session.showHistory && session.toggleHistory()}
 				items={historyItems}
-				onselect={(id) => id && act(() => session.loadVersion(id), 'Версия восстановлена')}
+				onselect={(id) => id && restoreVersion(id)}
 				width={220}
 				label="История черновика"
 			>
@@ -115,7 +158,7 @@
 		{/if}
 
 		<div class="writing__publish">
-			<Button variant="blue" label="Опубликовать" disabled={!session.canPublish} onclick={() => act(session.publish, 'Опубликовано')} />
+			<Button variant="blue" label="Опубликовать" disabled={!session.canPublish} onclick={publish} />
 		</div>
 	</div>
 
@@ -351,6 +394,17 @@
 
 	.writing__title::placeholder {
 		color: var(--text-placeholder);
+	}
+
+	/* На телефоне «Не удалось сохранить» должно помещаться между кнопками без обрезки */
+	@media (max-width: 719px) {
+		.writing__bar {
+			gap: 8px;
+		}
+
+		.writing__status {
+			font-size: 13px;
+		}
 	}
 
 	@media (max-width: 859px) {

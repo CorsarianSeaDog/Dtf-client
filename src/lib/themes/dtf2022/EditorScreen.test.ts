@@ -19,6 +19,8 @@ function createMockSession() {
 		historyVersions: [],
 		loadingHistory: false,
 		saveState: 'saved',
+		savedAt: null,
+		flush: vi.fn(),
 		canPublish: true,
 		commentPermission: 'everyone',
 		isAdult: false,
@@ -65,6 +67,26 @@ describe('EditorScreen', () => {
 		const withId = render(EditorScreen, { props: { session: { ...createMockSession(), postId: 5388155 } } });
 		expect(withId.body).toContain('Удалить запись');
 		expect(withId.body).toContain('#v_delete');
+	});
+
+	it('показывает состояние сохранения постоянным текстом', () => {
+		const status = (patch: object) => render(EditorScreen, { props: { session: { ...createMockSession(), ...patch } } }).body;
+
+		expect(status({ saveState: 'idle' })).not.toMatch(/Сохран|Не сохранено/);
+		expect(status({ saveState: 'dirty' })).toContain('Не сохранено');
+		expect(status({ saveState: 'saving' })).toContain('Сохранение…');
+		expect(status({ saveState: 'error', error: 'Сеть недоступна' })).toContain('Не удалось сохранить');
+		// полный текст ошибки уходит тостом, а не в шапку
+		expect(status({ saveState: 'error', error: 'Сеть недоступна' })).not.toContain('Сеть недоступна');
+		expect(status({ saveState: 'saved', savedAt: new Date(2026, 10, 17, 14, 32).getTime() })).toContain('Сохранено в 14:32');
+	});
+
+	it('отключает «Опубликовать», пока canPublish ложно', () => {
+		const enabled = render(EditorScreen, { props: { session: createMockSession() } }).body;
+		const disabled = render(EditorScreen, { props: { session: { ...createMockSession(), canPublish: false } } }).body;
+
+		const count = (html: string) => html.split('disabled').length - 1;
+		expect(count(disabled)).toBeGreaterThan(count(enabled));
 	});
 
 	it('содержит стили safe area insets для полноэкранного режима', () => {
