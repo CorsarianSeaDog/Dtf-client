@@ -109,7 +109,8 @@
 	/** Заглушка не держит место: поверх содержимого она тает, а высоту задаёт содержимое */
 	function leave(node: HTMLElement) {
 		const duration = activeTheme.motion?.placeholderOut;
-		if (!duration || reducedMotion()) return { duration: 0 };
+		const layer = node.closest('[data-layer]')?.getAttribute('data-layer');
+		if (!duration || reducedMotion() || (layer && pageTransition.isIncoming(layer))) return { duration: 0 };
 		Object.assign(node.style, { position: 'absolute', inset: '0 0 auto', pointerEvents: 'none' });
 		return { duration, easing: cubicOut, css: (t: number) => `opacity: ${t}; scale: ${0.97 + 0.03 * t}` };
 	}
