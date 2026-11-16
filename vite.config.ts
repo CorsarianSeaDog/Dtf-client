@@ -1,6 +1,8 @@
+/// <reference types="vitest/config" />
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { build, defineConfig, type Plugin } from 'vite';
+import { configDefaults } from 'vitest/config';
 import { readFileSync, readdirSync, mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
@@ -222,6 +224,10 @@ export default defineConfig(async ({ command }) => {
 			},
 			svgSpritePlugin(),
 			themeComponentPathsPlugin()
-		]
+		],
+		test: {
+			// В .claude/worktrees лежат чужие рабочие копии агентов: их тесты не наши
+			exclude: [...configDefaults.exclude, '.claude/**']
+		}
 	};
 });
