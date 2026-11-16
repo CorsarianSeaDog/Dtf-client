@@ -5,7 +5,7 @@
 	import { mediaHold } from '$lib/actions/mediaHold';
 	import { sanitizeHtml } from '$lib/sanitize';
 	import LazyImage from './LazyImage.svelte';
-	import { getLeonardoUrl } from '$lib/api/utils';
+	import { getLeonardoUrl, isAnimatedMedia, isGifMedia } from '$lib/api/utils';
 	import { openDtfLink } from '$lib/navigation';
 	import { parseDtfUrl, dtfTargetToPath } from '$lib/dtfLinks';
 
@@ -33,8 +33,8 @@
 			<!-- TODO: Карусель -->
 			{#each block.data.items as item}
 				{#if item.image}
-					{#if item.image.data.type === 'mp4' || item.image.data.type === 'gif' || item.image.data.isVideo}
-						<video use:lazyVideo use:mediaHold={{ uuid: item.image.data.uuid, isGif: item.image.data.type === 'gif' }} src={getLeonardoUrl(item.image.data.uuid, { format: 'mp4' })} controls loop muted playsinline></video>
+					{#if isAnimatedMedia(item.image)}
+						<video use:lazyVideo use:mediaHold={{ uuid: item.image.data.uuid, isGif: isGifMedia(item.image) }} src={getLeonardoUrl(item.image.data.uuid, { format: 'mp4' })} controls={!!item.image.data.has_audio} loop muted playsinline></video>
 					{:else}
 						<LazyImage
 							src={getLeonardoUrl(item.image.data.uuid, { width: 800, format: 'webp' })}

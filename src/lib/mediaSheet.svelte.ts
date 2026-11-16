@@ -20,11 +20,12 @@ export const mediaSheet = {
 	},
 	async download() {
 		if (!activeMedia) return;
-		const { uuid, isGif } = activeMedia;
+		const { uuid } = activeMedia;
 		activeMedia = null;
 		const originalUrl = getLeonardoOriginalUrl(uuid);
 		try {
-			await downloadImage(originalUrl, uuid, isGif ? 'gif' : 'mp4');
+			// Оригинал на Leonardo для гифок и видео в обоих случаях отдаётся как video/mp4
+			await downloadImage(originalUrl, uuid, 'mp4');
 			notify.success('Загрузка началась');
 		} catch {
 			notify.error('Не удалось скачать файл');

@@ -7,7 +7,7 @@
 	import { fromAction } from 'svelte/attachments';
 	import { lazyVideo } from '$lib/actions/lazyVideo';
 	import { mediaHold } from '$lib/actions/mediaHold';
-	import { getLeonardoUrl } from '$lib/api/utils';
+	import { getLeonardoUrl, isAnimatedMedia, isGifMedia } from '$lib/api/utils';
 	import { resolve } from '$app/paths';
 	import { openDtfLink, openLightbox, preloadLightbox } from '$lib/navigation';
 	import { parseDtfUrl, dtfTargetToPath } from '$lib/dtfLinks';
@@ -89,11 +89,6 @@
 		return () => observer.disconnect();
 	};
 
-	function isVideo(image: any) {
-		const type = image?.data?.type;
-		return image?.type === 'movie' || type === 'mp4' || type === 'gif' || image?.data?.isVideo;
-	}
-
 	let mediaInContent = $derived(variant === 'page' && themeSettings.postMediaWidth === 'content');
 
 	/** На странице поста горизонтальное медиа не ограничивается по высоте (см. media.ts) */
@@ -138,7 +133,7 @@
 {#snippet figure(image: any, caption: string | undefined, anchorId?: string)}
 	<figure class={figureClass(image.data)} id={anchorId}>
 		{#snippet content()}
-			{#if isVideo(image)}
+			{#if isAnimatedMedia(image)}
 				{#if !evictMedia}
 					<video
 						src={getLeonardoUrl(image.data.uuid, { format: 'mp4' })}
@@ -148,7 +143,7 @@
 						preload="metadata"
 						controls={!!image.data.has_audio}
 						{@attach fromAction(lazyVideo)}
-						use:mediaHold={{ uuid: image.data.uuid, isGif: image.data.type === 'gif' }}
+						use:mediaHold={{ uuid: image.data.uuid, isGif: isGifMedia(image) }}
 					></video>
 				{/if}
 			{:else}
@@ -197,14 +192,14 @@
 			<figure class={figureClass(undefined)} id={anchorId}>
 				<div class={['media-gallery', `media-gallery--${tiles.length}`]} inert={covered || evictMedia}>
 					{#each tiles as { image }, i}
-						{@const video = isVideo(image)}
+						{@const video = isAnimatedMedia(image)}
 						{@const more = i === GALLERY_LIMIT - 1 ? items.length - GALLERY_LIMIT : 0}
 						<button
 							class="media-gallery__tile"
 							style:background-color={image.data.color ? `#${image.data.color}` : undefined}
 							aria-label={more ? `Открыть кадр ${i + 1} из ${items.length}, ещё ${more}` : `Открыть кадр ${i + 1} из ${items.length}`}
 							onpointerenter={preloadLightbox}
-							onclick={() => openLightbox(items.map(({ image, title }: any) => ({ ...image.data, video: isVideo(image), caption: title })), i)}
+							onclick={() => openLightbox(items.map(({ image, title }: any) => ({ ...image.data, video: isAnimatedMedia(image), caption: title })), i)}
 						>
 							{#if !evictMedia}
 								<img src={getLeonardoUrl(image.data.uuid, { width: 680, format: video ? 'jpg' : undefined })} alt="" loading="lazy" />

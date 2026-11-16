@@ -34,7 +34,7 @@ describe('mediaSheet manager', () => {
 		expect(mediaSheet.current).toBeNull();
 	});
 
-	it('скачивает медиа с правильным типом и ссылкой на оригинал', async () => {
+	it('скачивает оригинал mp4 для гифок и видео', async () => {
 		mediaSheet.open({ uuid: 'gif-uuid-1', isGif: true });
 
 		await mediaSheet.download();
@@ -42,7 +42,7 @@ describe('mediaSheet manager', () => {
 		expect(utils.downloadImage).toHaveBeenCalledWith(
 			'https://leonardo.osnova.io/gif-uuid-1/',
 			'gif-uuid-1',
-			'gif'
+			'mp4'
 		);
 		expect(notify.success).toHaveBeenCalledWith('Загрузка началась');
 		expect(mediaSheet.current).toBeNull();

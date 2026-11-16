@@ -115,7 +115,7 @@
 
 							try {
 								const originalUrl = getLeonardoOriginalUrl(current.uuid);
-								await downloadImage(originalUrl, current.uuid, current.type);
+								await downloadImage(originalUrl, current.uuid, current.video ? 'mp4' : current.type);
 							} finally {
 								downloading.delete(current.uuid);
 								updateButtonState();
