@@ -162,6 +162,8 @@
     /* Мобильная строка */
     --mobile-bar-height-raw: 50px;
     --mobile-bar-height: calc(var(--mobile-bar-height-raw) + env(safe-area-inset-bottom));
+    --mobile-bar-button-size: calc(var(--mobile-bar-height-raw) - 4px);
+    --mobile-bar-padding-x: calc(24px - (var(--mobile-bar-button-size) - 28px) / 2);
 
     /* Общие обёртки приложения (src/routes/+layout.svelte, PostContent.svelte) */
     --modal-backdrop: rgba(0, 0, 0, 0.5);

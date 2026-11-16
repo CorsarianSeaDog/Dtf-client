@@ -105,14 +105,12 @@
 	}
 
 	.mobile-bar {
-		--touch-zone-size: calc(var(--mobile-bar-height-raw) - 2px * 2);
-		--padding-x: calc(24px - (var(--touch-zone-size) - 28px) / 2);
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
 		background-color: var(--bg-card);
 		border-top: 1px solid var(--border-subtle-2);
-		padding: 0 var(--padding-x) env(safe-area-inset-bottom);
+		padding: 0 var(--mobile-bar-padding-x) env(safe-area-inset-bottom);
 		height: var(--mobile-bar-height);
 	}
 
@@ -122,8 +120,8 @@
 
 	.mobile-bar__link {
 		display: flex;
-		height: var(--touch-zone-size);
-		width: var(--touch-zone-size);
+		height: var(--mobile-bar-button-size);
+		width: var(--mobile-bar-button-size);
 		align-items: center;
 		justify-content: center;
 		border-radius: 50%;
