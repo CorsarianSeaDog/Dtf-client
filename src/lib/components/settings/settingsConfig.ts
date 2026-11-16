@@ -96,6 +96,7 @@ const BASE_ROOT_NAVIGATION: RootNavSection[] = [
 		items: [
 			{ id: 'theme-select', type: 'page', title: 'Выбор темы', icon: 'theme-select' },
 			{ id: 'interface', type: 'folder', title: 'Интерфейс', icon: 'interface' },
+			{ id: 'animations', type: 'page', title: 'Анимации', icon: 'animations' },
 			{ id: 'reactions', type: 'page', title: 'Реестр реакций', icon: 'reactions' },
 			{ id: 'app', type: 'page', title: 'Приложение', icon: 'app' }
 		]
@@ -137,6 +138,7 @@ const PAGE_KEYWORDS: Record<string, string> = {
 	supporters: 'спонсоры донатеры благодарности',
 	network: 'прокси proxy cors failover вход',
 	stats: 'статистика время посты графики',
+	animations: 'анимация движение переход слайд material скорость темп',
 	debug: 'отладка дебаг safe area hud'
 };
 
@@ -163,6 +165,8 @@ const PAGE_ALIASES: Record<string, { folderId: string | null; pageId: string; se
 	reactions: { folderId: null, pageId: 'reactions' },
 	'behavior-reactions': { folderId: null, pageId: 'reactions' },
 	app: { folderId: null, pageId: 'app' },
+	animations: { folderId: null, pageId: 'animations' },
+	motion: { folderId: null, pageId: 'animations' },
 	'app-icon': { folderId: null, pageId: 'app-icon' },
 	icons: { folderId: null, pageId: 'app-icon' },
 	'appearance-icons': { folderId: null, pageId: 'app-icon' },
@@ -426,7 +430,8 @@ const THEME_GROUP_KEYS = {
 	votes: new Set(['votes', 'arrowsSide', 'arrowsOrder']),
 	editor: new Set(['editorFullscreen']),
 	comment: new Set(['swipeColumn']),
-	app: new Set(['transparencyEffects'])
+	app: new Set(['transparencyEffects']),
+	motion: new Set(['mobileTransition', 'transitionSpeed'])
 } as const;
 
 const KNOWN_THEME_KEYS = new Set(
@@ -530,6 +535,14 @@ export function buildDeclarativePages(
 				targetFolderId: null,
 				backTarget: { folderId: null, pageId: 'app', title: 'Приложение' }
 			}
+		},
+		{
+			pageId: 'animations',
+			icon: 'animations',
+			searchPath: 'Персонализация › Анимации',
+			cardsLayout: true,
+			emptyHint: 'У выбранной темы здесь нет настроек. Переходы между страницами настраиваются на телефоне.',
+			entries: themeEntries(visible(THEME_GROUP_KEYS.motion), themeValues)
 		},
 		{
 			pageId: 'interface-top-bar',

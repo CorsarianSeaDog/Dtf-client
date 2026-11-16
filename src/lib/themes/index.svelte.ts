@@ -1,6 +1,8 @@
 import { settings, DEFAULT_THEME } from '$lib/storage/settings.svelte';
 import { getTheme, themeChain, themePalettes } from './registry';
-import type { ThemePalettes, ThemeManifest } from './types';
+import { activeThemeSettings } from './settings.svelte';
+import type { ThemeMotion } from '$lib/motion';
+import type { ThemePalettes } from './types';
 
 export { themes, themePalettes } from './registry';
 
@@ -31,8 +33,9 @@ export const activeTheme = {
 		return themePalettes(activeTheme.id);
 	},
 	/** Анимации самой темы (не основы): форк dtf2022 сам решает, анимировать ли */
-	get motion(): ThemeManifest['motion'] {
-		return getTheme(activeTheme.id)?.motion;
+	get motion(): ThemeMotion | undefined {
+		const motion = getTheme(activeTheme.id)?.motion;
+		return typeof motion === 'function' ? motion(activeThemeSettings().value) : motion;
 	},
 	set(id: string) {
 		settings.patch({ theme: id });

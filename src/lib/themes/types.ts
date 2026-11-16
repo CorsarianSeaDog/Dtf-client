@@ -166,8 +166,9 @@ export interface ThemeManifest {
 	/**
 	 * Анимации темы (docs/architecture/motion.md), например `fluent` из `$lib/motion`. Не указаны —
 	 * тема не анимирует ничего, кроме затемнения за окном. Форк не наследует поле.
+	 * Функция получает значения настроек темы: так набор зависит от её настроек (и от устройства).
 	 */
-	motion?: ThemeMotion;
+	motion?: ThemeMotion | ((values: Record<string, SettingValue>) => ThemeMotion | undefined);
 	/** Настройки, которые тема показывает на своей вкладке в настройках */
 	settings?: SettingField[];
 }

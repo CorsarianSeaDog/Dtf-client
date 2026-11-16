@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { abortTransition, freeze, headerBottomOf, incomingReady, pageTransition, shouldTransition, startTransition } from './pageTransition.svelte';
+import { abortTransition, freeze, headerBottomOf, incomingReady, pageTransition, shouldTransition, startTransition, waitProgress } from './pageTransition.svelte';
+import { getTheme } from './themes/registry';
 import { fluent } from './motion';
 import { activeTheme } from './themes/index.svelte';
 
@@ -21,6 +22,32 @@ describe('pageTransition', () => {
 		activeTheme.set('redtf');
 		expect(activeTheme.motion).toBeDefined();
 		expect(shouldTransition()).toBe(true);
+		vi.unstubAllGlobals();
+	});
+
+	it('расчётный прогресс ожидания растёт, но не доходит до 90%', () => {
+		expect(waitProgress(0)).toBe(0);
+		expect(waitProgress(1500)).toBeGreaterThan(waitProgress(500));
+		expect(waitProgress(5000)).toBeLessThan(0.9);
+		expect(waitProgress(60_000)).toBeLessThanOrEqual(0.9);
+	});
+
+	it('redtf на телефоне берёт переход из настройки, на компьютере — глубину', () => {
+		const motion = getTheme('redtf')?.motion;
+		if (typeof motion !== 'function') throw new Error('motion redtf должен зависеть от настроек');
+		const device = (mobile: boolean) => vi.stubGlobal('window', { matchMedia: (q: string) => ({ matches: mobile && q.includes('max-width') }) });
+
+		device(true);
+		expect(motion({})?.peek).toBeDefined();
+		expect(motion({ mobileTransition: 'material' })?.peek).toBeUndefined();
+		// Старая страница уходит под новую, не погаснув: иначе между ними виден фон приложения
+		expect(motion({ mobileTransition: 'material' })!.fastDepart!.keyframes.every((k) => (k.opacity ?? 1) === 1)).toBe(true);
+		expect(motion({ mobileTransition: 'zoom' })?.recede).toEqual(fluent.recede);
+		expect(motion({ transitionSpeed: 'fast' })!.fastApproach!.duration).toBeLessThan(motion({ transitionSpeed: 'smooth' })!.fastApproach!.duration);
+		const materialAt = (transitionSpeed: string) => motion({ mobileTransition: 'material', transitionSpeed })!.fastApproach!.duration;
+		expect(materialAt('fast')).toBeLessThan(materialAt('smooth'));
+		device(false);
+		expect(motion({ mobileTransition: 'slide' })?.peek).toBeUndefined();
 		vi.unstubAllGlobals();
 	});
 

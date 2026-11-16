@@ -36,7 +36,7 @@
 	import { feed } from '$lib/feed.svelte';
 	import { loadThemeStyles, themeSettingsSchema } from '$lib/themes/registry';
 	import { activeThemeSettings } from '$lib/themes/settings.svelte';
-	import { abortTransition, headerBottomOf, incomingReady, pageTransition, shouldTransition, startTransition } from '$lib/pageTransition.svelte';
+	import { abortTransition, headerBottomOf, incomingReady, pageTransition, peekPanel, shouldTransition, startTransition } from '$lib/pageTransition.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import { donationAccount } from '$lib/api/donationAccount.svelte';
 	import { notifications } from '$lib/api/notifications.svelte';
@@ -81,6 +81,8 @@
 		const top = Math.max(from.top, headerBottom);
 		Object.assign(screen.style, { position: 'fixed', top: `${top}px`, left: `${from.left}px`, width: `${from.width}px`, height: `${innerHeight - top}px`, overflow: 'hidden', margin: '0', zIndex: '90', pointerEvents: 'none' });
 		screen.scrollTop = top - from.top;
+		// Тема может оформить уходящий экран (например, сделать непрозрачным): он уничтожается вместе с атрибутом
+		screen.setAttribute('data-leaving', '');
 		screen.animate(anim.keyframes, { duration: anim.duration, easing: anim.easing, fill: 'forwards' });
 		return { duration: anim.duration };
 	}
@@ -143,6 +145,8 @@
 	let previousScrollId = '__feed__';
 	let previousDepth = 0;
 	let lastTransitionedTo = '__feed__';
+	// Слой, к которому вернулись, отменив переход: его возвращает сам переход, своя анимация появления не нужна
+	let returnedTo: string | undefined;
 
 	// Отложенное восстановление прокрутки для слоёв, чьё содержимое подгружается асинхронно
 	let pendingScroll: { layer: string; target: number } | undefined;
@@ -227,7 +231,10 @@
 					startTransition(previousScrollId, activeScrollId, outgoing);
 				} else if (overlays.length < previousDepth) {
 					lastTransitionedTo = '__feed__';
-					if (pageTransition.active) abortTransition();
+					if (pageTransition.active) {
+						returnedTo = activeScrollId;
+						abortTransition();
+					}
 
 				}
 			});
@@ -269,6 +276,10 @@
 				}
 
 				if (landed) return;
+				if (returnedTo === layer) {
+					returnedTo = undefined;
+					return;
+				}
 
 				// Если для входящего слоя запущен универсальный переход, анимацией занимается pageTransition
 				if (pageTransition.isIncoming(layer)) {
@@ -422,7 +433,7 @@
 
 		// Пока пользователь смотрит ленту, догружаем то, что откроется следующим: пост не должен начинаться со спиннера компонента
 		const idle = (window.requestIdleCallback ?? setTimeout)(() => {
-			for (const name of ['Post', 'Comments', 'Profile', 'Notifications', 'AccountPage'] as const) preloadThemeComponent(activeTheme.chain, name);
+			for (const name of ['Post', 'Comments', 'Profile', 'Notifications', 'AccountPage', 'PagePeek'] as const) preloadThemeComponent(activeTheme.chain, name);
 			preloadLightbox();
 		});
 
@@ -493,6 +504,13 @@
 				</div>
 			{/if}
 		{/each}
+
+		<!-- Рядом со слоями: панель встаёт между старым экраном и выезжающим новым -->
+		{#if pageTransition.peeking}
+			<div class="transition-peek" {@attach peekPanel}>
+				<ThemeLoader componentName="PagePeek" progress={pageTransition.progress} />
+			</div>
+		{/if}
 	</ThemeLoader>
 
 	{#each overlays as overlay, index (overlay.id)}
@@ -505,7 +523,7 @@
 		{/if}
 	{/each}
 
-	{#if pageTransition.slow}
+	{#if pageTransition.slow && !pageTransition.peeking}
 		<div class="transition-wait">
 			<ThemeLoader componentName="Spinner" inline />
 		</div>
@@ -578,6 +596,15 @@
 	   шире экрана, мобильный браузер раздвигает окно, и фиксированная нижняя панель уезжает за низ. Обрезаем своим элементом */
 	.app[data-gestures] {
 		overflow-x: clip;
+	}
+
+	/* Старый экран зафиксирован под ней (z-index 10), новый выезжает над ней (30) */
+	.transition-peek {
+		position: fixed;
+		inset: 0;
+		z-index: 20;
+		pointer-events: none;
+		transform: translateX(100%);
 	}
 
 	.transition-wait {

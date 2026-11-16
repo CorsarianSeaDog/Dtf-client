@@ -1,5 +1,6 @@
 import { ease, fluent, type ThemeMotion } from '$lib/motion';
-import { defineTheme, EXPERIMENTAL } from '../types';
+import { EASE as SWIPE_EASE } from '$lib/swipe';
+import { defineTheme, EXPERIMENTAL, getCurrentDevice, type SettingValue } from '../types';
 import { extendsTheme, palettes } from './palettes';
 
 function defaultTransparency(): boolean {
@@ -15,11 +16,98 @@ function isTransparencyEnabled(): boolean {
 	return defaultTransparency();
 }
 
+/** Какую часть экрана занимает панель будущей страницы, пока та грузится (её рисует PagePeek) */
+export const PEEK = 0.25;
+
+/** Переход между страницами: на телефоне его вид выбирается настройкой `mobileTransition` */
+type PageMotion = Pick<ThemeMotion, 'recede' | 'wait' | 'breathe' | 'depart' | 'approach' | 'fastDepart' | 'fastApproach' | 'peek' | 'pageOut' | 'pageBack' | 'pageIn'>;
+
+// «Слайд»: движение как у свайпа «назад», только в обратную сторону. Новая страница выезжает справа с кривой броска
+// (сразу на скорости и плавно тормозит), старая отъезжает на треть влево и затемняется, но не размывается: размытие,
+// нарастающее на ходу, глаз пытается навести на резкость, и переход утомляет. Пока страница грузится, старая стоит
+// на месте и размывается (без эффектов прозрачности — белеет), а справа выдвинута панель будущей страницы с индикатором
+// Темп слайда (настройка `transitionSpeed`). «Плавно» — кривая шторок iOS: разгон мягче броска, торможение длиннее
+const SLIDE_TIMING: Record<string, { duration: number; easing: string }> = {
+	fast: { duration: 260, easing: SWIPE_EASE },
+	normal: { duration: 380, easing: SWIPE_EASE },
+	smooth: { duration: 520, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' }
+};
+
+function slide(blur: boolean, speed: SettingValue | undefined): PageMotion {
+	const timing = SLIDE_TIMING[String(speed)] ?? SLIDE_TIMING.normal;
+	const shift = (x: string): Keyframe => ({ transform: `translateX(${x})`, filter: 'brightness(0.9)' });
+	const still: Keyframe = { transform: 'none', filter: 'brightness(1)' };
+	const waiting: Keyframe = blur ? { filter: 'blur(6px)', opacity: 0.7 } : { opacity: 0.45 };
+	const peeked = `translateX(${(1 - PEEK) * 100}%)`;
+	// «Плавно»: старая страница начинает размываться на хвосте торможения, когда уже почти встала. Кадры стоят по прогрессу
+	// после кривой, а не по времени: 0.85 у этой кривой — около трети времени
+	const settling: Keyframe[] =
+		speed === 'smooth' && blur
+			? [
+					{ transform: 'none', filter: 'brightness(1) blur(0px)' },
+					{ transform: 'translateX(-25.5%)', filter: 'brightness(0.915) blur(0px)', offset: 0.85 },
+					{ transform: 'translateX(-30%)', filter: 'brightness(0.9) blur(6px)' }
+			  ]
+			: [still, shift('-30%')];
+	return {
+		fastApproach: { keyframes: [{ transform: 'translateX(100%)' }, { transform: 'none' }], ...timing },
+		fastDepart: { keyframes: settling, ...timing },
+		peek: { keyframes: [{ transform: 'translateX(100%)' }, { transform: peeked }], ...timing },
+		recede: { keyframes: [blur ? { filter: 'blur(0px)', opacity: 1 } : { opacity: 1 }, waiting], duration: 300, easing: ease.out },
+		wait: undefined,
+		breathe: undefined,
+		// Уже размытая страница уезжает, не меняя резкости
+		depart: { keyframes: [{ transform: 'translateX(-30%)' }], ...timing },
+		approach: { keyframes: [{ transform: peeked }, { transform: 'none' }], ...timing },
+		pageOut: { keyframes: [{ transform: 'none' }, { transform: 'translateX(100%)' }], ...timing },
+		pageBack: { keyframes: [shift('-30%'), still], ...timing }
+	};
+}
+
+// «Material»: общая ось X из Material 3, как MaterialSharedAxis в Material Components: сдвиг на 30dp, кривая emphasized,
+// длительность — токены M3 («Обычно» — long1, их значение по умолчанию; «Быстро» — medium2; «Плавно» — long4).
+// У M3 слои сменяются «через пустоту»: старый гаснет на первых 35% прогресса, новый проявляется после. Здесь в этот миг
+// проглядывал бы серый фон приложения без панелей, поэтому новый проявляется поверх старого, а старый уходит под ним.
+// Закрытие — то же в обратную сторону: закрытая страница гаснет на первых 35%, как у M3, а слой под ней только подъезжает.
+// Кадры прозрачности стоят по прогрессу после кривой, как и пороги у M3
+const MATERIAL_DURATION: Record<string, number> = { fast: 300, normal: 450, smooth: 600 };
+
+function material(speed: SettingValue | undefined): PageMotion {
+	const timing = { duration: MATERIAL_DURATION[String(speed)] ?? MATERIAL_DURATION.normal, easing: ease.m3Emphasized };
+	const enter: Keyframe[] = [
+		{ opacity: 0, transform: 'translateX(30px)' },
+		{ opacity: 1, transform: 'translateX(6px)', offset: 0.8 },
+		{ opacity: 1, transform: 'none' }
+	];
+	return {
+		fastApproach: { keyframes: enter, ...timing },
+		fastDepart: { keyframes: [{ transform: 'none' }, { transform: 'translateX(-30px)' }], ...timing },
+		peek: undefined,
+		recede: { keyframes: [{ opacity: 1, transform: 'none' }, { opacity: 0.35, transform: 'translateX(-30px)' }], ...timing },
+		wait: undefined,
+		breathe: undefined,
+		// Притушенная страница остаётся под проявляющейся новой
+		depart: { keyframes: [{ opacity: 0.35 }], ...timing },
+		approach: { keyframes: enter, ...timing },
+		pageOut: {
+			keyframes: [
+				{ opacity: 1, transform: 'none' },
+				{ opacity: 0, transform: 'translateX(10.5px)', offset: 0.35 },
+				{ opacity: 0, transform: 'translateX(30px)' }
+			],
+			...timing
+		},
+		pageBack: { keyframes: [{ transform: 'translateX(-30px)' }, { transform: 'none' }], ...timing },
+		// Слой под закрытой страницей (и прокрученная лента) не проявляется из пустоты: он уже стоит под гаснущей страницей
+		pageIn: undefined
+	};
+}
+
 // Содержимое «материализуется» из размытия, как приветствие. Размытие только у страниц: на длинной ленте слой слишком велик.
 // При выключенных эффектах прозрачности используются быстрые анимации без фильтров размытия.
-function getMotion(): ThemeMotion {
+function getMotion(values: Record<string, SettingValue>): ThemeMotion {
 	const blur = isTransparencyEnabled();
-	return {
+	const motion: ThemeMotion = {
 		...fluent,
 		modalIn: blur
 			? fluent.modalIn
@@ -199,6 +287,8 @@ function getMotion(): ThemeMotion {
 					easing: ease.smooth
 			  }
 	};
+	if (getCurrentDevice() !== 'mobile' || values.mobileTransition === 'zoom') return motion;
+	return { ...motion, ...(values.mobileTransition === 'material' ? material(values.transitionSpeed) : slide(blur, values.transitionSpeed)) };
 }
 
 export default defineTheme({
@@ -258,6 +348,33 @@ export default defineTheme({
 			options: [
 				{ value: 'list', title: 'Колонка', description: 'Кнопки стоят на месте, по ним двигается выделение' },
 				{ value: 'drum', title: 'Барабан · как в Telegram X', description: 'Выбранное действие крупно в центре, остальные уменьшены сверху и снизу' }
+			]
+		},
+		{
+			key: 'mobileTransition',
+			type: 'radio',
+			title: 'Переходы между страницами',
+			description: 'Как открывается новая страница на телефоне.',
+			default: 'slide',
+			device: 'mobile',
+			options: [
+				{ value: 'slide', title: 'Слайд', description: 'Страница выезжает справа. Пока она грузится, справа выдвинут её край с индикатором' },
+				{ value: 'material', title: 'Material', description: 'Короткий сдвиг с растворением, как в Android' },
+				{ value: 'zoom', title: 'Глубина · как на компьютере', description: 'Старая страница уходит вглубь, новая приближается' }
+			]
+		},
+		{
+			key: 'transitionSpeed',
+			type: 'radio',
+			title: 'Темп перехода',
+			description: 'С какой скоростью сменяются страницы.',
+			default: 'normal',
+			device: 'mobile',
+			dependsOn: { key: 'mobileTransition', value: ['slide', 'material'] },
+			options: [
+				{ value: 'fast', title: 'Быстро', description: 'Короткое движение, страница почти сразу на месте' },
+				{ value: 'normal', title: 'Обычно', description: 'Слайд — как свайп «назад», Material — как в Android по умолчанию' },
+				{ value: 'smooth', title: 'Плавно', description: 'Медленнее, мягкий разгон и долгое торможение' }
 			]
 		},
 		{
@@ -391,7 +508,5 @@ export default defineTheme({
 			]
 		}
 	],
-	get motion() {
-		return getMotion();
-	}
+	motion: getMotion
 });

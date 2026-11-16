@@ -10,7 +10,7 @@ export type SearchTab = 'posts' | 'comments' | 'blogs' | 'topics';
  *
  * Обязательные: Header, EditorialNews, FeedTabs, Post, Comments, Profile, Notifications, TagPage, SearchPage, DraftsPage, LoginModal, NetworkErrorModal, EditorScreen, Spinner, ReloadPrompt.
  * Необязательные (если нет, ядро обходится без них): MainLayout.
- * Необязательные, которых без темы просто нет на экране: FeedNotice, Recommendations, AccountPage, ScreenBar.
+ * Необязательные, которых без темы просто нет на экране: FeedNotice, Recommendations, AccountPage, ScreenBar, PagePeek.
  * Форк темы (`extends`) может не иметь ничего из этого и взять недостающее у основы.
  */
 export interface ThemeComponents {
@@ -141,5 +141,13 @@ export interface ThemeComponents {
 	EditorScreen: { session: any };
 	/** `inline` — маленький, в потоке; `block` — заглушка на месте содержимого экрана (если тема так умеет); без них — обычный на своём месте */
 	Spinner: { inline?: boolean; block?: boolean };
+	/**
+	 * Панель будущей страницы, пока она грузится (нужна, если в `motion` темы есть `peek`). Ядро двигает обёртку на весь
+	 * экран, компонент рисует её содержимое: фон страницы и индикатор в видимой полосе у левого края
+	 */
+	PagePeek: {
+		/** Расчётный прогресс 0…1. Единица — страница готова: индикатор доливается, и панель выезжает со страницей */
+		progress: number;
+	};
 	ReloadPrompt: {};
 }

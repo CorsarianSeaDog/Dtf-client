@@ -10,7 +10,8 @@ import { activeTheme } from '$lib/themes/index.svelte';
 import { fluent, play, playClipped, reducedMotion, type Anim } from '$lib/motion';
 import { resumeLazyVideos } from '$lib/actions/lazyVideo';
 import { nextPaint } from '$lib/ready';
-import { tick } from 'svelte';
+import { untrack } from 'svelte';
+import type { Attachment } from 'svelte/attachments';
 
 export interface ClickOrigin {
 	rect: DOMRect;
@@ -20,6 +21,10 @@ export interface ClickOrigin {
 const RECEDE_DELAY = 80; // Задержка перед отдалением старого экрана: быстрые переходы (из кэша) не дёргаются
 const SLOW_DELAY = 1500; // Порог перехода в фазу Hold (живое размытие + спиннер)
 const FAIL_SAFE_TIMEOUT = 12000; // Предохранитель от вечного зависания при сбое сети
+const PEEK_FILL = 180; // Сколько индикатор панели доливается до конца, прежде чем страница выедет
+
+/** Расчётный прогресс ожидания (честного у запроса нет): быстро набирает и замедляется, не доходя до 90% */
+export const waitProgress = (ms: number) => 0.9 * (1 - Math.exp(-ms / 1500));
 
 let active = $state(false);
 let slow = $state(false);
@@ -27,6 +32,8 @@ let receded = false;
 let outgoingId = $state<string | null>(null);
 let incomingId = $state<string | null>(null);
 let incomingHidden = $state(true);
+let peeking = $state(false);
+let progress = $state(0);
 
 let currentOrigin: ClickOrigin | null = null;
 let failSafeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -40,6 +47,9 @@ let currentBreatheAnim: Animation | undefined;
 let currentDepartAnim: Animation | undefined;
 let currentIncomingAnim: Animation | undefined;
 let currentReturnAnim: Animation | undefined;
+let currentPeekAnim: Animation | undefined;
+let peekEl: HTMLElement | null = null;
+let progressRaf = 0;
 
 let transitionEpoch = 0;
 let recedeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -177,13 +187,14 @@ export function startTransition(fromId: string, toId: string, screenEl: HTMLElem
 		if (motion?.recede) {
 			currentRecedeAnim = play(outgoingScreen, motion.recede, 'forwards');
 		}
+		if (motion?.peek) startPeek();
 	}, RECEDE_DELAY);
 
 	// Таймер Hold: если загрузка дольше SLOW_DELAY
 	slowTimer = setTimeout(() => {
 		if (!active || outgoingId !== fromId) return;
 		slow = true;
-		hadHoldBlur = true;
+		hadHoldBlur = Boolean(motion?.wait);
 
 		// Плавно нарастает размытие
 		const waitAnim = motion?.wait;
@@ -200,6 +211,33 @@ export function startTransition(fromId: string, toId: string, screenEl: HTMLElem
 		}
 	}, SLOW_DELAY);
 }
+
+/** Показать панель будущей страницы (её рисует layout, пока `peeking`) и запустить расчётный прогресс */
+function startPeek() {
+	peeking = true;
+	progress = 0;
+	const start = performance.now();
+	const step = (now: number) => {
+		progress = waitProgress(now - start);
+		progressRaf = requestAnimationFrame(step);
+	};
+	progressRaf = requestAnimationFrame(step);
+}
+
+function stopProgress() {
+	if (!progressRaf) return;
+	cancelAnimationFrame(progressRaf);
+	progressRaf = 0;
+}
+
+/** Аттач обёртки панели: выдвигает её анимацией `peek` темы */
+export const peekPanel: Attachment<HTMLElement> = (node) => {
+	peekEl = node;
+	currentPeekAnim = play(node, untrack(() => activeTheme.motion?.peek), 'forwards');
+	return () => {
+		if (peekEl === node) peekEl = null;
+	};
+};
 
 /** Сообщить, что входящий слой готов к показу */
 export async function incomingReady(layerId: string, incomingScreen: HTMLElement): Promise<void> {
@@ -218,9 +256,25 @@ export async function incomingReady(layerId: string, incomingScreen: HTMLElement
 	const isFast = !receded;
 	const motion = activeTheme.motion;
 	const promises: Promise<unknown>[] = [];
+	const epoch = transitionEpoch;
+
+	// Панель ожидания: индикатор доливается до конца, затем страница выезжает с позиции панели вместе с ней
+	let peekFrom: number | undefined;
+	if (!isFast && peeking && peekEl) {
+		stopProgress();
+		progress = 1;
+		await new Promise((r) => setTimeout(r, PEEK_FILL));
+		if (epoch !== transitionEpoch || !peekEl) return;
+		peekFrom = Math.round(peekEl.getBoundingClientRect().left);
+	}
 
 	// 1. Подготовка и запуск появления нового экрана
-	const approachAnim = isFast ? (motion?.fastApproach ?? fluent.fastApproach) : motion?.approach;
+	let approachAnim = isFast ? (motion?.fastApproach ?? fluent.fastApproach) : motion?.approach;
+	if (approachAnim && peekFrom !== undefined && peekEl) {
+		approachAnim = { ...approachAnim, keyframes: [{ transform: `translateX(${peekFrom}px)` }, { transform: 'none' }] };
+		currentPeekAnim?.cancel();
+		currentPeekAnim = play(peekEl, approachAnim, 'forwards');
+	}
 	if (approachAnim) {
 		const incomingRect = incomingScreen.getBoundingClientRect();
 		const visibleTop = Math.max(0, incomingRect.top);
@@ -234,7 +288,7 @@ export async function incomingReady(layerId: string, incomingScreen: HTMLElement
 		incomingScreen.style.willChange = 'transform, opacity';
 
 		let keyframes: Keyframe[] = approachAnim.keyframes.map((kf) => ({ ...kf }));
-		if (!isFast && hadHoldBlur) {
+		if (!isFast && hadHoldBlur && peekFrom === undefined) {
 			keyframes = keyframes.map((kf, i, arr) => {
 				const progress = i / (arr.length - 1);
 				const blur = Math.round(14 * (1 - progress));
@@ -287,7 +341,6 @@ export async function incomingReady(layerId: string, incomingScreen: HTMLElement
 		}
 	}
 
-	const epoch = transitionEpoch;
 	await Promise.all(promises);
 	if (epoch !== transitionEpoch) return;
 
@@ -301,16 +354,27 @@ export function abortTransition() {
 
 	const epoch = ++transitionEpoch;
 	clearTimers();
+	// Возврат начинается с того вида, до которого старый экран успел уйти, а не со скачка на место
+	try {
+		currentRecedeAnim?.commitStyles?.();
+		currentWaitAnim?.commitStyles?.();
+		currentBreatheAnim?.commitStyles?.();
+	} catch {}
 	currentBreatheAnim?.cancel();
 	currentRecedeAnim?.cancel();
 	currentWaitAnim?.cancel();
 	currentDepartAnim?.cancel();
 	currentIncomingAnim?.cancel();
+	stopProgress();
 
 	if (!receded) {
 		cleanup();
 		return;
 	}
+
+	// Панель ожидания уезжает обратно за край
+	const peekBack = currentPeekAnim;
+	if (peekBack) peekBack.reverse();
 
 	// Возврат к нормальному виду старого экрана
 	const anim = outgoingScreen.animate([
@@ -321,7 +385,7 @@ export function abortTransition() {
 	});
 	currentReturnAnim = anim;
 
-	anim.finished.finally(() => {
+	Promise.allSettled([anim.finished, peekBack?.finished]).finally(() => {
 		if (epoch !== transitionEpoch) return;
 		anim.cancel();
 		cleanup();
@@ -348,6 +412,12 @@ function cleanup(hideOutgoing = false) {
 
 	currentReturnAnim?.cancel();
 	currentReturnAnim = undefined;
+
+	stopProgress();
+	currentPeekAnim?.cancel();
+	currentPeekAnim = undefined;
+	peeking = false;
+	progress = 0;
 
 	if (outgoingScreen) {
 		if (hideOutgoing) {
@@ -396,6 +466,14 @@ export const pageTransition = {
 	},
 	get incomingHidden() {
 		return incomingHidden;
+	},
+	/** Панель будущей страницы выдвинута (тема задала `peek`): layout рисует её вместо спиннера */
+	get peeking() {
+		return peeking;
+	},
+	/** Расчётный прогресс ожидания для панели, 0…1; 1 — страница готова и сейчас выедет */
+	get progress() {
+		return progress;
 	},
 	isOutgoing(id: string) {
 		return active && outgoingId === id;

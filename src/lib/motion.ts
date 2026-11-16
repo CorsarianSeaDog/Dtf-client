@@ -63,6 +63,11 @@ export interface ThemeMotion {
 	fastDepart?: Anim;
 	/** Быстрый переход: новый экран всплывает на передний план (при быстрой готовности) */
 	fastApproach?: Anim;
+	/**
+	 * Вместо спиннера при ожидании: панель будущей страницы выдвигается краем (компонент темы `PagePeek`).
+	 * Анимация двигает обёртку на весь экран; когда страница готова, она выезжает с позиции панели (время из `approach`)
+	 */
+	peek?: Anim;
 }
 
 /** Поля ThemeMotion, которые являются анимациями (их проигрывает `play`) */
@@ -86,10 +91,20 @@ export type AnimKey =
 	| 'depart'
 	| 'approach'
 	| 'fastDepart'
-	| 'fastApproach';
+	| 'fastApproach'
+	| 'peek';
+
+/**
+ * Кривая emphasized из Material 3 (токен `m3_sys_motion_easing_emphasized`). У M3 это не одна кривая Безье, а путь из двух,
+ * поэтому он снят по точкам в `linear()`. Где `linear()` не поддерживается, берётся приближение `cubic-bezier`
+ */
+const M3_EMPHASIZED =
+	'linear(0, 0.003 2%, 0.013 4%, 0.03 6%, 0.056 8%, 0.093 10%, 0.146 12%, 0.222 14%, 0.341 16%, 0.52 18%, 0.636 20%, 0.706 22%, 0.754 24%, 0.804 27%, 0.84 30%, 0.876 34%, 0.902 38%, 0.926 43%, 0.951 50%, 0.973 60%, 0.987 70%, 0.997 85%, 1)';
+const supportsLinear = () => typeof CSS !== 'undefined' && CSS.supports?.('transition-timing-function', 'linear(0, 1)') === true;
 
 /** Кривые: QuarticEase, Fluent и Material */
 export const ease = {
+	m3Emphasized: supportsLinear() ? M3_EMPHASIZED : 'cubic-bezier(0.2, 0, 0, 1)',
 	out: 'cubic-bezier(0.165, 0.84, 0.44, 1)',
 	inOut: 'cubic-bezier(0.77, 0, 0.175, 1)',
 	decelerate: 'cubic-bezier(0.1, 0.9, 0.2, 1)',
