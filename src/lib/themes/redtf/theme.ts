@@ -368,12 +368,12 @@ export default defineTheme({
 			type: 'radio',
 			title: 'Темп перехода',
 			description: 'С какой скоростью сменяются страницы.',
-			default: 'normal',
+			default: 'smooth',
 			device: 'mobile',
 			dependsOn: { key: 'mobileTransition', value: ['slide', 'material'] },
 			options: [
 				{ value: 'fast', title: 'Быстро', description: 'Короткое движение, страница почти сразу на месте' },
-				{ value: 'normal', title: 'Обычно', description: 'Слайд — как свайп «назад», Material — как в Android по умолчанию' },
+				{ value: 'normal', title: 'Обычно', description: 'Стандартная длительность анимации' },
 				{ value: 'smooth', title: 'Плавно', description: 'Медленнее, мягкий разгон и долгое торможение' }
 			]
 		},
