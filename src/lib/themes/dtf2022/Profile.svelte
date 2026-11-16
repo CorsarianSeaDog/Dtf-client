@@ -330,6 +330,7 @@
 				<video
 					class="profile-head__cover-video"
 					src={getAnimatedVideoUrl(profile.coverUrl)}
+					poster={profile.coverUrl}
 					style:object-position="50% {editingCover ? coverY : (profile.coverY ?? 50)}%"
 					muted
 					loop

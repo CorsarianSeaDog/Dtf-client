@@ -25,10 +25,10 @@
 			if (img.complete && img.naturalWidth > 0) img.closest('.media-placeholder')?.classList.add('media-placeholder--loaded');
 		}
 		main.addEventListener('load', fade, true);
-		main.addEventListener('loadeddata', fade, true);
+		main.addEventListener('playing', fade, true);
 		return () => {
 			main.removeEventListener('load', fade, true);
-			main.removeEventListener('loadeddata', fade, true);
+			main.removeEventListener('playing', fade, true);
 		};
 	}
 </script>

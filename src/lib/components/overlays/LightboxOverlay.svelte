@@ -61,6 +61,7 @@
 					slide.className = 'pswp__content';
 					const video = document.createElement('video');
 					video.src = getLeonardoUrl(media.uuid, { format: 'mp4' });
+					video.poster = getLeonardoUrl(media.uuid, { width: 680, format: 'jpg' });
 					video.controls = true;
 					video.playsInline = true;
 					video.preload = 'metadata';

@@ -1,5 +1,7 @@
 let observer: IntersectionObserver | null = null;
 const videos = new Set<HTMLVideoElement>();
+// Прозрачный 1×1 GIF вместо системной заглушки WebView (default_video_poster) до старта видео
+const EMPTY_POSTER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 // Пока идёт переход страниц или анимация показа, видео не стартуют: смена кадров под размытием роняет FPS
 const held = (node: HTMLVideoElement) =>
@@ -14,6 +16,7 @@ export function resumeLazyVideos() {
 }
 
 export function lazyVideo(node: HTMLVideoElement) {
+	if (!node.poster) node.poster = EMPTY_POSTER;
 	if (!observer) {
 		observer = new IntersectionObserver((entries) => {
 			for (const entry of entries) {
