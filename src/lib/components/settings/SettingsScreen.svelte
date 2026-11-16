@@ -500,7 +500,7 @@
 						{:else if selectedPageId === 'debug' && isDevVisible}
 							<DebugSettings ondisable={() => { selectedPageId = null; handleMobileBack(); }} />
 						{:else if selectedPageId === 'reactions'}
-							<ReactionsSettings />
+							<ReactionsSettings touch={currentTouch} />
 						{:else if selectedPageId === 'app-icon'}
 							<AppIconSettings />
 						{:else if activeDeclarativePage}

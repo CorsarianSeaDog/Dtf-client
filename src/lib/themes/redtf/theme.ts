@@ -254,7 +254,7 @@ export default defineTheme({
 			title: 'Действия свайпа по комментарию',
 			description: 'Как выглядит выбор действия, когда комментарий сдвинут влево и палец ведёт вниз.',
 			default: 'list',
-			device: 'mobile',
+			touch: true,
 			options: [
 				{ value: 'list', title: 'Колонка', description: 'Кнопки стоят на месте, по ним двигается выделение' },
 				{ value: 'drum', title: 'Барабан · как в Telegram X', description: 'Выбранное действие крупно в центре, остальные уменьшены сверху и снизу' }

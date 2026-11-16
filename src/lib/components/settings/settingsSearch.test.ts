@@ -103,6 +103,7 @@ describe('settingsSearch', () => {
 		const tabletIndex = createIndex({ currentDevice: 'desktop', hasTouch: true, hasGestures: true });
 		expect(searchSettings(tabletIndex, 'ширина контента')).toHaveLength(1);
 		expect(searchSettings(tabletIndex, 'действия свайпа')).toHaveLength(1);
+		expect(searchSettings(tabletIndex, 'любимые реакции')).toHaveLength(1);
 
 		const mobileDevIndex = createIndex({ currentDevice: 'mobile', hasTouch: true, isDevVisible: true, isNativePlatform: true, hasGestures: true });
 		expect(searchSettings(mobileDevIndex, 'блюр мобильного')).toHaveLength(1);

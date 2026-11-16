@@ -253,7 +253,7 @@ const CUSTOM_SEARCH_ITEMS: SettingsSearchItem[] = [
 		subtitle: 'Быстрые реакции при свайпе по комментарию',
 		keywords: 'свайп жест избранные любимые реакции',
 		anchorText: 'Любимые реакции',
-		device: 'mobile',
+		touch: true,
 		requiresGestures: true
 	},
 	{

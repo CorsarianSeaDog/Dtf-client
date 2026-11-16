@@ -312,19 +312,32 @@ describe('SettingsScreen', () => {
 		expect(body).toContain('Настройка реакций');
 	});
 
-	it('рендерит Комментарии с соло-ссылкой на параметры приложения для подписи', () => {
-		const { body } = render(SettingsScreen, {
+	it('рендерит Комментарии с соло-ссылкой на параметры приложения для подписи и учитывает touch-флаг', () => {
+		const { body: desktopBody } = render(SettingsScreen, {
 			props: {
 				onclose: () => {},
-				page: 'interface-comments'
+				page: 'interface-comments',
+				device: 'desktop',
+				touch: false
 			}
 		});
 
-		expect(body).toContain('Голос за себя при публикации');
-		expect(body).toContain('как на Reddit');
-		expect(body).toContain('Вложенные комментарии');
-		expect(body).toContain('Виртуализация комментариев');
-		expect(body).toContain('Подпись reDTF');
+		expect(desktopBody).toContain('Голос за себя при публикации');
+		expect(desktopBody).toContain('как на Reddit');
+		expect(desktopBody).toContain('Вложенные комментарии');
+		expect(desktopBody).toContain('Виртуализация комментариев');
+		expect(desktopBody).toContain('Подпись reDTF');
+		expect(desktopBody).not.toContain('Действия свайпа по комментарию');
+
+		const { body: tabletBody } = render(SettingsScreen, {
+			props: {
+				onclose: () => {},
+				page: 'interface-comments',
+				device: 'desktop',
+				touch: true
+			}
+		});
+		expect(tabletBody).toContain('Действия свайпа по комментарию');
 	});
 
 	it('рендерит настройку типографики на странице Редактор', () => {

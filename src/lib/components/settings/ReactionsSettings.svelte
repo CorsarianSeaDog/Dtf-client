@@ -6,6 +6,10 @@
 	import { FREE_REACTION_IDS, PLUS_REACTION_IDS, REACTIONS, type ReactionKind } from '$lib/config/reactions';
 	import { MAX_FAVORITES, reactionSettings, resetRules, ruleOf, setRule, toggleFavorite, voteReaction } from '$lib/storage/reactions.svelte';
 	import { activeTheme } from '$lib/themes/index.svelte';
+	import { hasTouchInput } from '$lib/themes/types';
+
+	let { touch }: { touch?: boolean } = $props();
+	let hasTouch = $derived(touch ?? hasTouchInput());
 
 	/*
 	 * Страница «Реакции». DTF считает любую реакцию плюсом, поэтому здесь пользователь решает, какие реакции
@@ -64,7 +68,7 @@
 	{@render picker('Дизлайк', 'Среди минусовых реакций', 'negative', voteReaction(-1), (dislike) => reactionSettings.patch({ dislike }))}
 </SettingsGroup>
 
-{#if activeTheme.gestures}
+{#if activeTheme.gestures && hasTouch}
 	{@const favorites = reactionSettings.value.favorites}
 	<SettingsGroup
 		title="Любимые реакции"
