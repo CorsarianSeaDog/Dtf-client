@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render } from 'svelte/server';
 import SettingsScreen from './SettingsScreen.svelte';
 import { authStorage } from '$lib/storage/auth.svelte';
+import { activeTheme } from '$lib/themes/index.svelte';
 import { resolveInitialNav } from './settingsConfig';
 
 describe('SettingsScreen', () => {
@@ -193,15 +194,40 @@ describe('SettingsScreen', () => {
 			}
 		});
 
-		// В подменю на смартфонах видна Мобильная панель, скрыта Верхняя панель
+		// В подменю на смартфонах видны обе панели
 		expect(body).toContain('Мобильная панель');
-		expect(body).not.toContain('Верхняя панель');
+		expect(body).toContain('Верхняя панель');
 
 		// Мобильные настройки видны
 		expect(body).toContain('Блюр мобильного бара');
 		expect(body).toContain('Плавающий мобильный бар');
 		// Десктопная настройка ширины контента скрыта
 		expect(body).not.toContain('Ширина контента');
+	});
+
+	it('верхняя панель на смартфоне показывает свои настройки, на десктопе их нет', () => {
+		const props = { onclose: () => {}, section: 'interface', page: 'interface-top-bar' };
+		const mobile = render(SettingsScreen, { props: { ...props, device: 'mobile' } }).body;
+		for (const text of ['Вид верхней панели', 'Как на сайте', 'experimental', 'Блюр верхней панели', 'Заголовок поста в верхней панели', 'Скрывать верхнюю панель при прокрутке']) {
+			expect(mobile).toContain(text);
+		}
+
+		const desktop = render(SettingsScreen, { props: { ...props, device: 'desktop' } }).body;
+		expect(desktop).toContain('Блюр верхней панели');
+		expect(desktop).not.toContain('Вид верхней панели');
+	});
+
+	it('пункт «Верхняя панель» на смартфоне есть у redtf и скрыт у темы без её полей', () => {
+		const props = { onclose: () => {}, section: 'interface', page: 'interface-content', device: 'mobile' as const };
+		const previousTheme = activeTheme.id;
+		try {
+			activeTheme.set('redtf');
+			expect(render(SettingsScreen, { props }).body).toContain('Верхняя панель');
+			activeTheme.set('dtf2022');
+			expect(render(SettingsScreen, { props }).body).not.toContain('Верхняя панель');
+		} finally {
+			activeTheme.set(previousTheme);
+		}
 	});
 
 	it('меняет местами блоки в выборе темы: сначала тема, затем цветовая схема', () => {

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import type { Comment, CommentUpdate, CommentEditorState, CommentMedia } from '$lib/api/types';
+	import type { Comment, CommentUpdate, CommentMedia } from '$lib/api/types';
 	import { api } from '$lib/api/index.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import { CommentsLogic } from '$lib/components/Comments/commentsLogic.svelte';
@@ -28,6 +28,7 @@
 	import { slide } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import { reducedMotion, scrollBehavior } from '$lib/motion';
+	import type { ThemeComponents } from '../contract';
 
 	let {
 		postId,
@@ -41,19 +42,7 @@
 		onfocused,
 		onCountChange,
 		onReconnect
-	}: {
-		postId: number;
-		sourceId?: string;
-		commentsCount?: number;
-		subscribed?: boolean;
-		postAuthorId?: number;
-		commentEditor?: CommentEditorState;
-		focusCommentId?: number;
-		focusNonce?: number;
-		onfocused?: () => void;
-		onCountChange?: (delta: number) => void;
-		onReconnect?: () => void;
-	} = $props();
+	}: ThemeComponents['Comments'] = $props();
 
 	/** Писать нельзя: ни нового комментария, ни ответа (правка своего остаётся на усмотрение сервера) */
 	let blocked = $derived(commentEditor?.enabled === false);

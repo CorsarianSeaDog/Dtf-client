@@ -36,7 +36,7 @@
 	import { feed } from '$lib/feed.svelte';
 	import { loadThemeStyles, themeSettingsSchema } from '$lib/themes/registry';
 	import { activeThemeSettings } from '$lib/themes/settings.svelte';
-	import { abortTransition, incomingReady, pageTransition, shouldTransition, startTransition } from '$lib/pageTransition.svelte';
+	import { abortTransition, headerBottomOf, incomingReady, pageTransition, shouldTransition, startTransition } from '$lib/pageTransition.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import { donationAccount } from '$lib/api/donationAccount.svelte';
 	import { notifications } from '$lib/api/notifications.svelte';
@@ -77,8 +77,7 @@
 		if (!anim || reducedMotion() || !screen || !from?.height) return deferDestroy(node);
 
 		// Слой ограничен экраном (длинная страница с размытием иначе рендерилась бы целиком): прокруткой внутри него показываем ту же часть
-		const headerEl = document.querySelector('header.header') ?? document.querySelector('header');
-		const headerBottom = headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 0;
+		const headerBottom = headerBottomOf();
 		const top = Math.max(from.top, headerBottom);
 		Object.assign(screen.style, { position: 'fixed', top: `${top}px`, left: `${from.left}px`, width: `${from.width}px`, height: `${innerHeight - top}px`, overflow: 'hidden', margin: '0', zIndex: '90', pointerEvents: 'none' });
 		screen.scrollTop = top - from.top;
@@ -329,6 +328,12 @@
 		} else {
 			delete document.documentElement.dataset.mobileBarFloating;
 		}
+		// Панель экрана вместо общей шапки: на `:root` её режим, остальное решают стили темы
+		if (activeTheme.id === 'redtf' && values.mobileTopBar !== 'web') {
+			document.documentElement.dataset.mobileTopBar = values.mobileTopBarFloating ? 'floating' : 'attached';
+		} else {
+			delete document.documentElement.dataset.mobileTopBar;
+		}
 		const style = document.documentElement.style;
 		for (const [name, value] of Object.entries(vars)) style.setProperty(name, value);
 		return () => {
@@ -337,6 +342,7 @@
 			delete document.documentElement.dataset.headerBlur;
 			delete document.documentElement.dataset.mobileBarBlur;
 			delete document.documentElement.dataset.mobileBarFloating;
+			delete document.documentElement.dataset.mobileTopBar;
 		};
 	});
 
@@ -405,6 +411,8 @@
 
 	onMount(() => {
 		initCapacitor();
+		// Панель экрана рисуется на первом же кадре: её компонент нужен раньше остальных
+		preloadThemeComponent(activeTheme.chain, 'ScreenBar');
 		cleanupHangingBio(true);
 		pwa.init();
 		const stopTracking = startTracking(() => statsContext);

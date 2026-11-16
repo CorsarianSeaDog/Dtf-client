@@ -61,30 +61,81 @@
 	:root[data-theme~="redtf"][data-header-blur="true"] .header {
 		backdrop-filter: blur(10px) saturate(180%);
 	}
+
+	/* Вместо общей шапки у каждого экрана своя панель (ScreenBar). Шапка остаётся смонтированной, но не рисуется,
+	   поэтому глобально её высота нулевая, а экран с панелью переопределяет её у себя: все липкие блоки и якоря внутри
+	   читают переменную через наследование */
+	:root[data-theme~="redtf"][data-mobile-top-bar] {
+		--header-height: 0px;
+		--screen-bar-height: calc(var(--mobile-bar-height-raw) + env(safe-area-inset-top, 0px));
+	}
+
+	:root[data-theme~="redtf"][data-mobile-top-bar="floating"] {
+		--screen-bar-height: calc(var(--mobile-bar-height-raw) + var(--mobile-bar-gap) + max(var(--mobile-bar-gap), env(safe-area-inset-top, 0px)));
+	}
+
+	:root[data-theme~="redtf"][data-mobile-top-bar] .header {
+		display: none;
+	}
+
+	:root[data-theme~="redtf"][data-mobile-top-bar] [data-screen-bar="full"] {
+		--header-height: var(--screen-bar-height);
+	}
+
+	:root[data-theme~="redtf"][data-mobile-top-bar] [data-screen-bar="bare"] {
+		--header-height: env(safe-area-inset-top, 0px);
+	}
+
+	/* Панель спрятана при прокрутке: липкие блоки внутри экрана встают к самому верху */
+	:root[data-theme~="redtf"][data-mobile-top-bar][data-bar-hidden]:not([data-transitioning], [data-swiping]) [data-screen-bar="full"] {
+		--header-height: 0px;
+	}
+
+	/* Название тега и его меню уже в панели: большой блок страницы тега не нужен */
+	:root[data-theme~="redtf"][data-mobile-top-bar] .tag-head {
+		display: none;
+	}
+
+	/* Поле над постом теперь даёт сама панель */
+	:root[data-theme~="redtf"][data-mobile-top-bar] .post-screen[data-screen-bar] {
+		padding-top: 0;
+	}
+
+	:root[data-theme~="redtf"][data-mobile-top-bar] .post-screen[data-screen-bar] > .screen-bar {
+		margin-bottom: 20px;
+	}
 }
 
-/* Блюр нижней панели */
+:root[data-theme~="redtf"] {
+	--mobile-bar-gap: 10px;
+	--mobile-bar-radius: 16px;
+	--mobile-bar-blur: blur(10px) saturate(180%);
+	--mobile-bar-blur-background: rgba(255, 255, 255, 0.85);
+}
+
+:root[data-theme~="redtf"][data-theme-mode="dark"] {
+	--mobile-bar-blur-background: rgba(0, 0, 0, 0.1);
+}
+
 :root[data-theme~="redtf"][data-mobile-bar-blur="true"] .mobile-bar {
-	backdrop-filter: blur(10px) saturate(180%);
-	background: rgba(255, 255, 255, 0.85);
+	backdrop-filter: var(--mobile-bar-blur);
+	background: var(--mobile-bar-blur-background);
 }
-
-:root[data-theme~="redtf"][data-theme-mode="dark"][data-mobile-bar-blur="true"] .mobile-bar {
-	background: rgba(0, 0, 0, 0.1);
-}
-
-
-
 /* Плавающая нижняя панель */
 :root[data-theme~="redtf"][data-mobile-bar-floating="true"] {
-	--mobile-bar-height: calc(var(--mobile-bar-height-raw) + 10px + max(10px, env(safe-area-inset-bottom, 0px)));
+	--mobile-bar-height: calc(var(--mobile-bar-height-raw) + var(--mobile-bar-gap) + max(var(--mobile-bar-gap), env(safe-area-inset-bottom, 0px)));
+}
+
+:root[data-theme~="redtf"] .mobile-bar {
+	padding-inline: max(var(--mobile-bar-padding-x), env(safe-area-inset-left, 0px)) max(var(--mobile-bar-padding-x), env(safe-area-inset-right, 0px));
 }
 
 :root[data-theme~="redtf"][data-mobile-bar-floating="true"] .mobile-bar {
 	height: var(--mobile-bar-height-raw);
-	padding-bottom: 0;
-	margin: 10px 10px max(10px, env(safe-area-inset-bottom, 0px));
-	border-radius: 16px;
+	padding: 0 var(--mobile-bar-padding-x);
+	margin: var(--mobile-bar-gap) max(var(--mobile-bar-gap), env(safe-area-inset-right, 0px)) max(var(--mobile-bar-gap), env(safe-area-inset-bottom, 0px)) max(var(--mobile-bar-gap), env(safe-area-inset-left, 0px));
+	border-radius: var(--mobile-bar-radius);
+	box-shadow: var(--shadow-dropdown);
 }
 
 /* Ширина контента меняется ползунком в настройках: регистрируем переменные как длины, чтобы переход их интерполировал.

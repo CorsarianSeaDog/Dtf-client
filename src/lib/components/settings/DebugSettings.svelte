@@ -13,8 +13,10 @@
 	import { otaUpdater, shellUpdater } from '$lib/capacitor/updater.svelte';
 	import HapticsLab from './HapticsLab.svelte';
 	import { dev } from '$app/env';
+	import { activeThemeSettings } from '$lib/themes/settings.svelte';
 
 	let { ondisable }: { ondisable?: () => void } = $props();
+	let themeValues = $derived(activeThemeSettings());
 	const themeField: ChoiceField = {
 		key: 'debug-theme',
 		type: 'radio',
@@ -147,6 +149,17 @@
 				checked={settings.value.debugSafeAreaOverlay ?? false}
 				onchange={(checked) => settings.patch({ debugSafeAreaOverlay: checked })}
 				label="Подсветка Safe Area"
+			/>
+		</SettingsRow>
+		<SettingsRow
+			title="Плавающая верхняя панель"
+			subtitle="Тема redtf на смартфоне: панель с отступами от краёв и скруглением, как у плавающей нижней"
+			tag="label"
+		>
+			<SettingsSwitch
+				checked={themeValues.value.mobileTopBarFloating === true}
+				onchange={(checked) => themeValues.patch({ mobileTopBarFloating: checked })}
+				label="Плавающая верхняя панель"
 			/>
 		</SettingsRow>
 		<SettingsRow

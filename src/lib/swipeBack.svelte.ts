@@ -52,8 +52,12 @@ function layers() {
 	return { top: top.id, under: below?.id ?? '__feed__' };
 }
 
+/** Пока идёт жест, на `:root` стоит `data-swiping`: темы по нему, например, не прячут панели экранов */
+const swiping = (on: boolean) => document.documentElement.toggleAttribute('data-swiping', on);
+
 /** Вернуть всё как до жеста. Слой под страницей сначала прячется: иначе на кадр он встанет в поток и толкнёт страницу */
 function reset() {
+	swiping(false);
 	if (landing) clearTimeout(landing.timer);
 	landing = undefined;
 	flushSync(() => (preview = null));
@@ -79,6 +83,7 @@ export const swipeBack = {
 		clearTimeout(landing.timer);
 		landing = undefined;
 		preview = null;
+		swiping(false);
 		// Закрытая страница уже скрыта и остаётся за краем экрана до размонтирования
 		restoreUnder?.();
 		restorePage = restoreUnder = undefined;
@@ -135,6 +140,7 @@ export function swipeBackGesture(options: SwipeBackOptions): Attachment<HTMLElem
 			under.style.zIndex = '';
 			under.style.willChange = 'transform';
 			flushSync(() => (preview = from!.under));
+			swiping(true);
 			under.scrollTop = parseFloat(under.style.top) - y;
 			// Затемнение встаёт сразу за слоем: по порядку DOM оно выше слоя и ниже страницы
 			const shade = document.createElement('div');

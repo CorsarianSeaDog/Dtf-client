@@ -3,6 +3,7 @@
 	import { disableScrollHandling } from '$app/navigation';
 	import { flushSync, onMount, untrack } from 'svelte';
 	import FeedList from '$lib/components/FeedList.svelte';
+	import ScreenBar from '$lib/components/ScreenBar.svelte';
 	import { FEEDS, feed, feedFromUrl, neighborFeed, openFeedTab, sortingFromUrl, type FeedName } from '$lib/feed.svelte';
 	import { feedSwipe, swipeAllowed } from '$lib/feedSwipe';
 	import { pullRefresh } from '$lib/pullRefresh';
@@ -119,6 +120,7 @@
 <svelte:window onscroll={rememberScroll} />
 
 <div class="feeds">
+	<ScreenBar screen="feed" />
 	<div class={['feeds__track', { 'feeds__track--swipe': activeTheme.gestures }]} bind:this={track} {@attach activeTheme.gestures ? swipe : undefined} {@attach activeTheme.gestures ? pull : undefined}>
 		{#each FEEDS as name (name)}
 			{#if feed.kept.includes(name)}

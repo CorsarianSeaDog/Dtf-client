@@ -7,7 +7,7 @@
 	/*
 	 * Обновление жестом на смартфоне, тем же приёмом, что боковая панель (pushDrawer.ts): шапка стоит, страница уезжает вниз,
 	 * а из глубины под ней поднимается подсказка. Отпустили за порогом — страница встаёт чуть ниже обычного, и в щели идёт
-	 * загрузка; обновилось — щель закрывается. Пишутся только transform и opacity: двигает композитор.
+	 * загрузка; обновилось — щель закрывается. Страница и панель двигаются только transform: двигает композитор. Панель экрана стоит, щель открывается под ней.
 	 */
 
 	/** Масштаб подсказки в начале: она поднимается из глубины */
@@ -24,18 +24,31 @@
 	let frame = 0;
 	// Страница, которая уезжает. Берётся на старте: страницы пересоздаются
 	let content: HTMLElement | null = null;
+	// Панель видимого экрана лежит внутри страницы, но при жесте стоит на месте: её сдвиг гасится, а щель открывается под ней
+	let bar: HTMLElement | null = null;
 
 	function render(next: number) {
 		if (!area || !inner) return;
 		if (!y && next) {
 			content = document.getElementById('content');
+			bar = document.querySelector<HTMLElement>('[data-layer]:not([data-hidden]) .screen-bar:not(.screen-bar--bare)');
+			if (!bar?.offsetHeight) bar = null;
 			area.style.visibility = 'visible';
+			if (bar) {
+				// Щель — слой над страницей между низом панели и верхом страницы: под ним скрыто место, где панель стояла в потоке
+				Object.assign(area.style, { top: `${Math.round(bar.getBoundingClientRect().bottom)}px`, bottom: 'auto', zIndex: '3' });
+				bar.style.transition = 'none';
+			}
 			// Страница ложится поверх щели своим фоном, без тени: граница — только разница фонов
 			if (content) Object.assign(content.style, { position: 'relative', zIndex: '2', background: 'var(--bg-main)', willChange: 'transform' });
 		}
 		y = next;
 		if (!y) return clear();
 		if (content) content.style.transform = `translate3d(0, ${y}px, 0)`;
+		if (bar) {
+			bar.style.transform = `translate3d(0, ${-y}px, 0)`;
+			area.style.height = `${y}px`;
+		}
 		// Подсказка стоит посередине щели и выходит из глубины к порогу; загрузка — к своей щели
 		const q = Math.min(1, y / (loading ? LOADING : THRESHOLD));
 		inner.style.transform = `translate3d(0, ${y / 2}px, 0) scale(${DEPTH + (1 - DEPTH) * q})`;
@@ -44,7 +57,9 @@
 
 	function clear() {
 		if (content) Object.assign(content.style, { position: '', zIndex: '', background: '', willChange: '', transform: '' });
-		if (area) area.style.visibility = '';
+		if (bar) Object.assign(bar.style, { transform: '', transition: '' });
+		if (area) Object.assign(area.style, { visibility: '', top: '', bottom: '', zIndex: '', height: '' });
+		bar = null;
 		if (inner) inner.style.transform = inner.style.opacity = '';
 		content = null;
 		loading = false;

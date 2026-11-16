@@ -7,6 +7,7 @@
 	import { refreshAccount } from '$lib/api/donationAccount.svelte';
 	import { authStorage } from '$lib/storage/auth.svelte';
 	import Reveal from './Reveal.svelte';
+	import ScreenBar from './ScreenBar.svelte';
 
 	/*
 	 * Страница аккаунта (оверлей account). Разметку рисует тема (AccountPage); у темы без неё,
@@ -25,6 +26,7 @@
 </script>
 
 <div class="account-screen" {@attach pull}>
+	<ScreenBar screen="account" />
 	<Reveal ready={shown} anim="contentIn">
 		<ThemeLoader componentName="AccountPage">
 			<p class="account-fallback">
@@ -38,8 +40,9 @@
 	/* До низа экрана: страница короткая, а потянуть её можно и за пустое место под содержимым */
 	.account-screen {
 		display: flex;
+		flex-direction: column;
 		flex-grow: 1;
-		justify-content: center;
+		align-items: center;
 		width: 100%;
 	}
 

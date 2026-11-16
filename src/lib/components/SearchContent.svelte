@@ -7,6 +7,7 @@
 	import ThemeLoader, { preloadThemeComponent } from '$lib/themes/ThemeLoader.svelte';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import Reveal from './Reveal.svelte';
+	import ScreenBar from './ScreenBar.svelte';
 
 	/*
 	 * Результаты поиска. Записи листаются по курсору, комментарии по страницам, блоги и темы приходят одной страницей.
@@ -164,6 +165,7 @@
 </script>
 
 <div class="search-screen">
+	<ScreenBar screen="search" />
 	<Reveal ready={shown} anim="contentIn">
 		<ThemeLoader
 			componentName="SearchPage"

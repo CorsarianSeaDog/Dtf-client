@@ -121,7 +121,7 @@ export const INTERFACE_SUBNAV: SubNavGroup[] = [
 	{
 		title: 'Интерфейс',
 		items: [
-			{ id: 'interface-top-bar', title: 'Верхняя панель', icon: 'top-bar', device: 'desktop' },
+			{ id: 'interface-top-bar', title: 'Верхняя панель', icon: 'top-bar' },
 			{ id: 'interface-mobile-bar', title: 'Мобильная панель', icon: 'mobile-bar', device: 'mobile' },
 			{ id: 'interface-content', title: 'Лента и контент', icon: 'content' },
 			{ id: 'interface-votes', title: 'Оценки', icon: 'votes' },
@@ -420,7 +420,7 @@ const smartTypographyField: ToggleField = {
 // --- Группировка полей активной темы ---
 
 const THEME_GROUP_KEYS = {
-	topBar: new Set(['headerBlur', 'avatarOpensMenu', 'createButtonPos', 'searchBarMode']),
+	topBar: new Set(['headerBlur', 'avatarOpensMenu', 'createButtonPos', 'searchBarMode', 'mobileTopBar', 'postTitleInBar', 'hideTopBarOnScroll']),
 	mobileBar: new Set(['mobileBarBlur', 'mobileBarFloating']),
 	content: new Set(['contentWidth', 'postMediaWidth']),
 	votes: new Set(['votes', 'arrowsSide', 'arrowsOrder']),

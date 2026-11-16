@@ -34,6 +34,14 @@ export const themeSettings = {
 	get headerBlur(): boolean {
 		return activeThemeSettings().value.headerBlur === true;
 	},
+	/** Заголовок поста в верхней панели смартфона */
+	get postTitleInBar(): boolean {
+		return activeThemeSettings().value.postTitleInBar === true;
+	},
+	/** Верхняя панель смартфона уезжает при прокрутке вниз */
+	get hideTopBarOnScroll(): boolean {
+		return activeThemeSettings().value.hideTopBarOnScroll === true;
+	},
 	/** Блюр мобильного бара */
 	get mobileBarBlur(): boolean {
 		return activeThemeSettings().value.mobileBarBlur === true;

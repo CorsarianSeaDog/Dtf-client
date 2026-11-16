@@ -1,5 +1,5 @@
 import { ease, fluent, type ThemeMotion } from '$lib/motion';
-import { defineTheme } from '../types';
+import { defineTheme, EXPERIMENTAL } from '../types';
 import { extendsTheme, palettes } from './palettes';
 
 function defaultTransparency(): boolean {
@@ -272,7 +272,8 @@ export default defineTheme({
 			type: 'toggle',
 			title: 'Меню по клику на аватар',
 			description: 'Клик на аватар в шапке открывает меню вместо перехода в профиль',
-			default: true
+			default: true,
+			device: 'desktop'
 		},
 		{
 			key: 'createButtonPos',
@@ -297,6 +298,44 @@ export default defineTheme({
 				{ value: 'always', title: 'Отображать всегда', description: 'Строка поиска всегда видна в шапке' },
 				{ value: 'button', title: 'Скрывать за кнопкой', description: 'Показывать кнопку поиска слева от кнопки уведомления' }
 			]
+		},
+		{
+			key: 'mobileTopBar',
+			type: 'radio',
+			title: 'Вид верхней панели',
+			default: 'compact',
+			device: 'mobile',
+			options: [
+				{ value: 'compact', title: 'Компактная', note: EXPERIMENTAL, description: 'Панель с иконками и действиями для текущего экрана' },
+				{ value: 'web', title: 'Как на сайте', description: 'Шапка с логотипом и поиском' }
+			]
+		},
+		// Пока только в отладке (DebugSettings), визуально не прижилась
+		{
+			key: 'mobileTopBarFloating',
+			type: 'toggle',
+			title: 'Плавающая верхняя панель',
+			default: false,
+			device: 'mobile',
+			hidden: true
+		},
+		{
+			key: 'postTitleInBar',
+			type: 'toggle',
+			title: 'Заголовок поста в верхней панели',
+			description: 'Показывать заголовок, когда он уходит за верх экрана',
+			default: false,
+			device: 'mobile',
+			dependsOn: { key: 'mobileTopBar', value: 'compact' }
+		},
+		{
+			key: 'hideTopBarOnScroll',
+			type: 'toggle',
+			title: 'Скрывать верхнюю панель при прокрутке',
+			description: 'Панель уезжает при прокрутке вниз и возвращается при прокрутке вверх',
+			default: false,
+			device: 'mobile',
+			dependsOn: { key: 'mobileTopBar', value: 'compact' }
 		},
 		{
 			key: 'headerBlur',

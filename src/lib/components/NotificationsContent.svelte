@@ -6,6 +6,7 @@
 	import ThemeLoader, { isThemeComponentLoaded, preloadThemeComponent } from '$lib/themes/ThemeLoader.svelte';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import Reveal from './Reveal.svelte';
+	import ScreenBar from './ScreenBar.svelte';
 
 	/*
 	 * Страница уведомлений (оверлей notifications). Разметку рисует тема (Notifications).
@@ -24,6 +25,7 @@
 </script>
 
 <div class="notifications-screen" {@attach pull}>
+	<ScreenBar screen="notifications" />
 	<Reveal ready={shown} anim="contentIn">
 		<ThemeLoader componentName="Notifications" {active} />
 	</Reveal>
@@ -32,8 +34,9 @@
 <style>
 	.notifications-screen {
 		display: flex;
+		flex-direction: column;
 		flex-grow: 1;
-		justify-content: center;
+		align-items: center;
 		width: 100%;
 	}
 

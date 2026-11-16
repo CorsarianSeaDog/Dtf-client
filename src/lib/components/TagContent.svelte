@@ -6,6 +6,7 @@
 	import ThemeLoader, { preloadThemeComponent } from '$lib/themes/ThemeLoader.svelte';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import Reveal from './Reveal.svelte';
+	import ScreenBar from './ScreenBar.svelte';
 	import NetworkErrorState from './NetworkErrorState.svelte';
 
 	/*
@@ -45,6 +46,7 @@
 </script>
 
 <div class="tag-screen">
+	<ScreenBar screen="tag" {tag} />
 	<Reveal ready={!loading} anim="contentIn">
 		{#if error}
 			<NetworkErrorState {error} title="Не удалось загрузить записи" onretry={load} />

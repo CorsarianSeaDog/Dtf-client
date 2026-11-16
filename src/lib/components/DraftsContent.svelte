@@ -8,6 +8,7 @@
 	import ThemeLoader, { isThemeComponentLoaded, preloadThemeComponent } from '$lib/themes/ThemeLoader.svelte';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import Reveal from './Reveal.svelte';
+	import ScreenBar from './ScreenBar.svelte';
 
 	/*
 	 * Черновики вошедшего пользователя: постранично по смещению; редактируются в редакторе, смотрятся как обычный пост.
@@ -60,6 +61,7 @@
 </script>
 
 <div class="drafts-screen">
+	<ScreenBar screen="drafts" title="Черновики" />
 	<Reveal ready={shown} anim="contentIn">
 		<ThemeLoader
 			componentName="DraftsPage"

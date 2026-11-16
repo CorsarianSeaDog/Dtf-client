@@ -3,6 +3,7 @@
 	import { api } from '$lib/api/index.svelte';
 	import { appendUnique, postKey } from '$lib/api/utils';
 	import Reveal from './Reveal.svelte';
+	import ScreenBar from './ScreenBar.svelte';
 	import NetworkErrorState from './NetworkErrorState.svelte';
 	import ThemeLoader from '$lib/themes/ThemeLoader.svelte';
 	import { onDestroy, untrack } from 'svelte';
@@ -139,6 +140,7 @@
 </script>
 
 <div class="profile-screen">
+	<ScreenBar screen="profile" {profile} />
 	<Reveal ready={profile !== undefined || profileError !== undefined} anim="contentIn">
 	{#if profile}
 		{@const loaded = profile}

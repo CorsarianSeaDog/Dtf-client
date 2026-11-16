@@ -2,6 +2,7 @@
 	import { api } from '$lib/api/index.svelte';
 	import type { Post } from '$lib/api/types';
 	import Reveal from './Reveal.svelte';
+	import ScreenBar from './ScreenBar.svelte';
 	import NetworkErrorState from './NetworkErrorState.svelte';
 	import ThemeLoader, { hasThemeComponent } from '$lib/themes/ThemeLoader.svelte';
 	import { activeTheme } from '$lib/themes/index.svelte';
@@ -167,6 +168,7 @@
 </script>
 
 <div class="post-screen">
+	<ScreenBar screen="post" {post} />
 	<Reveal ready={post !== undefined || error !== undefined} anim="contentIn" onreveal={onReveal}>
 		{#snippet children()}
 			{#if post}

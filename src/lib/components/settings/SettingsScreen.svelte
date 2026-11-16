@@ -123,13 +123,16 @@
 	let hasSearch = $derived(searchQuery.trim().length > 0);
 	let cancelPendingHighlight: (() => void) | undefined;
 
+	// Страницы подменю, на которых для текущей темы и устройства нечего показать, из меню и поиска убираем
+	let emptyPageIds = $derived(new Set(declarativePages.filter((p) => !p.entries.length && !p.soloLink).map((p) => p.pageId)));
+
 	let activeDeclarativePage = $derived(
 		selectedPageId ? declarativePages.find((p) => p.pageId === selectedPageId) : undefined
 	);
 
 	let searchIndex = $derived(
 		buildSettingsSearchIndex({
-			navPages: buildNavSearchPages(rootNavigation),
+			navPages: buildNavSearchPages(rootNavigation).filter((nav) => !emptyPageIds.has(nav.pageId)),
 			fieldGroups: toSearchFieldGroups(declarativePages),
 			currentDevice,
 			hasTouch: currentTouch,
@@ -379,7 +382,7 @@
 									<h3 class="nav__group">{group.title}</h3>
 									<div class="nav__list">
 										{#each group.items as item (item.id)}
-											{#if !item.device || item.device === currentDevice}
+											{#if (!item.device || item.device === currentDevice) && !emptyPageIds.has(item.id)}
 												<button
 													class={['nav__item', { 'nav__item--active': item.id === selectedPageId }]}
 													type="button"

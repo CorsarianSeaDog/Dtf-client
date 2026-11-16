@@ -10,7 +10,7 @@ export type SearchTab = 'posts' | 'comments' | 'blogs' | 'topics';
  *
  * Обязательные: Header, EditorialNews, FeedTabs, Post, Comments, Profile, Notifications, TagPage, SearchPage, DraftsPage, LoginModal, NetworkErrorModal, EditorScreen, Spinner, ReloadPrompt.
  * Необязательные (если нет, ядро обходится без них): MainLayout.
- * Необязательные, которых без темы просто нет на экране: FeedNotice, Recommendations, AccountPage.
+ * Необязательные, которых без темы просто нет на экране: FeedNotice, Recommendations, AccountPage, ScreenBar.
  * Форк темы (`extends`) может не иметь ничего из этого и взять недостающее у основы.
  */
 export interface ThemeComponents {
@@ -27,6 +27,22 @@ export interface ThemeComponents {
 	};
 	/** Лента рекомендаций под комментариями поста: тема сама грузит её через `api.getRecommendations`, когда её низ подъезжает к экрану */
 	Recommendations: { postId: number };
+	/**
+	 * Верхняя панель экрана. Каждый экран рисует её первым элементом у себя, поэтому она едет вместе с ним в переходах и свайпе.
+	 * Какие экраны получают панель и что в ней лежит, решает тема; у экранов без панели она может занять только безопасную зону.
+	 */
+	ScreenBar: {
+		/** Какой экран рисует панель */
+		screen: 'feed' | 'post' | 'profile' | 'tag' | 'search' | 'drafts' | 'notifications' | 'account';
+		/** Заголовок экрана, если он уже известен */
+		title?: string;
+		/** Открытый пост: для «Поделиться» */
+		post?: Post;
+		/** Открытый профиль: для его действий */
+		profile?: Profile;
+		/** Открытый тег: для его меню */
+		tag?: string;
+	};
 	FeedTabs: {
 		currentFeed: FeedName;
 		switchFeed: (feed: FeedName) => void;

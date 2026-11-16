@@ -472,6 +472,31 @@
 			display: none;
 		}
 
+		/* Панель экрана уезжает вместе со страницей, поэтому меню начинается от верха окна; содержимое стоит там же, где стояло под шапкой */
+		:global(:root[data-mobile-top-bar]) .sidebar-left .panel {
+			padding-top: var(--screen-bar-height);
+		}
+
+		/* Серая полоса сверху — продолжение верхней панели, уехавшей вправо вместе со страницей. Она не входит в пункты,
+		   у которых масштаб и прозрачность: открывается ровно тем, что страница уезжает, без своих эффектов */
+		:global(:root[data-mobile-top-bar]) .sidebar-left .panel::before {
+			content: '';
+			position: absolute;
+			z-index: 1;
+			inset: 0 0 auto;
+			height: var(--screen-bar-height);
+			background: var(--bg-card);
+			box-shadow: inset 0 -1px var(--border-subtle-2);
+			pointer-events: none;
+		}
+
+		:global(:root[data-mobile-top-bar='floating']) .sidebar-left .panel::before {
+			inset: max(var(--mobile-bar-gap), env(safe-area-inset-top, 0px)) var(--mobile-bar-gap) auto 0;
+			height: var(--mobile-bar-height-raw);
+			border-radius: 0 var(--mobile-bar-radius) var(--mobile-bar-radius) 0;
+			box-shadow: var(--shadow-dropdown);
+		}
+
 		/* Касание по уехавшей странице закрывает панель */
 		.sidebar-left .tint {
 			display: none;
