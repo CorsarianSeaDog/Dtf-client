@@ -18,7 +18,7 @@
 
 	let items = $derived<{ icon: string; label: string; sub?: string; url?: string; action?: () => void }[]>([
 		{ icon: 'v_pen', label: 'Черновики', action: () => openOverlay({ type: 'drafts' }) },
-		{ icon: 'v_rouble', label: 'Донаты', sub: donationsSub, url: donationAccount.href },
+		{ icon: 'v_rouble', label: 'Донаты', sub: donationsSub ?? '', url: donationAccount.href },
 		{ icon: 'v_gear', label: 'Настройки', action: () => openOverlay({ type: 'settings' }) },
 		{ icon: 'v_logout', label: 'Выйти', action: () => authStorage.logout() }
 	]);
@@ -58,8 +58,8 @@
 							</svg>
 							<div class="account-menu__item-label">
 								<span>{item.label}</span>
-								{#if item.sub}
-									<p class="sub">{item.sub}</p>
+								{#if item.sub !== undefined}
+									<p class="sub" aria-hidden={!item.sub || undefined}>{item.sub || '\u00A0'}</p>
 								{/if}
 							</div>
 						</a>

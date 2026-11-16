@@ -35,7 +35,7 @@
 						{ icon: 'v_gear', label: 'Настройки', href: resolve('/settings'), action: (e: MouseEvent) => openSettings(e) }
 					]
 				: [],
-			user ? [{ icon: 'v_rouble', label: 'Донаты', sub: donationsSub, href: donationAccount.href, external: true }] : [],
+			user ? [{ icon: 'v_rouble', label: 'Донаты', sub: donationsSub ?? '', href: donationAccount.href, external: true }] : [],
 			[{ icon: 'v_info', label: 'О проекте', href: `${resolve('/settings')}?page=about`, action: (e: MouseEvent) => openSettings(e, 'about') }]
 		].filter((group) => group.length)
 	);
@@ -81,8 +81,8 @@
 							<svg class="icon account-menu__item-icon" width="24" height="24" aria-hidden="true"><use href="#{item.icon}"></use></svg>
 							<div class="account-menu__item-label">
 								<span>{item.label}</span>
-								{#if item.sub}
-									<p class="sub">{item.sub}</p>
+								{#if item.sub !== undefined}
+									<p class="sub" aria-hidden={!item.sub || undefined}>{item.sub || '\u00A0'}</p>
 								{/if}
 							</div>
 						</a>
