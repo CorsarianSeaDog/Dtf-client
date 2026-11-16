@@ -6,6 +6,7 @@
 	import TagContent from '$lib/components/TagContent.svelte';
 	import SearchContent from '$lib/components/SearchContent.svelte';
 	import DraftsContent from '$lib/components/DraftsContent.svelte';
+	import NotificationsContent from '$lib/components/NotificationsContent.svelte';
 	import AccountContent from '$lib/components/AccountContent.svelte';
 	import EditorOverlay from '$lib/components/overlays/EditorOverlay.svelte';
 	import LightboxOverlay from '$lib/components/overlays/LightboxOverlay.svelte';
@@ -436,7 +437,7 @@
 
 		// Пока пользователь смотрит ленту, догружаем то, что откроется следующим: пост не должен начинаться со спиннера компонента
 		const idle = (window.requestIdleCallback ?? setTimeout)(() => {
-			for (const name of ['Post', 'Comments', 'Profile', 'Notifications'] as const) preloadThemeComponent(activeTheme.chain, name);
+			for (const name of ['Post', 'Comments', 'Profile', 'Notifications', 'AccountPage'] as const) preloadThemeComponent(activeTheme.chain, name);
 			preloadLightbox();
 		});
 
@@ -459,7 +460,7 @@
 	{:else if overlay.type === 'settings'}
 		<SettingsOverlay {...overlay.data} />
 	{:else if overlay.type === 'notifications'}
-		<ThemeLoader componentName="Notifications" active={depth === 0} />
+		<NotificationsContent active={depth === 0} />
 	{:else if overlay.type === 'tag'}
 		<TagContent {...overlay.data} />
 	{:else if overlay.type === 'search'}

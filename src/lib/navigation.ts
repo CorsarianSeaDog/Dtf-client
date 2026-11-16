@@ -140,6 +140,12 @@ function findActivePostIndex(postId: number, sourceId: string, overlays: App.Ove
 	return -1;
 }
 
+/** Экран сверху: верхним оверлеем или, без оверлеев, по прямой ссылке */
+export function isOnTop(type: 'notifications' | 'account'): boolean {
+	const top = page.state.overlays?.at(-1);
+	return top ? top.type === type : page.route?.id === `/${type}`;
+}
+
 /** Открыть оверлей поверх текущего экрана */
 export function openOverlay(overlay: App.OverlayData) {
 	if (overlay.type === 'post') {
@@ -208,6 +214,9 @@ export function openOverlay(overlay: App.OverlayData) {
 			});
 		}
 	}
+
+	// Повторное открытие уже открытых уведомлений или аккаунта не плодит слои
+	if ((overlay.type === 'notifications' || overlay.type === 'account') && isOnTop(overlay.type)) return Promise.resolve();
 
 	const opened: App.OverlayState = { ...overlay, id: nextOverlayId(overlay.type), presentation: PRESENTATION[overlay.type] };
 	// Просмотр картинок остаётся на текущем адресе: это шаг истории для кнопки «Назад», а не страница.

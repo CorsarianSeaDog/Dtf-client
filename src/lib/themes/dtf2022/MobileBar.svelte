@@ -1,13 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { openFeed, openNotifications, openOverlay } from '$lib/navigation';
+	import { isNewTabClick, isOnTop, openFeed, openNotifications, openOverlay } from '$lib/navigation';
 	import { notifications } from '$lib/api/notifications.svelte';
 	import { authStorage } from '$lib/storage/auth.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import { refreshAccount } from '$lib/api/donationAccount.svelte';
 	import { refreshWithIndicator } from '$lib/pullRefresh';
 	import { haptics } from '$lib/haptics';
-	import { page } from '$app/state';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { hasThemeComponent } from '$lib/themes/ThemeLoader.svelte';
 	import { scrollBehavior } from '$lib/motion';
@@ -15,8 +14,8 @@
 
 	// Тема со страницей аккаунта ведёт на неё (гостю она сама предлагает войти), остальные — в настройки или во вход
 	let hasAccountPage = $derived(hasThemeComponent(activeTheme.chain, 'AccountPage'));
-	// Страница аккаунта сверху: оверлеем или по прямой ссылке /account
-	let accountOpen = $derived(page.state.overlays?.length ? page.state.overlays.at(-1)?.type === 'account' : page.route.id === '/account');
+	let notificationsOpen = $derived(isOnTop('notifications'));
+	let accountOpen = $derived(isOnTop('account'));
 	let avatarUrl = $derived(authStorage.isAuthenticated ? currentUser.value?.avatarUrl : undefined);
 
 	function handleFeed(e: MouseEvent) {
@@ -25,8 +24,15 @@
 	}
 
 	function handleNotifications(e: MouseEvent) {
+		if (isNewTabClick(e)) return;
 		haptics.tick();
-		openNotifications(e);
+		if (notificationsOpen) {
+			e.preventDefault();
+			window.scrollTo({ top: 0, behavior: scrollBehavior() });
+			if (authStorage.isAuthenticated) refreshWithIndicator(() => notifications.load());
+		} else {
+			openNotifications(e);
+		}
 	}
 
 	function openAccount() {

@@ -5,7 +5,7 @@
 	import type { Post } from '$lib/api/types';
 	import { appendUnique, postKey } from '$lib/api/utils';
 	import { openOverlay } from '$lib/navigation';
-	import ThemeLoader, { preloadThemeComponent } from '$lib/themes/ThemeLoader.svelte';
+	import ThemeLoader, { isThemeComponentLoaded, preloadThemeComponent } from '$lib/themes/ThemeLoader.svelte';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import Reveal from './Reveal.svelte';
 
@@ -48,9 +48,13 @@
 			posts = [];
 			loaded = true;
 			if (shown) return;
-			preloadThemeComponent(activeTheme.chain, 'DraftsPage').then(() => {
-				if (!authStorage.isAuthenticated) shown = true;
-			});
+			if (isThemeComponentLoaded(activeTheme.chain, 'DraftsPage')) {
+				shown = true;
+			} else {
+				preloadThemeComponent(activeTheme.chain, 'DraftsPage').then(() => {
+					if (!authStorage.isAuthenticated) shown = true;
+				});
+			}
 		}
 	});
 </script>

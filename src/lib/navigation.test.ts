@@ -18,7 +18,7 @@ vi.mock('$app/navigation', () => ({
 
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
-import { getPostPath, getPostShareUrl, getSettingsPath, pushSubstate, popSubstate, closeOverlay, resetSubstates, clearSubstates, openPost, openSearch, openDtfUrl, openDtfLink, openLightbox, takeLightboxOrigin, overlayReuser } from './navigation';
+import { getPostPath, getPostShareUrl, getSettingsPath, pushSubstate, popSubstate, closeOverlay, resetSubstates, clearSubstates, openOverlay, openPost, openSearch, openDtfUrl, openDtfLink, openLightbox, takeLightboxOrigin, overlayReuser } from './navigation';
 import { settings } from './storage/settings.svelte';
 import { embedToPost } from './api/embed';
 import { clearPostCache, peekPost } from './postCache';
@@ -326,6 +326,25 @@ describe('navigation', () => {
 			);
 		} finally {
 			(page.route as { id: string | null }).id = prevRouteId;
+		}
+	});
+
+	it('openOverlay не плодит подряд одинаковые слои notifications и account', () => {
+		for (const type of ['notifications', 'account'] as const) {
+			vi.clearAllMocks();
+			mockPageState.overlays = [{ id: `${type}-1`, type, presentation: 'page' }];
+			openOverlay({ type });
+			expect(goto).not.toHaveBeenCalled();
+
+			mockPageState.overlays = [];
+			const prevRouteId = page.route.id;
+			(page.route as { id: string | null }).id = `/${type}`;
+			try {
+				openOverlay({ type });
+				expect(goto).not.toHaveBeenCalled();
+			} finally {
+				(page.route as { id: string | null }).id = prevRouteId;
+			}
 		}
 	});
 });

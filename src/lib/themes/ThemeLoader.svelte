@@ -56,6 +56,12 @@
 	/** Есть ли компонент у темы (или её основы): для необязательных, которые без поддержки темы просто не показываются */
 	export const hasThemeComponent = (chain: string[], name: string) => !!findPath(chain, name);
 
+	/** Загружен ли уже компонент темы в память */
+	export function isThemeComponentLoaded(chain: string[], name: string): boolean {
+		const path = findPath(chain, name);
+		return path ? loaded.has(path) : true;
+	}
+
 	/** Загрузить компонент заранее: следующий ThemeLoader нарисует его сразу, без спиннера */
 	export function preloadThemeComponent(chain: string[], name: string): Promise<unknown> {
 		const path = findPath(chain, name);

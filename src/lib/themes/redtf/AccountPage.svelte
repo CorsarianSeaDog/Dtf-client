@@ -67,8 +67,8 @@
 	}
 </script>
 
-{#snippet settingsRow(i: number)}
-	<a class="list row" href={resolve('/settings')} style:--i={i} onclick={(e) => tap(() => openSettings(e))}>
+{#snippet settingsRow()}
+	<a class="list row" href={resolve('/settings')} onclick={(e) => tap(() => openSettings(e))}>
 		<span class="row__icon"><svg class="icon" width="20" height="20" aria-hidden="true"><use href="#v_gear"></use></svg></span>
 		<span class="row__label">Настройки</span>
 		<svg class="icon row__end" width="16" height="16" aria-hidden="true"><use href="#v_chevron_right"></use></svg>
@@ -77,7 +77,7 @@
 
 <div class="account">
 	{#if user}
-		<section class="hero" style:--i={0}>
+		<section class="hero">
 			<div class="hero__cover">
 				{#if user.coverUrl}
 					{#if getAnimatedVideoUrl(user.coverUrl)}
@@ -139,7 +139,7 @@
 			</div>
 		</section>
 
-		<nav class="list" aria-label="Мои материалы" style:--i={1}>
+		<nav class="list" aria-label="Мои материалы">
 			<a class="row" href={resolve('/drafts')} onclick={(e) => tap(() => openDrafts(e))}>
 				<span class="row__icon"><svg class="icon" width="20" height="20" aria-hidden="true"><use href="#v_pen"></use></svg></span>
 				<span class="row__label">Черновики</span>
@@ -155,21 +155,21 @@
 			</a>
 		</nav>
 
-		{@render settingsRow(2)}
+		{@render settingsRow()}
 
-		<button type="button" class="logout" style:--i={3} onclick={() => tap(() => (confirmLogout = true))}>
+		<button type="button" class="logout" onclick={() => tap(() => (confirmLogout = true))}>
 			<svg class="icon" width="20" height="20" aria-hidden="true"><use href="#v_logout"></use></svg>
 			Выйти из аккаунта
 		</button>
 	{:else}
-		<section class="hero hero--guest" style:--i={0}>
+		<section class="hero hero--guest">
 			<div class="guest__icon"><svg class="icon" width="32" height="32" aria-hidden="true"><use href="#v_login"></use></svg></div>
 			<h1 class="guest__title">Войдите в аккаунт DTF</h1>
 			<p class="guest__text">Чтобы оценивать посты, писать комментарии и собирать свою ленту подписок.</p>
 			<button type="button" class="action action--primary action--wide" onclick={() => tap(() => openOverlay({ type: 'login' }))}>Войти</button>
 		</section>
 
-		{@render settingsRow(1)}
+		{@render settingsRow()}
 	{/if}
 </div>
 
@@ -202,19 +202,6 @@
 	@media (min-width: 720px) {
 		.account {
 			padding-top: 20px;
-		}
-	}
-
-	/* Блоки выплывают по очереди, каждый на свою долю позже */
-	.account > :global(*) {
-		animation: account-in 0.5s cubic-bezier(0.165, 0.84, 0.44, 1) backwards;
-		animation-delay: calc(var(--i, 0) * 45ms);
-	}
-
-	@keyframes account-in {
-		from {
-			opacity: 0;
-			transform: translateY(14px);
 		}
 	}
 
@@ -622,7 +609,6 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.account > :global(*),
 		.hero__cover-image,
 		.stat__appear,
 		.stat__ghost,

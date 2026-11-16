@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { page } from '$app/state';
-	import ThemeLoader, { preloadThemeComponent } from '$lib/themes/ThemeLoader.svelte';
+	import ThemeLoader, { isThemeComponentLoaded, preloadThemeComponent } from '$lib/themes/ThemeLoader.svelte';
 	import { activeTheme } from '$lib/themes/index.svelte';
-	import { openSettings } from '$lib/navigation';
+	import { isOnTop, openSettings } from '$lib/navigation';
 	import { pullRefresh } from '$lib/pullRefresh';
 	import { refreshAccount } from '$lib/api/donationAccount.svelte';
 	import { authStorage } from '$lib/storage/auth.svelte';
@@ -14,12 +13,13 @@
 	 * например после смены темы с открытой страницей, остаётся ссылка в настройки.
 	 * Данные тема грузит сама (`loadAccount`); экран показывается, когда загружен компонент, иначе переход страниц показал бы спиннер.
 	 */
-	let shown = $state(false);
-	preloadThemeComponent(activeTheme.chain, 'AccountPage').then(() => (shown = true));
+	const preloaded = isThemeComponentLoaded(activeTheme.chain, 'AccountPage');
+	let shown = $state(preloaded);
+	if (!preloaded) preloadThemeComponent(activeTheme.chain, 'AccountPage').then(() => (shown = true));
 
 	// Потянуть страницу вниз от самого верха — перечитать данные аккаунта (если тема рисует этот жест)
 	const pull = pullRefresh({
-		enabled: () => authStorage.isAuthenticated && (page.state.overlays?.length ? page.state.overlays.at(-1)?.type === 'account' : page.route.id === '/account'),
+		enabled: () => authStorage.isAuthenticated && isOnTop('account'),
 		refresh: refreshAccount
 	});
 </script>
