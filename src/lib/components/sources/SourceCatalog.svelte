@@ -128,12 +128,7 @@
 						<div class="main">
 							<div class="title">
 								<h3>{source.name}</h3>
-								{#if source.verified}
-									<span class="badge badge--ok" title="Проверен командой reDTF">
-										<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
-										Проверен
-									</span>
-								{:else}
+								{#if !source.verified}
 									<span class="badge" title="Источник не проверен командой reDTF: изучите его разрешения перед установкой">Сообщество</span>
 								{/if}
 							</div>
@@ -152,6 +147,9 @@
 								<button class="act suggested" disabled={installing !== null} onclick={() => install(source)}>
 									{installing === source.id ? 'Загрузка…' : 'Установить'}
 								</button>
+							{/if}
+							{#if source.verified}
+								<span class="verified" title="Проверен командой reDTF">Проверен</span>
 							{/if}
 						</div>
 						{#if failed[source.id]}
@@ -321,11 +319,6 @@
 		font-weight: 500;
 	}
 
-	.badge--ok {
-		background: color-mix(in srgb, var(--st-ok, #1f8a3b) 16%, transparent);
-		color: var(--st-ok, #1f8a3b);
-	}
-
 	.desc {
 		font-size: 14px;
 		line-height: 20px;
@@ -347,14 +340,25 @@
 
 	.side {
 		display: flex;
+		flex-direction: column;
 		align-items: center;
+		justify-content: center;
+		gap: 6px;
 		min-height: 38px;
 	}
 
-	.installed {
+	.installed,
+	.verified {
 		color: var(--st-ok, #1f8a3b);
+	}
+
+	.installed {
 		font-size: 14px;
 		font-weight: 500;
+	}
+
+	.verified {
+		font-size: 12px;
 	}
 
 	.fail {
@@ -455,10 +459,12 @@
 
 		.side {
 			grid-column: 1 / -1;
+			align-items: stretch;
 		}
 
-		.side .act {
-			flex: 1;
+		.installed,
+		.verified {
+			text-align: center;
 		}
 	}
 </style>
