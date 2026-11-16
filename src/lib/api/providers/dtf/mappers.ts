@@ -1,4 +1,4 @@
-import type { Badge, Comment, CommentEditorState, CurrentUser, DonationAccount, IgnoredSubsite, Likes, Notification, NotificationPart, Post, Profile, ProfileListItem, QuizResult, Reactions, SearchSubsite, User } from '../../types';
+import type { Badge, Comment, CommentEditorState, CurrentUser, DonationAccount, IgnoredSubsite, Likes, MentionUser, Notification, NotificationPart, Post, Profile, ProfileListItem, QuizResult, Reactions, SearchSubsite, User } from '../../types';
 import { getLeonardoUrl, isAnimatedMedia } from '../../utils';
 import { embedToPost } from '../../embed';
 import { extractWatermark } from '$lib/watermark';
@@ -28,6 +28,15 @@ export function mapUser(author: any): User {
 		badgeId: author?.badgeId || undefined,
 		isDonationsEnabled: author?.isDonationsEnabled || undefined,
 		isFrozen: author?.isFrozen ? true : undefined
+	};
+}
+
+export function mapMentionUser(user: any): MentionUser {
+	return {
+		id: user?.id || 0,
+		name: user?.name || 'Аноним',
+		nickname: user?.nickname || undefined,
+		avatarUrl: mapAvatarUrl(user)
 	};
 }
 

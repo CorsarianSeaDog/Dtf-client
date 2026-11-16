@@ -14,6 +14,7 @@ import type {
 	GetPostsOptions,
 	GifResult,
 	IgnoredSubsite,
+	MentionUser,
 	Notification,
 	NotificationChannel,
 	PaginatedResult,
@@ -45,7 +46,7 @@ import { authStorage } from '$lib/storage/auth.svelte';
 import { addWatermark } from '$lib/watermark';
 import { settings } from '$lib/storage/settings.svelte';
 import { login, loginByToken } from './auth';
-import { mapBadges, mapComment, mapCurrentUser, mapDonationAccount, mapEntryToPost, mapIgnoredSubsite, mapNotification, mapProfile, mapProfileListItem, mapQuizResult, mapReactions, mapSearchSnippet, mapSearchSubsite } from './mappers';
+import { mapBadges, mapComment, mapCurrentUser, mapDonationAccount, mapEntryToPost, mapIgnoredSubsite, mapMentionUser, mapNotification, mapProfile, mapProfileListItem, mapQuizResult, mapReactions, mapSearchSnippet, mapSearchSubsite } from './mappers';
 import { parseNotificationRealtimeEvent, subscribeChannel, subscribeDtfComments } from './realtime';
 
 /** Загружает файл в хранилище DTF; возвращает запись как есть (`{ type, data }`): в таком виде её принимают поля вроде avatar и cover */
@@ -526,6 +527,14 @@ export const dtfApiProvider = {
 			}),
 			cursor: result.cursor || undefined
 		};
+	},
+
+	async searchMentions(query = '', options?: { signal?: AbortSignal }): Promise<MentionUser[]> {
+		requireAuth();
+		const trimmed = query.trim();
+		const params = trimmed ? `?q=${encodeURIComponent(trimmed)}` : '';
+		const response = await fetchWithAuth(`${apiV('2.9')}/users/mentions${params}`, { signal: options?.signal });
+		return ((await resultOf(response, 'Не удалось найти пользователей')) || []).map(mapMentionUser);
 	},
 
 	async complain(kind: 'post' | 'comment', id: number, reasonId: number): Promise<void> {

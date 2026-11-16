@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { REDTF_WATERMARK } from '$lib/watermark';
-import { mapAvatarUrl, mapBadges, mapUser, mapComment, mapCurrentUser, mapDonationAccount, mapEntryToPost, mapIgnoredSubsite, mapLikes, mapNotification, mapProfile, mapQuizResult, mapSearchSnippet, parseNotificationHtml } from './mappers';
+import { mapAvatarUrl, mapBadges, mapUser, mapComment, mapCurrentUser, mapDonationAccount, mapEntryToPost, mapIgnoredSubsite, mapLikes, mapMentionUser, mapNotification, mapProfile, mapQuizResult, mapSearchSnippet, parseNotificationHtml } from './mappers';
 
 describe('mapQuizResult', () => {
 	it('неизвестный hash приходит пустым массивом — это пустой опрос', () => {
@@ -299,5 +299,29 @@ describe('mapNotification', () => {
 	it('запоминает, кто вызвал уведомление', () => {
 		expect(mapNotification({ id: 1, users: [{ id: 10 }, { id: 11 }] }).userIds).toEqual([10, 11]);
 		expect(mapNotification({ id: 2 }).userIds).toBeUndefined();
+	});
+});
+
+describe('mapMentionUser', () => {
+	it('маппит пользователя из /users/mentions включая nullable nickname', () => {
+		expect(
+			mapMentionUser({
+				id: 3182655,
+				name: 'Евгеник',
+				nickname: 'vinki',
+				avatar: { type: 'image', data: { uuid: 'u1' } }
+			})
+		).toEqual({
+			id: 3182655,
+			name: 'Евгеник',
+			nickname: 'vinki',
+			avatarUrl: 'https://leonardo.osnova.io/u1/-/scale_crop/64x64/-/format/webp/'
+		});
+		expect(mapMentionUser({ id: 201006, name: 'Вадим', nickname: null })).toEqual({
+			id: 201006,
+			name: 'Вадим',
+			nickname: undefined,
+			avatarUrl: undefined
+		});
 	});
 });

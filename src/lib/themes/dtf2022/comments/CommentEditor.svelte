@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import type { Attachment } from 'svelte/attachments';
-	import type { CommentMedia, GifResult, UploadResult } from '$lib/api/types';
+	import type { CommentMedia, GifResult, MentionUser, UploadResult } from '$lib/api/types';
+	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 	import { api } from '$lib/api/index.svelte';
+	import { authStorage } from '$lib/storage/auth.svelte';
 	import { getLeonardoUrl } from '$lib/api/utils';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { play } from '$lib/motion';
@@ -14,6 +16,7 @@
 	import { formatDonation } from './donation';
 	import GifPicker from './GifPicker.svelte';
 	import { extractImageFiles } from './clipboard';
+	import { findMentionQuery, mentionDisplayText, mergeMentionCandidates, parseCommentEditorParts, serializeEditorElement } from './mentions';
 
 	let {
 		text = $bindable(''),
@@ -26,6 +29,8 @@
 		sending = false,
 		error = '',
 		continueBranch = false,
+		sourceId = 'dtf',
+		mentionCandidates = [],
 		oncancel,
 		onsubmit
 	}: {
@@ -47,15 +52,206 @@
 		error?: string;
 		/** Ветка продолжается вниз под редактором к следующему комментарию */
 		continueBranch?: boolean;
+		/** Источник поста: подсказки упоминаний из API запрашиваются только для DTF */
+		sourceId?: string;
+		/** Участники текущей ветки для мгновенного показа в тег-пикере */
+		mentionCandidates?: MentionUser[];
 		oncancel?: () => void;
 		onsubmit?: () => void;
 	} = $props();
 
 	let focused = $state(false);
+	let boxEl = $state<HTMLElement>();
+	let inputEl = $state<HTMLElement>();
+	let dropdownEl = $state<HTMLElement>();
+	let lastSerialized = '';
+
 	let isTextEmpty = $derived(!text.trim());
 	let isEmpty = $derived(isTextEmpty && media.length === 0);
 	let submitLabel = $derived(editing ? 'Сохранить' : donation > 0 ? `Оплатить ${formatDonation(donation)}` : replying ? 'Ответить' : 'Отправить');
 	let placeholder = $derived(replying ? 'Написать ответ...' : 'Написать комментарий...');
+
+	let mentionOpen = $state(false);
+	let mentionQuery = $state('');
+	let remoteMentions = $state.raw<MentionUser[]>([]);
+	let remoteQuery = $state<string | null>(null);
+	let activeIndex = $state(0);
+	let dropdownPos = $state({ left: 0, top: 0, bottom: 0, above: false });
+	let mentionItems = $derived(
+		mentionOpen ? mergeMentionCandidates(mentionCandidates, remoteMentions, mentionQuery, 10, remoteQuery !== mentionQuery) : []
+	);
+	let activeMentionRange: Range | null = null;
+	let mentionTimer: ReturnType<typeof setTimeout> | undefined;
+	let mentionAbort: AbortController | undefined;
+	let mentionRequestId = 0;
+	let pendingQuery: string | null = null;
+
+	function createMentionSpan(mention: { id: number; nickname?: string; name: string }): HTMLSpanElement {
+		const span = document.createElement('span');
+		span.className = 'inline-search-item';
+		span.contentEditable = 'false';
+		span.dataset.mentionId = String(mention.id);
+		span.dataset.mentionNickname = mention.nickname ?? '';
+		span.dataset.mentionName = mention.name;
+		span.textContent = mentionDisplayText(mention.name);
+		return span;
+	}
+
+	function moveCaretToEnd(el: HTMLElement) {
+		const sel = el.ownerDocument.getSelection();
+		if (!sel) return;
+		const range = el.ownerDocument.createRange();
+		range.selectNodeContents(el);
+		range.collapse(false);
+		sel.removeAllRanges();
+		sel.addRange(range);
+	}
+
+	function renderEditorText(el: HTMLElement, value: string) {
+		if (!value) {
+			el.replaceChildren();
+			return;
+		}
+		const nodes = parseCommentEditorParts(value).map((part) =>
+			part.type === 'text' ? document.createTextNode(part.text) : createMentionSpan(part)
+		);
+		el.replaceChildren(...nodes);
+	}
+
+	function syncTextFromDom() {
+		if (!inputEl) return;
+		const serialized = serializeEditorElement(inputEl);
+		lastSerialized = serialized;
+		text = serialized;
+	}
+
+	$effect(() => {
+		if (!inputEl) return;
+		if (text === lastSerialized) return;
+		lastSerialized = text;
+		renderEditorText(inputEl, text);
+		if (text && inputEl.ownerDocument.activeElement === inputEl) {
+			moveCaretToEnd(inputEl);
+		}
+	});
+
+	function cancelRemoteSearch() {
+		clearTimeout(mentionTimer);
+		mentionAbort?.abort();
+		mentionAbort = undefined;
+		pendingQuery = null;
+		mentionRequestId++;
+	}
+
+	function closeMentions() {
+		cancelRemoteSearch();
+		mentionOpen = false;
+		activeMentionRange = null;
+	}
+
+	function updateDropdownPosition(range: Range) {
+		if (!boxEl || !inputEl) return;
+		const boxRect = boxEl.getBoundingClientRect();
+		let rect = range.getBoundingClientRect();
+		if (rect.width === 0 && rect.height === 0) {
+			rect = range.getClientRects()[0] ?? inputEl.getBoundingClientRect();
+		}
+		const dropdownWidth = Math.min(180, boxRect.width || 180);
+		const left = Math.max(0, Math.min(rect.left - boxRect.left, Math.max(0, boxRect.width - dropdownWidth)));
+		const spaceBelow = window.innerHeight - rect.bottom;
+		const above = spaceBelow < 220 && rect.top > 220;
+		dropdownPos = {
+			left,
+			top: rect.bottom - boxRect.top + 4,
+			bottom: boxRect.bottom - rect.top + 4,
+			above
+		};
+	}
+
+	function readMentionAtCaret(): { query: string; range: Range } | null {
+		if (!inputEl) return null;
+		const sel = inputEl.ownerDocument.getSelection();
+		if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return null;
+		const anchor = sel.anchorNode;
+		if (!anchor || anchor.nodeType !== 3 || !inputEl.contains(anchor)) return null;
+		const before = (anchor.textContent ?? '').slice(0, sel.anchorOffset);
+		const found = findMentionQuery(before);
+		if (!found) return null;
+		const range = inputEl.ownerDocument.createRange();
+		range.setStart(anchor, found.start);
+		range.setEnd(anchor, sel.anchorOffset);
+		return { query: found.query, range };
+	}
+
+	function scheduleRemoteSearch(query: string) {
+		if (sourceId !== 'dtf' || !authStorage.isAuthenticated) return;
+		if (pendingQuery === query) return;
+		cancelRemoteSearch();
+		if (remoteQuery === query) return;
+		pendingQuery = query;
+		const reqId = mentionRequestId;
+		mentionTimer = setTimeout(async () => {
+			const controller = new AbortController();
+			mentionAbort = controller;
+			try {
+				const users = await api.searchMentions(query, { signal: controller.signal });
+				if (reqId !== mentionRequestId) return;
+				remoteMentions = users;
+				remoteQuery = query;
+				pendingQuery = null;
+				activeIndex = 0;
+				if (activeMentionRange) updateDropdownPosition(activeMentionRange);
+			} catch {
+				if (reqId === mentionRequestId) pendingQuery = null;
+				// Отмену запроса и сетевые сбои не показываем тостом при наборе; локальные участники ветки остаются
+			}
+		}, query ? 180 : 0);
+	}
+
+	function updateMentions(fetch = true) {
+		const match = readMentionAtCaret();
+		if (!match) {
+			if (mentionOpen) closeMentions();
+			return;
+		}
+		if (!mentionOpen || match.query !== mentionQuery) {
+			activeIndex = 0;
+		}
+		mentionOpen = true;
+		mentionQuery = match.query;
+		activeMentionRange = match.range;
+		updateDropdownPosition(match.range);
+		if (fetch) scheduleRemoteSearch(match.query);
+	}
+
+	function pickMention(user: MentionUser) {
+		if (!inputEl) return;
+		const range = activeMentionRange ?? readMentionAtCaret()?.range;
+		if (!range) return;
+
+		const span = createMentionSpan(user);
+		const space = document.createTextNode(' ');
+		range.deleteContents();
+		range.insertNode(space);
+		range.insertNode(span);
+
+		const sel = inputEl.ownerDocument.getSelection();
+		if (sel) sel.collapse(space, 1);
+		inputEl.focus();
+		closeMentions();
+		syncTextFromDom();
+	}
+
+	function handleInput() {
+		syncTextFromDom();
+		updateMentions(true);
+	}
+
+	function handleBlur(e: FocusEvent) {
+		if (dropdownEl?.contains(e.relatedTarget as Node | null)) return;
+		focused = false;
+		closeMentions();
+	}
 
 	/** Вложение из ответа загрузчика: те же поля, что у media комментария */
 	function mediaOf(upload: UploadResult): CommentMedia {
@@ -196,6 +392,7 @@
 	};
 
 	const cleanupUploads: Attachment<HTMLElement> = () => () => {
+		closeMentions();
 		for (const item of pendingUploads) {
 			item.controller.abort();
 			URL.revokeObjectURL(item.previewUrl);
@@ -224,6 +421,29 @@
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.isComposing) return;
+		if (mentionOpen) {
+			if (e.key === 'Escape') {
+				e.preventDefault();
+				e.stopPropagation();
+				closeMentions();
+				return;
+			}
+			if (mentionItems.length > 0) {
+				if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+					e.preventDefault();
+					const step = e.key === 'ArrowDown' ? 1 : -1;
+					activeIndex = (activeIndex + step + mentionItems.length) % mentionItems.length;
+					dropdownEl?.children[activeIndex]?.scrollIntoView({ block: 'nearest' });
+					return;
+				}
+				if ((e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.shiftKey) || e.key === 'Tab') {
+					e.preventDefault();
+					const chosen = mentionItems[activeIndex];
+					if (chosen) pickMention(chosen);
+					return;
+				}
+			}
+		}
 		if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
 			e.preventDefault();
 			if (!isEmpty && !sending && !uploading) {
@@ -238,11 +458,15 @@
 		gifsOpen = false;
 	}
 
-	// При открытии ответа сразу ставим курсор в поле
+	// При открытии ответа сразу ставим курсор в конец поля
 	const focusOnReply: Attachment<HTMLElement> = (node) => {
-		if (replying) node.focus();
+		if (!replying) return;
+		node.focus();
+		if (node.childNodes.length > 0) moveCaretToEnd(node);
 	};
 </script>
+
+<svelte:document onselectionchange={() => focused && updateMentions(true)} />
 
 <div class="comment-editor-container">
 	<div class="comment-editor-container__branches">
@@ -250,8 +474,8 @@
 	</div>
 
 	<div class="comment-editor-container__content">
-		<div class={['comment-editor', { 'comment-editor--focused': focused }]} onpaste={handlePaste} {@attach cleanupUploads}>
-			<div class={['comment-editor-box', { 'comment-editor-box--empty': isTextEmpty }]}>
+		<div class={['comment-editor', { 'comment-editor--focused': focused, 'comment-editor--suggesting': mentionOpen && mentionItems.length > 0 }]} onpaste={handlePaste} {@attach cleanupUploads}>
+			<div class={['comment-editor-box', { 'comment-editor-box--empty': isTextEmpty }]} bind:this={boxEl}>
 				<div class="comment-editor-box__placeholder" aria-hidden="true">{placeholder}</div>
 				<div class="comment-editor-box__content">
 					<div
@@ -261,14 +485,47 @@
 						aria-multiline="true"
 						aria-label={placeholder}
 						tabindex="0"
-						bind:textContent={text}
+						bind:this={inputEl}
 						onfocus={() => (focused = true)}
-						onblur={() => (focused = false)}
+						onblur={handleBlur}
+						oninput={handleInput}
 						onkeydown={handleKeydown}
 						{@attach focusOnReply}
 						{@attach smartTypography}
 					></div>
 				</div>
+
+				{#if mentionOpen && mentionItems.length > 0}
+					<div
+						class="inline-dropdown"
+						role="listbox"
+						aria-label="Упоминания"
+						tabindex="-1"
+						style:left="{dropdownPos.left}px"
+						style:top={dropdownPos.above ? undefined : `${dropdownPos.top}px`}
+						style:bottom={dropdownPos.above ? `${dropdownPos.bottom}px` : undefined}
+						bind:this={dropdownEl}
+						onmousedown={(e) => e.preventDefault()}
+					>
+						{#each mentionItems as user, index (user.id)}
+							<button
+								type="button"
+								class={['inline-dropdown__found-item', 'user-option', { 'inline-dropdown__found-item--selected': index === activeIndex }]}
+								role="option"
+								aria-selected={index === activeIndex}
+								onclick={() => pickMention(user)}
+								onmouseenter={() => (activeIndex = index)}
+							>
+								{#if user.avatarUrl}
+									<img src={user.avatarUrl} alt="" width="20" height="20" {@attach animatedAvatar(user.avatarUrl)} />
+								{:else}
+									<span class="user-option__avatar-fallback" aria-hidden="true"></span>
+								{/if}
+								<span class="user-option__name">{user.name}</span>
+							</button>
+						{/each}
+					</div>
+				{/if}
 
 				{#if donation > 0}
 					<div class="donate-attachment">
@@ -449,6 +706,10 @@
 		box-shadow: var(--focus-ring);
 	}
 
+	.comment-editor--suggesting {
+		z-index: 25;
+	}
+
 	.comment-editor-box {
 		position: relative;
 		width: 100%;
@@ -490,6 +751,76 @@
 
 	.comment-editor-box__input:empty {
 		display: block;
+	}
+
+	/* Вставленное упоминание и выпадающий список тег-пикера — по стилям DTF 2022 (.inline-search-item / .inline-dropdown / .user-option) */
+	.comment-editor-box__input :global(.inline-search-item) {
+		display: inline-block;
+		color: var(--text-link);
+		font-weight: 400;
+		text-decoration: none;
+		font-style: normal;
+		user-select: all;
+	}
+
+	.inline-dropdown {
+		position: absolute;
+		z-index: 9;
+		width: 180px;
+		max-width: 100%;
+		max-height: 206px;
+		padding: 2px 0;
+		border-radius: 8px;
+		background-color: var(--bg-card);
+		box-shadow: var(--shadow-dropdown);
+		overflow-y: auto;
+		overscroll-behavior: contain;
+	}
+
+	.inline-dropdown__found-item {
+		display: flex;
+		align-items: center;
+		width: calc(100% - 12px);
+		box-sizing: border-box;
+		padding: 10px;
+		margin: 4px 6px;
+		border-radius: 6px;
+		color: var(--text-primary);
+		font: inherit;
+		font-size: 16px;
+		line-height: 20px;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.inline-dropdown__found-item--selected {
+		background-color: var(--bg-card-hover);
+	}
+
+	.user-option {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.user-option img,
+	.user-option__avatar-fallback {
+		flex-shrink: 0;
+		width: 20px;
+		height: 20px;
+		margin-right: 10px;
+		border-radius: 50%;
+		object-fit: cover;
+	}
+
+	.user-option__avatar-fallback {
+		background-color: var(--border-color);
+	}
+
+	.user-option__name {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.comment-editor-box__media {

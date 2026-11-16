@@ -120,6 +120,14 @@ export interface User {
 	isFrozen?: boolean;
 }
 
+/** Пользователь из селектора упоминаний (`@`) */
+export interface MentionUser {
+	id: number;
+	name: string;
+	nickname?: string;
+	avatarUrl?: string;
+}
+
 /** Картинка бейджа из каталога DTF (у Плюса можно выбрать любой из своего типа) */
 export interface Badge {
 	id: string;
@@ -514,6 +522,7 @@ export interface ApiProvider {
 	setCommentsSubscription?(postId: number, subscribed: boolean): Promise<void>;
 	getFavoriteGifs?(): Promise<GifResult[]>;
 	searchGifs?(query: string, cursor?: string): Promise<{ items: GifResult[]; cursor?: string }>;
+	searchMentions?(query?: string, options?: { signal?: AbortSignal }): Promise<MentionUser[]>;
 	getCommentControls?(commentId: number): Promise<CommentControls>;
 	/** Каталог бейджей DTF; публичный, не зависит от входа */
 	getBadges?(): Promise<Badge[]>;

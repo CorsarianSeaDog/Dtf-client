@@ -293,6 +293,7 @@ export const api = {
 	setCommentsSubscription: dtfApiProvider.setCommentsSubscription,
 	getFavoriteGifs: dtfApiProvider.getFavoriteGifs,
 	searchGifs: dtfApiProvider.searchGifs,
+	searchMentions: dtfApiProvider.searchMentions,
 	async setSubscription(subsiteId: number, subscribed: boolean) {
 		await dtfApiProvider.setSubscription(subsiteId, subscribed);
 		if (subscribed) trackSubscription();

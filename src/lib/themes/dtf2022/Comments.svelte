@@ -3,6 +3,7 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import type { CommentUpdate, CommentEditorState, CommentMedia } from '$lib/api/types';
 	import { api } from '$lib/api/index.svelte';
+	import { currentUser } from '$lib/api/currentUser.svelte';
 	import { CommentsLogic } from '$lib/components/Comments/commentsLogic.svelte';
 	import { ensureLogin } from './actions.svelte';
 	import { formatNumber, plural } from './format';
@@ -13,6 +14,7 @@
 	import CommentItem from './comments/CommentItem.svelte';
 	import CommentRestriction from './comments/CommentRestriction.svelte';
 	import { commentKey, flattenComments } from './comments/flatten';
+	import { collectThreadMentionAuthors } from './comments/mentions';
 	import { bindCommentsView } from './comments/commentsView.svelte';
 	import { VirtualRows } from './comments/virtualRows.svelte';
 	import { reactionSettings } from '$lib/storage/reactions.svelte';
@@ -93,6 +95,7 @@
 	let paymentLink = $state('');
 	/** Автор целевого комментария принимает донаты */
 	let canDonate = $derived(!editMode && !!replyTo && !!(logic.allCommentsMap.get(replyTo)?.author.isDonationsEnabled));
+	let mentionCandidates = $derived(replyTo ? collectThreadMentionAuthors(logic.pathTo(replyTo), currentUser.value?.id) : []);
 	/** Подписка на новые комментарии поста (колокольчик): начальное состояние берём из поста */
 	// svelte-ignore state_referenced_locally
 	let subscribedToComments = $state(subscribed);
@@ -257,7 +260,7 @@
 </script>
 
 {#snippet editor(continueBranch = false)}
-	<CommentEditor bind:text={draft} bind:media bind:donation {paymentLink} {canDonate} replying editing={editMode} {sending} error={sendError} {continueBranch} oncancel={cancel} onsubmit={submit} />
+	<CommentEditor bind:text={draft} bind:media bind:donation {paymentLink} {canDonate} replying editing={editMode} {sending} error={sendError} {continueBranch} {sourceId} {mentionCandidates} oncancel={cancel} onsubmit={submit} />
 {/snippet}
 
 <section class="comments-section" id="comments" aria-label="Комментарии">
@@ -312,7 +315,7 @@
 					</span>
 				</button>
 			{:else}
-				<CommentEditor bind:text={draft} bind:media bind:donation {paymentLink} {canDonate} {sending} error={sendError} onsubmit={submit} />
+				<CommentEditor bind:text={draft} bind:media bind:donation {paymentLink} {canDonate} {sending} error={sendError} {sourceId} onsubmit={submit} />
 			{/if}
 		</div>
 
