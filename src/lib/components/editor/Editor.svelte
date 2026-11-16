@@ -4,6 +4,7 @@
 	import { smartTypography } from '$lib/smartTypography';
 	import './editor.css';
 	import { getEditorConfig } from './config';
+	import { editorMessages } from './i18n';
 
 	let { 
 		initialData = undefined, 
@@ -34,6 +35,7 @@
 			instance = new EditorJS({
 				holder: editorElement,
 				placeholder,
+				i18n: { messages: editorMessages },
 				tunes: config.tunes,
 				tools: config.tools,
 				data: untrack(() => initialData),
