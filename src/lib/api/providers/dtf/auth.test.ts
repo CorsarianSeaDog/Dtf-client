@@ -44,7 +44,6 @@ describe('auth & proxy failover', () => {
 			commentNesting: 'flatten',
 			collectStats: true,
 			haptics: true,
-			disableMobileTopBar: false,
 			useSharePreview: true,
 			watermark: true,
 			clientBadges: 'redtf_only',

@@ -285,15 +285,6 @@ const hapticsField: ToggleField = {
 	default: true
 };
 
-const disableMobileTopBarField: ToggleField = {
-	key: 'disableMobileTopBar',
-	type: 'toggle',
-	title: 'Отключить верхний бар в мобильной версии',
-	description: 'Скрывать шапку с логотипом на смартфонах для экономии места',
-	default: false,
-	device: 'mobile'
-};
-
 const useSharePreviewField: ToggleField = {
 	key: 'useSharePreview',
 	type: 'toggle',
@@ -556,11 +547,6 @@ export function buildDeclarativePages(
 			searchPath: 'Интерфейс › Мобильная панель',
 			cardsLayout: true,
 			entries: [
-				{
-					field: disableMobileTopBarField,
-					getValue: () => settings.value.disableMobileTopBar,
-					setValue: (value) => settings.patch({ disableMobileTopBar: Boolean(value) })
-				},
 				...themeEntries(visible(THEME_GROUP_KEYS.mobileBar), themeValues)
 			]
 		},

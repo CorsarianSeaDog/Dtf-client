@@ -112,7 +112,6 @@
 			`  - Total: ${headerTotal}`,
 			`  - Raw: ${headerRaw}`,
 			`  - DOM height: ${headerDom}`,
-			`  - Disabled on mobile: ${settings.value.disableMobileTopBar}`,
 			'- Mobile Bar:',
 			`  - Total: ${mobileTotal}`,
 			`  - Raw: ${mobileRaw}`,

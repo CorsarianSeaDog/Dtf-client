@@ -44,7 +44,6 @@ describe('settings & shouldVirtualizeComments', () => {
 			commentNesting: 'flatten',
 			collectStats: true,
 			haptics: true,
-			disableMobileTopBar: false,
 			watermark: true,
 			clientBadges: 'redtf_only',
 			mobileBadgesPosition: 'author',
@@ -126,10 +125,6 @@ describe('settings & shouldVirtualizeComments', () => {
 		expect(saved.d.autoUpvoteComments).toBe(true);
 	});
 
-	it('disableMobileTopBar по умолчанию выключен (false)', () => {
-		expect(settings.value.disableMobileTopBar).toBe(false);
-	});
-
 	it('autoCheckUpdates по умолчанию включен (true)', () => {
 		expect(settings.value.autoCheckUpdates).toBe(true);
 	});
@@ -150,14 +145,6 @@ describe('settings & shouldVirtualizeComments', () => {
 
 		const saved = JSON.parse(localStorage.getItem('redtf:settings')!);
 		expect(saved.d.smartTypography).toBe(false);
-	});
-
-	it('patch обновляет значение disableMobileTopBar и сохраняет в localStorage', () => {
-		settings.patch({ disableMobileTopBar: true });
-		expect(settings.value.disableMobileTopBar).toBe(true);
-
-		const saved = JSON.parse(localStorage.getItem('redtf:settings')!);
-		expect(saved.d.disableMobileTopBar).toBe(true);
 	});
 
 	it('по умолчанию commentVirtualization равен "auto"', () => {

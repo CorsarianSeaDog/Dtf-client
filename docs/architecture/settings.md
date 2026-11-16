@@ -50,7 +50,6 @@ interface AppSettings {
 	recommendations: 'auto' | 'button'; // лента рекомендаций под постом: подгружать сама или по кнопке
 	collectStats: boolean;          // вести локальную статистику
 	haptics: boolean;               // тактильный отклик
-	disableMobileTopBar: boolean;   // отключать верхний бар в мобильной версии
 	watermark: boolean;             // невидимая подпись reDTF к отправляемым комментариям
 	clientBadges: 'all' | 'redtf_only' | 'none'; // отображение бейджей клиентов комментариев
 	mobileBadgesPosition: 'author' | 'date';     // позиция бейджей клиентов

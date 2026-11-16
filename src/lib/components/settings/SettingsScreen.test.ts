@@ -198,7 +198,6 @@ describe('SettingsScreen', () => {
 		expect(body).not.toContain('Верхняя панель');
 
 		// Мобильные настройки видны
-		expect(body).toContain('Отключить верхний бар в мобильной версии');
 		expect(body).toContain('Блюр мобильного бара');
 		expect(body).toContain('Плавающий мобильный бар');
 		// Десктопная настройка ширины контента скрыта

@@ -40,8 +40,6 @@ export interface AppSettings {
 	collectStats: boolean;
 	/** Тактильный виброотклик (для поддерживаемых устройств) */
 	haptics: boolean;
-	/** Отключать верхний бар в мобильной версии */
-	disableMobileTopBar: boolean;
 	/** Использовать сервис предпросмотра при копировании и шеринге ссылок на посты */
 	useSharePreview: boolean;
 	/** Невидимая подпись reDTF к отправляемым комментариям */
@@ -137,7 +135,6 @@ export const settings = persistedState<AppSettings>(
 		recommendations: 'auto',
 		collectStats: true,
 		haptics: true,
-		disableMobileTopBar: false,
 		useSharePreview: true,
 		watermark: true,
 		clientBadges: 'redtf_only',

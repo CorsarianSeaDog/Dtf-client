@@ -12,7 +12,6 @@
 	import NotificationsPanel from './NotificationsPanel.svelte';
 	import { sidebar } from './sidebar.svelte';
 	import { subscriptions } from './actions.svelte';
-	import { settings } from '$lib/storage/settings.svelte';
 	import { themeSettings } from './themeSettings.svelte';
 	import { appear, disappear } from '$lib/themes/appear';
 	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
@@ -90,7 +89,6 @@
 	class={[
 		'header',
 		{
-			'header--hidden-mobile': settings.value.disableMobileTopBar,
 			'header--create-sidebar': createButtonPos === 'sidebar'
 		}
 	]}
@@ -625,10 +623,6 @@
 	}
 
 	@media (max-width: 719px) {
-		.header--hidden-mobile {
-			display: none;
-		}
-
 		.header-menu,
 		.header-logo {
 			padding-left: 16px;

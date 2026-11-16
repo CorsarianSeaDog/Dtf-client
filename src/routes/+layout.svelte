@@ -357,15 +357,6 @@
 		}
 	});
 
-	// Отключение верхнего бара в мобильной версии выставляет data-атрибут корня
-	$effect(() => {
-		const disabled = Boolean(settings.value.disableMobileTopBar);
-		document.documentElement.dataset.disableMobileTopBar = String(disabled);
-		return () => {
-			delete document.documentElement.dataset.disableMobileTopBar;
-		};
-	});
-
 	// Применение активной иконки приложения (favicon, manifest, capacitor)
 	const appIcon = $derived(settings.value.appIcon ?? 'default');
 	const customIconData = $derived(settings.value.customIconData);
