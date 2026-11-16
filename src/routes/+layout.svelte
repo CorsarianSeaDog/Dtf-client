@@ -27,7 +27,7 @@
 	import { settings } from '$lib/storage/settings.svelte';
 	import { applyAppIcon, setUnreadBadge } from '$lib/icons';
 	import { pwa } from '$lib/pwa.svelte';
-	import { initCapacitor, updateStatusBar } from '$lib/capacitor';
+	import { initCapacitor, syncBackHandler, updateStatusBar } from '$lib/capacitor';
 	
 	import '../app.css';
 	import svgSpriteDefs from 'virtual:svg-sprite';
@@ -406,6 +406,9 @@
 			return scrollPositions.get(layer) || 0;
 		}
 	});
+
+	// Когда закрывать нечего, «Назад» достаётся системе: она сама показывает анимацию выхода на главный экран
+	$effect(syncBackHandler);
 
 	onMount(() => {
 		initCapacitor();
