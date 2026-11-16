@@ -126,8 +126,8 @@
 						<button
 							class={['switch-button', { active: feed.current === item.id }]}
 							aria-current={feed.current === item.id ? 'page' : undefined}
-							onpointerenter={() => prefetchFeed(item.id)}
-							onfocus={() => prefetchFeed(item.id)}
+							onpointerenter={() => prefetchFeed(item.id, feed.sortingOf(item.id))}
+							onfocus={() => prefetchFeed(item.id, feed.sortingOf(item.id))}
 							onclick={() => openFeedTab(item.id)}
 						>
 							<svg height="24" width="24" class="icon" aria-hidden="true">

@@ -3,7 +3,7 @@
 	import { disableScrollHandling } from '$app/navigation';
 	import { flushSync, onMount, untrack } from 'svelte';
 	import FeedList from '$lib/components/FeedList.svelte';
-	import { FEEDS, feed, feedFromUrl, neighborFeed, openFeedTab, periodFromUrl, type FeedName } from '$lib/feed.svelte';
+	import { FEEDS, feed, feedFromUrl, neighborFeed, openFeedTab, sortingFromUrl, type FeedName } from '$lib/feed.svelte';
 	import { feedSwipe, swipeAllowed } from '$lib/feedSwipe';
 	import { pullRefresh } from '$lib/pullRefresh';
 	import { activeTheme } from '$lib/themes/index.svelte';
@@ -16,15 +16,15 @@
 	 */
 
 	// Адрес задаёт ленту при входе, по ссылке и кнопкой «Назад». Нажатие и свайп меняют её сразу, адрес догоняет
-	feed.setCurrent(feedFromUrl(), periodFromUrl());
+	feed.setCurrent(feedFromUrl(), sortingFromUrl());
 	feed.reset();
 	$effect(() => {
 		const name = feedFromUrl();
-		const period = periodFromUrl();
+		const sorting = sortingFromUrl();
 		untrack(() => {
 			// «Назад» на другую ленту: прокрутку ставим сами, SvelteKit поставил бы прокрутку старого шага истории
 			if (name !== feed.current && navigating.type) disableScrollHandling();
-			feed.setCurrent(name, period);
+			feed.setCurrent(name, sorting);
 		});
 	});
 
@@ -123,7 +123,7 @@
 		{#each FEEDS as name (name)}
 			{#if feed.kept.includes(name)}
 				<div class={['feeds__slot', { 'feeds__slot--active': name === feed.current }]} data-feed={name}>
-					<FeedList {name} period={feed.periodOf(name)} active={name === feed.current} />
+					<FeedList {name} sorting={feed.sortingOf(name)} active={name === feed.current} />
 				</div>
 			{/if}
 		{/each}

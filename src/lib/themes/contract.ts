@@ -1,6 +1,6 @@
 import type { Snippet } from 'svelte';
 import type { Comment, CommentEditorState, Post, Profile, ProfileListItem, ProfileSorting, SearchFilters, SearchSorting, SearchSubsite } from '$lib/api/types';
-import type { Period } from '$lib/feed.svelte';
+import type { FeedName, FeedSorting } from '$lib/feed.svelte';
 
 export type SearchTab = 'posts' | 'comments' | 'blogs' | 'topics';
 
@@ -28,11 +28,11 @@ export interface ThemeComponents {
 	/** Лента рекомендаций под комментариями поста: тема сама грузит её через `api.getRecommendations`, когда её низ подъезжает к экрану */
 	Recommendations: { postId: number };
 	FeedTabs: {
-		currentFeed: 'popular' | 'new' | 'my';
-		switchFeed: (feed: 'popular' | 'new' | 'my') => void;
-		/** Период «Популярного» (`now` — обычное) и переход на другой */
-		period: Period;
-		switchPeriod: (period: Period) => void;
+		currentFeed: FeedName;
+		switchFeed: (feed: FeedName) => void;
+		/** Выбранная сортировка (или период «Популярного») и переход на другую */
+		sorting: FeedSorting;
+		switchSorting: (sorting: FeedSorting) => void;
 	};
 	Post: { post: Post; preview?: boolean; evictMedia?: boolean };
 	Comments: {

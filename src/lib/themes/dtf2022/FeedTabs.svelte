@@ -1,58 +1,75 @@
 <script lang="ts">
-	import { PERIODS, type Period } from '$lib/feed.svelte';
+	import type { FeedName, FeedSorting } from '$lib/feed.svelte';
 	import { formatDay } from './format';
 	import Popover from './ui/Popover.svelte';
 	import { haptics } from '$lib/haptics';
 
-	// Вкладки ленты у dtf2022 живут в сайдбаре и мобильной панели, здесь только выбор периода «Популярного»
+	// Вкладки ленты живут в сайдбаре и мобильной панели, здесь — селектор сортировки/фильтра текущей ленты
 	let {
 		currentFeed,
-		period,
-		switchPeriod
+		sorting,
+		switchSorting
 	}: {
-		currentFeed: string;
-		period: Period;
-		switchPeriod: (period: Period) => void;
+		currentFeed: FeedName;
+		sorting: FeedSorting;
+		switchSorting: (sorting: FeedSorting) => void;
 	} = $props();
 
-	const LABELS: Record<Period, string> = {
-		now: formatDay(new Date()),
-		day: '24 часа',
-		week: 'Неделя',
-		month: 'Месяц',
-		year: 'Год',
-		all: 'Всё время'
+	const POPOVER_LABELS: Record<FeedName, string> = {
+		popular: 'Период',
+		new: 'Сортировка',
+		my: 'Сортировка'
 	};
-	const items = PERIODS.map((value) => ({ value, label: LABELS[value] }));
+
+	const OPTIONS: Record<FeedName, { value: FeedSorting; label: string }[]> = {
+		popular: [
+			{ value: 'now', label: formatDay(new Date()) },
+			{ value: 'day', label: '24 часа' },
+			{ value: 'week', label: 'Неделя' },
+			{ value: 'month', label: 'Месяц' },
+			{ value: 'year', label: 'Год' },
+			{ value: 'all', label: 'Всё время' }
+		],
+		new: [
+			{ value: 'all', label: 'Все' },
+			{ value: 'from5', label: 'От +5' },
+			{ value: 'from10', label: 'От +10' }
+		],
+		my: [
+			{ value: 'new', label: 'По дате' },
+			{ value: 'hotness', label: 'По популярности' },
+			{ value: 'seen', label: 'Просмотренные' }
+		]
+	};
 
 	let open = $state(false);
+	let items = $derived(OPTIONS[currentFeed]);
+	let activeLabel = $derived(items.find((item) => item.value === sorting)?.label ?? items[0].label);
 </script>
 
-{#if currentFeed === 'popular'}
-	<div class="sorting-filters">
-		<Popover
-			bind:open
-			{items}
-			selected={period}
-			onselect={(p) => {
-				haptics.tick();
-				switchPeriod(p);
-			}}
-			width={180}
-			align="left"
-			label="Период"
-		>
-			<button type="button" class="sorting-filters__button" aria-expanded={open} onclick={() => (open = !open)}>
-				<span>{LABELS[period]}</span>
-				<span class="sorting-filters__toggler">
-					<svg class="icon" width="16" height="16" aria-hidden="true">
-						<use href="#v_chevron_down"></use>
-					</svg>
-				</span>
-			</button>
-		</Popover>
-	</div>
-{/if}
+<div class="sorting-filters">
+	<Popover
+		bind:open
+		{items}
+		selected={sorting}
+		onselect={(next) => {
+			haptics.tick();
+			switchSorting(next);
+		}}
+		width={180}
+		align="left"
+		label={POPOVER_LABELS[currentFeed]}
+	>
+		<button type="button" class="sorting-filters__button" aria-expanded={open} onclick={() => (open = !open)}>
+			<span>{activeLabel}</span>
+			<span class="sorting-filters__toggler">
+				<svg class="icon" width="16" height="16" aria-hidden="true">
+					<use href="#v_chevron_down"></use>
+				</svg>
+			</span>
+		</button>
+	</Popover>
+</div>
 
 <style>
 	.sorting-filters {
@@ -87,6 +104,11 @@
 		align-items: center;
 		margin-right: -4px;
 		padding: 0 4px;
+	}
+
+	/* Если под селектором сразу идёт первый пост (без блока новостей), межкарточный отступ сверху не нужен */
+	.sorting-filters + :global(.feed-item) {
+		margin-top: 0;
 	}
 
 	@media (max-width: 859px) {

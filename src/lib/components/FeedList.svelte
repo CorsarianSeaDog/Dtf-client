@@ -8,7 +8,7 @@
 	import NetworkErrorState from '$lib/components/NetworkErrorState.svelte';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { loadFeed, peekFeed, sortingOf } from '$lib/feedCache';
-	import { feed, openFeedTab, type FeedName, type Period } from '$lib/feed.svelte';
+	import { feed, openFeedTab, type FeedName, type FeedSorting } from '$lib/feed.svelte';
 	import { onDestroy, untrack } from 'svelte';
 	import { chunked } from '$lib/chunked';
 	import { watchVisible } from '$lib/watchVisible';
@@ -20,7 +20,7 @@
 	 * Одна лента главной. Страница держит несколько таких сразу: неактивная скрыта, но сохраняет посты,
 	 * подгруженные страницы и раскладку, поэтому возврат на неё мгновенный.
 	 */
-	let { name, period, active }: { name: FeedName; period: Period; active: boolean } = $props();
+	let { name, sorting, active }: { name: FeedName; sorting: FeedSorting; active: boolean } = $props();
 
 	const CHUNK_SIZE = 5;
 
@@ -34,7 +34,7 @@
 	// Растёт, когда показана новая первая страница: список пересоздаётся и проигрывает появление (подгрузка вниз его не трогает)
 	let epoch = $state(0);
 
-	// Номер запроса: ответ прежнего периода не должен перетереть новый
+	// Номер запроса: ответ прежней сортировки не должен перетереть новый
 	let requestId = 0;
 	let moreInFlight: Promise<boolean> | undefined;
 
@@ -60,8 +60,8 @@
 	 */
 	async function loadInitial(isRefresh = false) {
 		const id = ++requestId;
-		const cached = isRefresh ? undefined : peekFeed(name, period);
-		const showNews = name === 'popular' && period === 'now';
+		const cached = isRefresh ? undefined : peekFeed(name, sorting);
+		const showNews = name === 'popular' && sorting === 'now';
 		error = null;
 		if (isRefresh) refreshing = true;
 		else {
@@ -74,7 +74,7 @@
 		try {
 			// Данные и компоненты готовятся вместе: общая заглушка сразу сменяется готовой лентой.
 			const [result] = await Promise.all([
-				loadFeed(name, period, isRefresh),
+				loadFeed(name, sorting, isRefresh),
 				preloadThemeComponent(activeTheme.chain, 'Post'),
 				preloadThemeComponent(activeTheme.chain, 'FeedTabs'),
 				...(showNews ? [preloadThemeComponent(activeTheme.chain, 'EditorialNews'), editorialNews.loadInitial(isRefresh)] : [])
@@ -103,11 +103,11 @@
 	async function revalidate() {
 		const shown = feedResult;
 		if (!shown || loading || refreshing) return;
-		if (name === 'popular' && period === 'now') {
+		if (name === 'popular' && sorting === 'now') {
 			editorialNews.loadInitial();
 		}
 		const id = requestId;
-		const result = await loadFeed(name, period).catch(() => undefined);
+		const result = await loadFeed(name, sorting).catch(() => undefined);
 		if (result && id === requestId && feedResult === shown && atTop() && !startsWith(shown, result)) {
 			feedResult = result;
 			renderedCount = 0;
@@ -126,7 +126,7 @@
 		const run = (async () => {
 			try {
 				loadingMore = true;
-				const next = await api.getPosts({ pageName: name, sorting: sortingOf(name, period), cursors: feedResult.cursors });
+				const next = await api.getPosts({ pageName: name, sorting: sortingOf(name, sorting), cursors: feedResult.cursors });
 				if (id !== requestId || !feedResult) return false;
 				feedResult = { items: appendUnique(feedResult.items, next.items, postKey), cursors: next.cursors };
 				const promise = chunks.run();
@@ -145,9 +145,9 @@
 		return run;
 	}
 
-	// Лента появилась или у «Популярного» сменился период: загружаем с начала
+	// Лента появилась или у неё сменилась сортировка: загружаем с начала
 	$effect(() => {
-		void period;
+		void sorting;
 		untrack(() => loadInitial());
 	});
 
@@ -192,34 +192,36 @@
 		<NetworkErrorState {error} onretry={() => loadInitial()} />
 	{:else}
 		<Reveal ready={!loading} block>
-			{#if feedResult?.items.length === 0}
-				<div class="empty">Нет постов</div>
-			{:else if feedResult}
+			{#if feedResult}
 				{#key epoch}
 					<div class="list" {@attach appearIfShown}>
 						<ThemeLoader
 							componentName="FeedTabs"
 							currentFeed={name}
 							switchFeed={openFeedTab}
-							{period}
-							switchPeriod={(next: Period) => openFeedTab('popular', next)}
+							{sorting}
+							switchSorting={(next: FeedSorting) => openFeedTab(name, next)}
 						/>
-						{#if name === 'popular' && period === 'now'}
-							<ThemeLoader componentName="EditorialNews" />
-						{/if}
-						{#each renderedItems as post, i (post.sourceId + '_' + post.id)}
-							{#if i === NOTICE_AFTER_POST && showNotice}
-								<ThemeLoader componentName="FeedNotice" onlater={feedNotice.later} onnever={feedNotice.never} />
+						{#if feedResult.items.length === 0}
+							<div class="empty">Нет постов</div>
+						{:else}
+							{#if name === 'popular' && sorting === 'now'}
+								<ThemeLoader componentName="EditorialNews" />
 							{/if}
-							<ThemeLoader componentName="Post" {post} />
-						{/each}
-
-						{#if feedResult.cursors && Object.keys(feedResult.cursors).length > 0}
-							<div bind:this={loaderNode} class="infinite-loader">
-								{#if loadingMore}
-									<ThemeLoader componentName="Spinner" inline={true} />
+							{#each renderedItems as post, i (post.sourceId + '_' + post.id)}
+								{#if i === NOTICE_AFTER_POST && showNotice}
+									<ThemeLoader componentName="FeedNotice" onlater={feedNotice.later} onnever={feedNotice.never} />
 								{/if}
-							</div>
+								<ThemeLoader componentName="Post" {post} />
+							{/each}
+
+							{#if feedResult.cursors && Object.keys(feedResult.cursors).length > 0}
+								<div bind:this={loaderNode} class="infinite-loader">
+									{#if loadingMore}
+										<ThemeLoader componentName="Spinner" inline={true} />
+									{/if}
+								</div>
+							{/if}
 						{/if}
 					</div>
 				{/key}

@@ -577,7 +577,7 @@ export function openFeed(e: MouseEvent) {
 	if (page.state.overlays?.length) {
 		e.preventDefault();
 		clearSubstates();
-		const feedUrl = resolve(feedPath(feed.current, feed.period) as '/');
+		const feedUrl = resolve(feedPath(feed.current, feed.sorting) as '/');
 		if (page.route.id === '/') {
 			goto(feedUrl, { shallow: true, state: { overlays: [] } });
 		} else {

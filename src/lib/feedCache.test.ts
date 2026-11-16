@@ -4,7 +4,7 @@ const getPosts = vi.fn();
 vi.mock('$lib/api/index.svelte', () => ({ api: { getPosts } }));
 vi.mock('$lib/storage/auth.svelte', () => ({ authStorage: { isAuthenticated: false } }));
 
-const { loadFeed, peekFeed } = await import('./feedCache');
+const { loadFeed, peekFeed, sortingOf } = await import('./feedCache');
 
 describe('feedCache', () => {
 	beforeEach(() => getPosts.mockReset());
@@ -20,7 +20,21 @@ describe('feedCache', () => {
 		await loadFeed('new');
 		expect(getPosts).toHaveBeenCalledTimes(1);
 
-		await loadFeed('new', 'now', true);
+		await loadFeed('new', 'all', true);
 		expect(getPosts).toHaveBeenCalledTimes(2);
+	});
+
+	it('разделяет кэш по сортировкам и переводит now у popular в hotness', async () => {
+		getPosts.mockResolvedValue({ items: [] });
+
+		expect(sortingOf('popular', 'now')).toBe('hotness');
+		expect(sortingOf('new', 'from5')).toBe('from5');
+		expect(sortingOf('my', 'seen')).toBe('seen');
+
+		await loadFeed('new', 'from5');
+		expect(getPosts).toHaveBeenLastCalledWith({ pageName: 'new', sorting: 'from5' });
+
+		await loadFeed('my', 'seen');
+		expect(getPosts).toHaveBeenLastCalledWith({ pageName: 'my', sorting: 'seen' });
 	});
 });
