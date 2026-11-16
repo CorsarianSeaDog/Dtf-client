@@ -121,6 +121,7 @@
 	let searchQuery = $state('');
 	let searchInputEl = $state<HTMLInputElement>();
 	let hasSearch = $derived(searchQuery.trim().length > 0);
+	let showSearchResults = $derived(activeFolderId === null && !isSolo && hasSearch);
 	let cancelPendingHighlight: (() => void) | undefined;
 
 	// Страницы подменю, на которых для текущей темы и устройства нечего показать, из меню и поиска убираем
@@ -142,10 +143,10 @@
 		})
 	);
 
-	let searchResults = $derived(hasSearch ? searchSettings(searchIndex, searchQuery) : []);
+	let searchResults = $derived(showSearchResults ? searchSettings(searchIndex, searchQuery) : []);
 
 	let folderTitle = $derived(
-		hasSearch ? 'Настройки' : activeFolderId === 'interface' ? 'Интерфейс' : 'Настройки'
+		showSearchResults ? 'Настройки' : activeFolderId === 'interface' ? 'Интерфейс' : 'Настройки'
 	);
 
 	let pageTitle = $derived(getPageTitle(selectedPageId, folderTitle, rootNavigation));
@@ -199,6 +200,7 @@
 
 	async function handleSearchResultClick(item: SettingsSearchItem) {
 		cancelPendingHighlight?.();
+		searchQuery = '';
 		activeSection = undefined;
 		resetSolo();
 		activeFolderId = item.folderId ?? null;
@@ -298,7 +300,7 @@
 		<nav class="sidebar" aria-label="Разделы настроек">
 			<header class="side-bar">
 				<h2 class="side-title">{folderTitle}</h2>
-				{#if activeFolderId && !hasSearch}
+				{#if activeFolderId && !showSearchResults}
 					<button
 						class="icon-button folder-back"
 						type="button"
@@ -312,69 +314,108 @@
 				{/if}
 			</header>
 
-			<div class="search-box">
-				<svg class="search-box__icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-					<circle cx="7" cy="7" r="4.5" />
-					<path d="M10.5 10.5L13.5 13.5" />
-				</svg>
-				<input
-					bind:this={searchInputEl}
-					class="search-box__input"
-					type="search"
-					aria-label="Поиск по настройкам"
-					placeholder="Поиск по настройкам"
-					bind:value={searchQuery}
-					onkeydown={handleSearchKeydown}
-				/>
-				{#if searchQuery}
-					<button
-						class="search-box__clear"
-						type="button"
-						aria-label="Очистить поиск"
-						onclick={() => {
-							searchQuery = '';
-							searchInputEl?.focus();
-						}}
-					>
-						<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
-							<path d="M4 4l8 8M12 4l-8 8" />
-						</svg>
-					</button>
-				{/if}
-			</div>
-
 			<div class="nav-container">
-				<!-- Уровень 1: Главное меню -->
-				<div class={['nav-layer', { 'nav-layer--hidden': activeFolderId !== null || hasSearch }]}>
-					<div class="nav">
-						{#each rootNavigation as group (group.title)}
-							<section class="nav__section">
-								<h3 class="nav__group">{group.title}</h3>
-								<div class="nav__list">
-									{#each group.items as item (item.id)}
-										<button
-											class={['nav__item', { 'nav__item--active': item.id === selectedPageId && activeFolderId === null }]}
-											type="button"
-											aria-current={item.id === selectedPageId && activeFolderId === null ? 'page' : undefined}
-											onclick={() => handleRootItemClick(item)}
-										>
-											<SettingsIcon name={item.icon} />
-											<span class="nav__title">{item.title}</span>
-											{#if item.type === 'folder'}
-												<svg class="nav__arrow nav__arrow--folder" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-													<path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-												</svg>
-											{/if}
-										</button>
-									{/each}
+				<!-- Уровень 1: Поиск и главное меню -->
+				<div
+					class={['nav-layer', { 'nav-layer--hidden': activeFolderId !== null }]}
+					inert={activeFolderId !== null}
+				>
+					<div class="search-box">
+						<svg class="search-box__icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<circle cx="7" cy="7" r="4.5" />
+							<path d="M10.5 10.5L13.5 13.5" />
+						</svg>
+						<input
+							bind:this={searchInputEl}
+							class="search-box__input"
+							type="search"
+							aria-label="Поиск по настройкам"
+							placeholder="Поиск по настройкам"
+							bind:value={searchQuery}
+							onkeydown={handleSearchKeydown}
+						/>
+						{#if searchQuery}
+							<button
+								class="search-box__clear"
+								type="button"
+								aria-label="Очистить поиск"
+								onclick={() => {
+									searchQuery = '';
+									searchInputEl?.focus();
+								}}
+							>
+								<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+									<path d="M4 4l8 8M12 4l-8 8" />
+								</svg>
+							</button>
+						{/if}
+					</div>
+
+					<div class="nav-container">
+						<div class={['nav-layer', { 'nav-layer--hidden': showSearchResults }]}>
+							<div class="nav">
+								{#each rootNavigation as group (group.title)}
+									<section class="nav__section">
+										<h3 class="nav__group">{group.title}</h3>
+										<div class="nav__list">
+											{#each group.items as item (item.id)}
+												<button
+													class={['nav__item', { 'nav__item--active': item.id === selectedPageId && activeFolderId === null }]}
+													type="button"
+													aria-current={item.id === selectedPageId && activeFolderId === null ? 'page' : undefined}
+													onclick={() => handleRootItemClick(item)}
+												>
+													<SettingsIcon name={item.icon} />
+													<span class="nav__title">{item.title}</span>
+													{#if item.type === 'folder'}
+														<svg class="nav__arrow nav__arrow--folder" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+															<path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+														</svg>
+													{/if}
+												</button>
+											{/each}
+										</div>
+									</section>
+								{/each}
+							</div>
+						</div>
+
+						<!-- Результаты поиска в стиле Android (пункт / найденный сеттинг) -->
+						{#if showSearchResults}
+							<div class="nav-layer search-layer">
+								<div class="nav search-results">
+									{#if searchResults.length > 0}
+										<div class="nav__list search-results__list">
+											{#each searchResults as match (match.item.id)}
+												<button
+													class="search-result"
+													type="button"
+													onclick={() => handleSearchResultClick(match.item)}
+												>
+													<SettingsIcon name={match.item.icon} />
+													<span class="search-result__body">
+														<span class="search-result__path">
+															{match.item.path}{#if match.matchedOption} · {match.matchedOption}{/if}
+														</span>
+														<span class="search-result__title">{match.item.title}</span>
+													</span>
+												</button>
+											{/each}
+										</div>
+									{:else}
+										<p class="search-empty">Ничего не найдено</p>
+									{/if}
 								</div>
-							</section>
-						{/each}
+							</div>
+						{/if}
 					</div>
 				</div>
 
 				<!-- Уровень 2: Подменю выбранной папки -->
-				<div class={['nav-layer', { 'nav-layer--hidden': activeFolderId === null || hasSearch }]}>
+				<div
+					class={['nav-layer', { 'nav-layer--hidden': activeFolderId === null }]}
+					inert={activeFolderId === null}
+				>
 					<div class="nav">
 						{#if activeFolderId === 'interface'}
 							{#each INTERFACE_SUBNAV as group (group.title)}
@@ -400,35 +441,6 @@
 						{/if}
 					</div>
 				</div>
-
-				<!-- Результаты поиска в стиле Android (пункт / найденный сеттинг) -->
-				{#if hasSearch}
-					<div class="nav-layer search-layer">
-						<div class="nav search-results">
-							{#if searchResults.length > 0}
-								<div class="nav__list search-results__list">
-									{#each searchResults as match (match.item.id)}
-										<button
-											class="search-result"
-											type="button"
-											onclick={() => handleSearchResultClick(match.item)}
-										>
-											<SettingsIcon name={match.item.icon} />
-											<span class="search-result__body">
-												<span class="search-result__path">
-													{match.item.path}{#if match.matchedOption} · {match.matchedOption}{/if}
-												</span>
-												<span class="search-result__title">{match.item.title}</span>
-											</span>
-										</button>
-									{/each}
-								</div>
-							{:else}
-								<p class="search-empty">Ничего не найдено</p>
-							{/if}
-						</div>
-					</div>
-				{/if}
 			</div>
 		</nav>
 

@@ -404,4 +404,26 @@ describe('SettingsScreen', () => {
 			section: undefined
 		});
 	});
+
+	it('показывает поиск только на главной (в корневом слое сайдбара)', () => {
+		const desktopMain = render(SettingsScreen, {
+			props: { onclose: () => {}, device: 'desktop' }
+		});
+		expect(desktopMain.body).toMatch(/class="nav-layer[^"]*">\s*<div class="search-box/);
+
+		const desktopPage = render(SettingsScreen, {
+			props: { onclose: () => {}, device: 'desktop', page: 'sources' }
+		});
+		expect(desktopPage.body).toMatch(/class="nav-layer[^"]*">\s*<div class="search-box/);
+
+		const desktopFolder = render(SettingsScreen, {
+			props: { onclose: () => {}, device: 'desktop', section: 'appearance' }
+		});
+		expect(desktopFolder.body).toMatch(/nav-layer--hidden[^>]*>\s*<div class="search-box/);
+
+		const mobilePage = render(SettingsScreen, {
+			props: { onclose: () => {}, device: 'mobile', page: 'sources' }
+		});
+		expect(mobilePage.body).toContain('data-view="page"');
+	});
 });
