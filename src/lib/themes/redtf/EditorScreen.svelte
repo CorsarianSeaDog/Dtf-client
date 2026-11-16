@@ -6,6 +6,7 @@
 	import PublishSheet from './PublishSheet.svelte';
 	import EditorMenu from './EditorMenu.svelte';
 	import { activeThemeSettings } from '../settings.svelte';
+	import EditorToolbar from './EditorToolbar.svelte';
 
 	let { session }: { session: any } = $props();
 
@@ -47,6 +48,10 @@
 		{#if !mobile.current}
 			<EditorSettings {session} />
 		{/if}
+	{/snippet}
+
+	{#snippet footer()}
+		<EditorToolbar {session} />
 	{/snippet}
 </BaseEditorScreen>
 

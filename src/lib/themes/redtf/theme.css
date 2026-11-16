@@ -620,3 +620,17 @@
 	--theme-st-side-border: var(--border-subtle);
 	--theme-st-track: #303034;
 }
+
+/* Панель инструментов над клавиатурой (EditorToolbar) заменяет на телефоне плавающий «+» и строчный тулбар EditorJS.
+   Кнопка настроек блока остаётся: через неё спойлер, якорь, перемещение и удаление */
+@media (max-width: 719px) {
+	:root[data-theme~="redtf"] .writing .ce-toolbar__plus,
+	:root[data-theme~="redtf"] .writing .ce-inline-toolbar {
+		display: none !important;
+	}
+}
+
+/* Выделение, пока адрес ссылки вводят в поле панели и фокус ушёл из текста */
+:root[data-theme~="redtf"] ::highlight(redtf-link) {
+	background-color: var(--bg-editor-dragover, rgba(70, 131, 217, 0.3));
+}
