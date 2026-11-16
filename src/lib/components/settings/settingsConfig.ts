@@ -1,7 +1,7 @@
 import { activeTheme, themes } from '$lib/themes/index.svelte';
 import { activeThemeSettings } from '$lib/themes/settings.svelte';
 import { paletteSelection } from '$lib/themes/palette';
-import { hasTouchInput, isFieldVisible } from '$lib/themes/types';
+import { EXPERIMENTAL, hasTouchInput, isFieldVisible } from '$lib/themes/types';
 import type { ChoiceField, SettingDevice, SettingField, SettingValue, ToggleField } from '$lib/themes/types';
 import {
 	DEFAULT_THEME,
@@ -139,6 +139,7 @@ const PAGE_KEYWORDS: Record<string, string> = {
 	network: 'прокси proxy cors failover вход',
 	stats: 'статистика время посты графики',
 	animations: 'анимация движение переход слайд material скорость темп',
+	app: 'вибрация отклик тактильный жест назад предиктивный иконка значок водяной знак',
 	debug: 'отладка дебаг safe area hud'
 };
 
@@ -287,6 +288,15 @@ const hapticsField: ToggleField = {
 	title: 'Тактильный отклик (вибрация)',
 	description: 'Вибрация при лайках, реакциях и переключении вкладок (для Android)',
 	default: true
+};
+
+const predictiveBackField: ToggleField = {
+	key: 'predictiveBack',
+	type: 'toggle',
+	title: 'Поддержка Predictive Gesture',
+	description: 'Анимация возврата при системном жесте от края экрана (для Android)',
+	note: EXPERIMENTAL,
+	default: false
 };
 
 const useSharePreviewField: ToggleField = {
@@ -509,6 +519,11 @@ export function buildDeclarativePages(
 					field: hapticsField,
 					getValue: () => settings.value.haptics,
 					setValue: (value) => settings.patch({ haptics: Boolean(value) })
+				},
+				{
+					field: predictiveBackField,
+					getValue: () => settings.value.predictiveBack ?? false,
+					setValue: (value) => settings.patch({ predictiveBack: Boolean(value) })
 				},
 				{
 					field: transparencyField,

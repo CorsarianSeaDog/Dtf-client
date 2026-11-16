@@ -40,6 +40,8 @@ export interface AppSettings {
 	collectStats: boolean;
 	/** Тактильный виброотклик (для поддерживаемых устройств) */
 	haptics: boolean;
+	/** Анимация системного жеста «Назад» (Android) */
+	predictiveBack?: boolean;
 	/** Использовать сервис предпросмотра при копировании и шеринге ссылок на посты */
 	useSharePreview: boolean;
 	/** Невидимая подпись reDTF к отправляемым комментариям */
@@ -135,6 +137,7 @@ export const settings = persistedState<AppSettings>(
 		recommendations: 'auto',
 		collectStats: true,
 		haptics: true,
+		predictiveBack: false,
 		useSharePreview: true,
 		watermark: true,
 		clientBadges: 'redtf_only',

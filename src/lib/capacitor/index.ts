@@ -206,13 +206,20 @@ export function handleBackButton(canGoBack: boolean = false): void {
 	App.minimizeApp()?.catch?.(() => {});
 }
 
+let predictiveBack = false;
+
 /**
- * Перехватывать ли «Назад» в приложении. Когда закрывать нечего (главная лента без оверлеев и полноэкранного режима),
- * жест достаётся системе, и она показывает свою анимацию вместо нашего сворачивания. Читает реактивное состояние:
- * вызывайте из `$effect`. Вложенные шаги (`pushSubstate`) бывают только внутри оверлея или не на главной.
+ * Перехватывать ли «Назад» в приложении. Когда закрывать нечего (главная лента без оверлеев и полноэкранного режима)
+ * и включён предиктивный жест, перехват отдаётся системе — она показывает свою анимацию выхода на главный экран.
+ * Читает реактивное состояние: вызывайте из `$effect`. Вложенные шаги (`pushSubstate`) бывают только внутри оверлея или не на главной.
  */
-export function syncBackHandler(): void {
-	if (typeof window === 'undefined' || !isNative()) return;
+export function syncBackHandler(predictive = predictiveBack): void {
+	predictiveBack = predictive;
+	if (typeof window === 'undefined' || typeof document === 'undefined' || !isNative()) return;
+	if (!predictive) {
+		setBackEnabled(true);
+		return;
+	}
 	const doc = document as Document & { webkitFullscreenElement?: Element | null };
 	void page.url;
 	const busy = Boolean(doc.fullscreenElement || doc.webkitFullscreenElement) || (page.state.overlays ?? []).length > 0 || (window.location.pathname !== '/' && window.location.pathname !== '');
@@ -258,7 +265,7 @@ export function initCapacitor(): void {
 		handleBackButton(canGoBack);
 	});
 	// Полноэкранное видео перехватывает «Назад» само, даже на главной
-	document.addEventListener('fullscreenchange', syncBackHandler);
+	document.addEventListener('fullscreenchange', () => syncBackHandler());
 
 	// Обработка входящих ссылок (App Links / Deep Links) при открытии свернутого/активного приложения
 	App.addListener('appUrlOpen', (event) => {

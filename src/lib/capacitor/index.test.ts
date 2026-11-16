@@ -19,7 +19,13 @@ vi.mock('$app/state', () => ({
 const appMocks = vi.hoisted(() => ({
 	minimizeApp: vi.fn().mockResolvedValue(undefined),
 	isNativePlatform: vi.fn(() => false),
-	browserOpen: vi.fn().mockResolvedValue(undefined)
+	browserOpen: vi.fn().mockResolvedValue(undefined),
+	setBackEnabled: vi.fn()
+}));
+
+vi.mock('./back', () => ({
+	initNativeBack: vi.fn(),
+	setBackEnabled: appMocks.setBackEnabled
 }));
 
 vi.mock('@capacitor/core', () => ({
@@ -51,7 +57,7 @@ vi.mock('$lib/navigation', () => ({
 	popSubstate: mocks.popSubstate
 }));
 
-import { isNative, openExternalUrl, updateStatusBar, hideSplashScreen, notifyAppReady, initCapacitor, handleAppUrl, handleNativeLinkClick, handleBackButton } from './index';
+import { isNative, openExternalUrl, updateStatusBar, hideSplashScreen, notifyAppReady, initCapacitor, handleAppUrl, handleNativeLinkClick, handleBackButton, syncBackHandler } from './index';
 
 describe('Capacitor bridge', () => {
 	beforeEach(() => {
@@ -67,6 +73,7 @@ describe('Capacitor bridge', () => {
 		appMocks.isNativePlatform.mockReturnValue(false);
 		appMocks.browserOpen.mockReset();
 		appMocks.browserOpen.mockResolvedValue(undefined);
+		appMocks.setBackEnabled.mockReset();
 		mockPageState.overlays = [];
 	});
 
@@ -399,6 +406,40 @@ describe('Capacitor bridge', () => {
 			handleBackButton(false);
 
 			expect(appMocks.minimizeApp).toHaveBeenCalled();
+		});
+	});
+
+	describe('syncBackHandler', () => {
+		it('ничего не делает вне нативной платформы', () => {
+			appMocks.isNativePlatform.mockReturnValue(false);
+			syncBackHandler(true);
+			expect(appMocks.setBackEnabled).not.toHaveBeenCalled();
+		});
+
+		it('всегда включает перехват, если предиктивный жест выключен', () => {
+			appMocks.isNativePlatform.mockReturnValue(true);
+			vi.stubGlobal('window', { location: { pathname: '/' } });
+			vi.stubGlobal('document', {});
+			syncBackHandler(false);
+			expect(appMocks.setBackEnabled).toHaveBeenCalledWith(true);
+		});
+
+		it('отключает перехват на главной без оверлеев при включённом предиктивном жесте', () => {
+			appMocks.isNativePlatform.mockReturnValue(true);
+			mockPageState.overlays = [];
+			vi.stubGlobal('window', { location: { pathname: '/' } });
+			vi.stubGlobal('document', {});
+			syncBackHandler(true);
+			expect(appMocks.setBackEnabled).toHaveBeenCalledWith(false);
+		});
+
+		it('включает перехват, если есть оверлеи', () => {
+			appMocks.isNativePlatform.mockReturnValue(true);
+			mockPageState.overlays = [{ id: 'post-1', type: 'post' }];
+			vi.stubGlobal('window', { location: { pathname: '/' } });
+			vi.stubGlobal('document', {});
+			syncBackHandler(true);
+			expect(appMocks.setBackEnabled).toHaveBeenCalledWith(true);
 		});
 	});
 });

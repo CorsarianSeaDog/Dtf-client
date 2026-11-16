@@ -7,6 +7,7 @@ import { reducedMotion } from './motion';
 import { freeze, pageTransition } from './pageTransition.svelte';
 import { createTension, haptics } from './haptics';
 import { DISTANCE, EASE, glide, settle, swipe, translate } from './swipe';
+import { settings } from './storage/settings.svelte';
 import { activeTheme } from './themes/index.svelte';
 import { getCurrentDevice } from './themes/types';
 
@@ -228,6 +229,7 @@ export function swipeBackGesture(options: SwipeBackOptions): Attachment<HTMLElem
 	let pending: (() => void) | undefined;
 	const system: BackDriver = {
 		start(dir) {
+			if (!settings.value.predictiveBack) return false;
 			pending?.();
 			pending = undefined;
 			from = layers();

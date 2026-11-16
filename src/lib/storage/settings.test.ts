@@ -61,12 +61,22 @@ describe('settings & shouldVirtualizeComments', () => {
 			debugSafeAreaOverlay: false,
 			debugHud: false,
 			devMode: false,
+			predictiveBack: false,
 			useSharePreview: true
 		};
 	});
 
 	it('appIcon по умолчанию "default"', () => {
 		expect(settings.value.appIcon).toBe('default');
+	});
+
+	it('predictiveBack по умолчанию false', () => {
+		expect(settings.value.predictiveBack).toBe(false);
+	});
+
+	it('patch обновляет значение predictiveBack', () => {
+		settings.patch({ predictiveBack: true });
+		expect(settings.value.predictiveBack).toBe(true);
 	});
 
 	it('patch обновляет значение appIcon и сохраняет в localStorage', () => {
