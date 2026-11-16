@@ -1,10 +1,8 @@
 <script lang="ts">
 	import type { Post } from '$lib/api/types';
-	import { addIgnoredTag, filterSettings, normalizeTag, removeIgnoredTag } from '$lib/storage/filter.svelte';
 	import PostCard from './post/PostCard.svelte';
-	import { isPostHidden } from './actions.svelte';
+	import { isPostHidden, tagMenuItems, tagTitle, toggleIgnoredTag } from './actions.svelte';
 	import Popover from './ui/Popover.svelte';
-	import { notify } from './ui/notify.svelte';
 
 	/*
 	 * Страница тега: заголовок с названием (первая буква заглавная, как у DTF) и записи.
@@ -14,19 +12,8 @@
 	 */
 	let { tag, posts }: { tag: string; posts: Post[] } = $props();
 
-	let title = $derived(tag.charAt(0).toUpperCase() + tag.slice(1));
-	let ignored = $derived(filterSettings.value.tags.includes(normalizeTag(tag)));
+	let title = $derived(tagTitle(tag));
 	let menuOpen = $state(false);
-
-	function toggleIgnored() {
-		if (ignored) {
-			removeIgnoredTag(tag);
-			notify.success(`Тег #${title} снова показывается`);
-		} else {
-			addIgnoredTag(tag);
-			notify.success(`Тег #${title} скрыт`);
-		}
-	}
 </script>
 
 <div class="tag-page">
@@ -34,8 +21,8 @@
 		<h1 class="tag-head__title">#{title}</h1>
 		<Popover
 			bind:open={menuOpen}
-			items={[{ value: 'ignore', label: ignored ? 'Показывать тег' : 'Не показывать тег', icon: 'v_eye', hint: 'Только у вас: записи с этим тегом не будут показываться' }]}
-			onselect={toggleIgnored}
+			items={tagMenuItems(tag)}
+			onselect={() => toggleIgnoredTag(tag)}
 			width="max-content"
 			label="Действия с тегом"
 		>

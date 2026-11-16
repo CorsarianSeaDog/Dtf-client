@@ -5,7 +5,7 @@ import { api } from '$lib/api/index.svelte';
 import { getPostPath, getPostShareUrl, openOverlay } from '$lib/navigation';
 import { currentUser } from '$lib/api/currentUser.svelte';
 import { authStorage } from '$lib/storage/auth.svelte';
-import { hideUser, isUserHidden, unhideUser } from '$lib/storage/filter.svelte';
+import { addIgnoredTag, filterSettings, hideUser, isUserHidden, normalizeTag, removeIgnoredTag, unhideUser } from '$lib/storage/filter.svelte';
 import { logHiddenPost, unlogHiddenPost } from '$lib/storage/hiddenPosts.svelte';
 import { ruleOf } from '$lib/storage/reactions.svelte';
 import { applyReaction, nextReactionId, nextVoteReactionId } from '$lib/reactions';
@@ -182,6 +182,25 @@ export function runAuthorAction(action: AuthorAction, author: { id: number; name
 	else if (action === 'unblock_author') setSubsiteMuted(author, false);
 }
 
+/** Название тега для заголовка: первая буква заглавная, как у DTF */
+export const tagTitle = (tag: string) => tag.charAt(0).toUpperCase() + tag.slice(1);
+
+/** Пункт меню «⋯» страницы тега: «Не показывать тег» кладёт его в локальный чёрный список (он работает и без входа) */
+export function tagMenuItems(tag: string) {
+	const ignored = filterSettings.value.tags.includes(normalizeTag(tag));
+	return [{ value: 'ignore' as const, label: ignored ? 'Показывать тег' : 'Не показывать тег', icon: 'v_eye', hint: 'Только у вас: записи с этим тегом не будут показываться' }];
+}
+
+export function toggleIgnoredTag(tag: string) {
+	if (filterSettings.value.tags.includes(normalizeTag(tag))) {
+		removeIgnoredTag(tag);
+		notify.success(`Тег #${tagTitle(tag)} снова показывается`);
+	} else {
+		addIgnoredTag(tag);
+		notify.success(`Тег #${tagTitle(tag)} скрыт`);
+	}
+}
+
 /** Своя запись или комментарий: людей-«других» только здесь можно скрыть и заблокировать */
 export const isAnotherDtfUser = (sourceId: string, authorId: number) => sourceId === 'dtf' && authorId !== currentUser.value?.id;
 
@@ -191,14 +210,11 @@ export function repostPost(post: Pick<Post, 'id' | 'sourceId'>) {
 	openOverlay({ type: 'editor', data: { repostId: post.id } });
 }
 
-/** «Поделиться»: системное окно, а где его нет — ссылка в буфер */
-export async function sharePost(post: Pick<Post, 'id' | 'sourceId'> & { title?: string; url?: string }) {
-	const base = typeof location !== 'undefined' ? location.href : 'http://localhost';
-	const url = getPostShareUrl(post, undefined, base);
-
+/** «Поделиться» ссылкой: системное окно, а где его нет — ссылка в буфер */
+export async function shareLink(url: string, title?: string) {
 	if (typeof navigator !== 'undefined' && navigator.share) {
 		try {
-			await navigator.share(post.title ? { title: post.title, url } : { url });
+			await navigator.share(title ? { title, url } : { url });
 			return;
 		} catch (e: unknown) {
 			if (e instanceof Error && e.name === 'AbortError') return;
@@ -214,6 +230,9 @@ export async function sharePost(post: Pick<Post, 'id' | 'sourceId'> & { title?: 
 		}
 	}
 }
+
+export const sharePost = (post: Pick<Post, 'id' | 'sourceId'> & { title?: string; url?: string }) =>
+	shareLink(getPostShareUrl(post, undefined, typeof location !== 'undefined' ? location.href : 'http://localhost'), post.title);
 
 /*
  * Подписки на пользователей и темы. Состояние живёт по id, поэтому подписка из карточки поста видна
