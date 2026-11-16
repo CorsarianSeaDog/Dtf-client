@@ -9,7 +9,7 @@
 	import { api } from '$lib/api/index.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import type { Comment, CommentUpdate } from '$lib/api/types';
-	import { getLeonardoUrl } from '$lib/api/utils';
+	import { getLeonardoUrl, isAnimatedMedia, isGifMedia } from '$lib/api/utils';
 	import { getCommentBadge } from '$lib/clientBadge';
 	import { dtfTargetToPath, parseDtfUrl } from '$lib/dtfLinks';
 	import { getPostPath, getPostShareUrl, getProfilePath, openDtfLink, openLightbox, openPost, openProfile, preloadLightbox } from '$lib/navigation';
@@ -59,7 +59,7 @@
 	let showDateBadge = $derived(clientBadge && clientBadge.type !== 'redtf' && settings.value.mobileBadgesPosition === 'date');
 
 	let paragraphs = $derived(parseCommentText(item.searchSnippet || item.content));
-	let images = $derived((item.media ?? []).filter((media) => media.type === 'image'));
+	let images = $derived((item.media ?? []).filter((media) => media.type === 'image' && !isAnimatedMedia(media)));
 	let score = $derived(votesOf(item));
 	let onreact = $derived(item.sourceId === 'dtf' ? (id: number) => toggleCommentReaction(item, id, onpatch) : undefined);
 	const onopenchange = (open: boolean) => (pickerOpen = open);
@@ -175,7 +175,7 @@
 		{#if item.media?.length}
 			<div class="comment-card__media">
 				{#each item.media as media}
-					{#if media.type === 'movie'}
+					{#if isAnimatedMedia(media)}
 						<video
 							src={getLeonardoUrl(media.data.uuid, { format: 'mp4' })}
 							muted
@@ -183,7 +183,7 @@
 							playsinline
 							controls={!!media.data.has_audio}
 							{@attach fromAction(lazyVideo)}
-							use:mediaHold={{ uuid: media.data.uuid, isGif: media.data?.type === 'gif' }}
+							use:mediaHold={{ uuid: media.data.uuid, isGif: isGifMedia(media) }}
 						></video>
 					{:else if media.type === 'image'}
 						<button

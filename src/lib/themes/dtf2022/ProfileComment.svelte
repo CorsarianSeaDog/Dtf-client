@@ -8,7 +8,7 @@
 	import { api } from '$lib/api/index.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import type { Comment } from '$lib/api/types';
-	import { getLeonardoUrl } from '$lib/api/utils';
+	import { getLeonardoUrl, isAnimatedMedia, isGifMedia } from '$lib/api/utils';
 	import { getPostPath, getPostShareUrl, getProfilePath, openDtfLink, openLightbox, openPost, openProfile, preloadLightbox } from '$lib/navigation';
 	import { parseDtfUrl, dtfTargetToPath } from '$lib/dtfLinks';
 	import { ensureLogin } from './actions.svelte';
@@ -36,7 +36,7 @@
 	let clientBadge = $derived(getCommentBadge(comment, settings.value.clientBadges));
 	let showAuthorBadge = $derived(clientBadge && (clientBadge.type === 'redtf' || settings.value.mobileBadgesPosition === 'author'));
 	let showDateBadge = $derived(clientBadge && clientBadge.type !== 'redtf' && settings.value.mobileBadgesPosition === 'date');
-	let images = $derived((comment.media ?? []).filter((media) => media.type === 'image'));
+	let images = $derived((comment.media ?? []).filter((media) => media.type === 'image' && !isAnimatedMedia(media)));
 	let postPath = $derived(resolve(getPostPath(post) as any));
 	let commentPath = $derived(resolve(getPostPath(post, comment.id) as any));
 	let commentUrl = $derived(getPostShareUrl(post, `comment-${comment.sourceId}_${comment.id}`));
@@ -152,8 +152,8 @@
 	{#if comment.media?.length}
 		<div class="profile-comment__media">
 			{#each comment.media as media}
-				{#if media.type === 'movie'}
-					<video src={getLeonardoUrl(media.data.uuid, { format: 'mp4' })} muted loop playsinline controls={!!media.data.has_audio} {@attach fromAction(lazyVideo)} use:mediaHold={{ uuid: media.data.uuid, isGif: media.data?.type === 'gif' }}></video>
+				{#if isAnimatedMedia(media)}
+					<video src={getLeonardoUrl(media.data.uuid, { format: 'mp4' })} muted loop playsinline controls={!!media.data.has_audio} {@attach fromAction(lazyVideo)} use:mediaHold={{ uuid: media.data.uuid, isGif: isGifMedia(media) }}></video>
 				{:else if media.type === 'image'}
 					<button
 						type="button"

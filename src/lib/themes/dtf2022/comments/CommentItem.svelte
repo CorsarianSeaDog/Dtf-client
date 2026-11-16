@@ -9,7 +9,7 @@
 	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 	import { mediaHold } from '$lib/actions/mediaHold';
 	import { api } from '$lib/api/index.svelte';
-	import { getLeonardoUrl } from '$lib/api/utils';
+	import { getLeonardoUrl, isAnimatedMedia, isGifMedia } from '$lib/api/utils';
 	import { getPostPath, getPostShareUrl, getProfilePath, openDtfLink, openLightbox, openProfile, preloadLightbox } from '$lib/navigation';
 	import { parseDtfUrl, dtfTargetToPath } from '$lib/dtfLinks';
 	import { currentUser } from '$lib/api/currentUser.svelte';
@@ -116,8 +116,8 @@
 			? (comment.restored.media?.length ? comment.restored.media : comment.media)
 			: comment.media
 	);
-	// Галерея просмотра — картинки комментария, видео в неё не входят
-	let images = $derived((activeMedia ?? []).filter((media) => media.type === 'image'));
+	// Галерея просмотра — картинки комментария, видео и гифки в неё не входят
+	let images = $derived((activeMedia ?? []).filter((media) => media.type === 'image' && !isAnimatedMedia(media)));
 
 	let score = $derived(votesOf(comment));
 	let clientBadge = $derived(getCommentBadge(comment, settings.value.clientBadges));
@@ -504,7 +504,7 @@
 									style:--media-bg={media.data.color ? `#${media.data.color}` : undefined}
 									style:--media-preview={mediaPreviewUrl(media.data.base64preview)}
 								>
-									{#if media.type === 'movie'}
+									{#if isAnimatedMedia(media)}
 										<video
 											src={getLeonardoUrl(media.data.uuid, { format: 'mp4' })}
 											muted
@@ -512,7 +512,7 @@
 											playsinline
 											controls={!!media.data.has_audio}
 											{@attach fromAction(lazyVideo)}
-											use:mediaHold={{ uuid: media.data.uuid, isGif: media.data?.type === 'gif' }}
+											use:mediaHold={{ uuid: media.data.uuid, isGif: isGifMedia(media) }}
 										></video>
 									{:else}
 										<img src={getLeonardoUrl(media.data.uuid, { width: 800 })} alt="" loading="lazy" />
