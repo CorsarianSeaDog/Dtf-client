@@ -32,45 +32,20 @@
 	}
 </script>
 
-<div class="error-island" role="alert">
-	<div class="error-island__content">
-		<div class={['error-island__icon-box', `error-island__icon-box--${info.badgeType}`]}>
-			<svg class="icon icon--warning" width="32" height="32" aria-hidden="true">
-				<use href="#notify_warning"></use>
-			</svg>
-		</div>
-		<div class="error-island__text">
-			<span class={['error-island__badge', `error-island__badge--${info.badgeType}`]}>
-				{info.badge}
-			</span>
-			<h2 class="error-island__title">{title || info.title}</h2>
-			<p class="error-island__subtitle">{info.subtitle}</p>
-		</div>
+<div class="error-block" role="alert">
+	<div class="error-block__text">
+		<h2 class="error-block__title">{title || info.title}</h2>
+		<p class="error-block__subtitle">{info.subtitle}</p>
 	</div>
 
-	<div class="error-island__actions">
+	<div class="error-block__actions">
 		{#if onretry}
-			<button
-				type="button"
-				class="error-btn error-btn--primary"
-				disabled={retrying}
-				onclick={handleRetry}
-			>
-				<svg class="icon" width="18" height="18" aria-hidden="true">
-					<use href="#v_refresh"></use>
-				</svg>
-				<span>{retrying ? 'Повторяем...' : 'Повторить попытку'}</span>
+			<button type="button" class="error-btn error-btn--primary" disabled={retrying} onclick={handleRetry}>
+				{retrying ? 'Повторяем…' : 'Повторить'}
 			</button>
 		{/if}
-		<button type="button" class="error-btn" onclick={() => (showModal = true)}>
-			<span>Подробнее</span>
-		</button>
-		<button type="button" class="error-btn" onclick={openSettings}>
-			<svg class="icon" width="18" height="18" aria-hidden="true">
-				<use href="#v_gear"></use>
-			</svg>
-			<span>Настройки</span>
-		</button>
+		<button type="button" class="error-btn" onclick={() => (showModal = true)}>Подробнее</button>
+		<button type="button" class="error-btn" onclick={openSettings}>Настройки</button>
 	</div>
 </div>
 
@@ -79,13 +54,13 @@
 {/if}
 
 <style>
-	.error-island {
+	.error-block {
 		display: flex;
 		flex-direction: column;
-		gap: 20px;
+		gap: 16px;
 		max-width: var(--content-width, 640px);
 		margin: 32px auto;
-		padding: 28px 24px;
+		padding: 20px;
 		border-radius: 8px;
 		background: var(--bg-card, #fff);
 		box-shadow: var(--shadow-card, 0 1px 3px rgba(0, 0, 0, 0.08));
@@ -93,112 +68,52 @@
 		text-align: left;
 	}
 
-	.error-island__content {
-		display: flex;
-		align-items: flex-start;
-		gap: 16px;
-	}
-
-	.error-island__icon-box {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		width: 48px;
-		height: 48px;
-		border-radius: 50%;
-		background: var(--bg-coin, #fff4e5);
-		color: var(--color-dislike, #e65100);
-	}
-
-	.error-island__icon-box--error {
-		background: var(--color-danger-bg, #ffebee);
-		color: var(--color-danger-text, #d32f2f);
-	}
-
-	.error-island__icon-box--info {
-		background: var(--bg-highlight, #e3f2fd);
-		color: var(--color-blue, #1976d2);
-	}
-
-	.error-island__text {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 4px;
-	}
-
-	.error-island__badge {
-		display: inline-block;
-		padding: 2px 7px;
-		border-radius: 4px;
-		font-size: 11px;
-		font-weight: 700;
-		letter-spacing: 0.5px;
-		text-transform: uppercase;
-		background: var(--bg-coin, #ffe0b2);
-		color: var(--color-dislike, #b24100);
-	}
-
-	.error-island__badge--error {
-		background: var(--color-danger-bg, #ffcdd2);
-		color: var(--color-danger-text, #b71c1c);
-	}
-
-	.error-island__badge--info {
-		background: var(--bg-highlight, #bbdefb);
-		color: var(--color-blue, #0d47a1);
-	}
-
-	.error-island__title {
+	.error-block__title {
 		margin: 0;
-		font-size: 18px;
-		font-weight: 700;
+		font-size: 17px;
+		font-weight: 600;
 		line-height: 24px;
 		color: var(--text-primary, #000);
 	}
 
-	.error-island__subtitle {
-		margin: 0;
+	.error-block__subtitle {
+		margin: 2px 0 0;
 		font-size: 14px;
 		line-height: 20px;
 		color: var(--text-muted, #757575);
+		overflow-wrap: anywhere;
 	}
 
-	.error-island__actions {
+	.error-block__actions {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 10px;
+		gap: 8px;
 	}
 
 	.error-btn {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		gap: 8px;
-		height: 40px;
-		padding: 0 16px;
+		height: 36px;
+		padding: 0 12px;
 		border-radius: 8px;
-		border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
-		background: var(--bg-button, #fff);
-		color: var(--text-primary, #000);
+		background: transparent;
+		color: var(--text-link, var(--color-blue, #4683d9));
 		font-size: 14px;
 		font-weight: 500;
 		cursor: pointer;
 		user-select: none;
-		transition: background 0.15s ease, box-shadow 0.15s ease;
-		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+		transition: background-color 0.15s ease;
 	}
 
 	.error-btn:hover {
-		background: var(--bg-button-hover, #f5f5f5);
+		background: var(--bg-button-hover, rgba(0, 0, 0, 0.05));
 	}
 
 	.error-btn--primary {
-		border: none;
+		padding: 0 16px;
 		background: var(--bg-submit-button, #4683d9);
 		color: var(--text-submit-button, #fff);
-		box-shadow: var(--shadow-button-blue, 0 1px 2px rgba(70, 131, 217, 0.4));
 	}
 
 	.error-btn--primary:hover {
@@ -210,18 +125,22 @@
 		pointer-events: none;
 	}
 
+	/* Смартфон: блок от края до края, как карточки ленты; кнопки крупнее, «Повторить» на всю ширину */
 	@media (max-width: 639px) {
-		.error-island {
-			margin: 16px 12px;
-			padding: 20px 16px;
-		}
-
-		.error-island__actions {
-			flex-direction: column;
+		.error-block {
+			margin: 8px 0;
+			padding: 16px;
+			border-radius: 0;
+			border-inline: none;
 		}
 
 		.error-btn {
-			width: 100%;
+			flex: 1 1 0;
+			height: 44px;
+		}
+
+		.error-btn--primary {
+			flex-basis: 100%;
 		}
 	}
 </style>
