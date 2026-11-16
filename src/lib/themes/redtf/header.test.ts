@@ -1,4 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+vi.mock('$app/state', () => ({
+	page: {
+		state: { overlays: [] },
+		route: { id: '/' },
+		params: {}
+	}
+}));
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
