@@ -299,11 +299,20 @@ export function playClipped(el: HTMLElement, anim?: Anim, fill: FillMode = 'none
 	const { maxHeight, overflow } = el.style;
 	Object.assign(el.style, { maxHeight: `${Math.round(Math.max(100, (innerHeight - top) * 1.1))}px`, overflow: 'clip' });
 	el.setAttribute('data-animating', '');
+	let restored = false;
 	const restore = () => {
+		if (restored) return;
+		restored = true;
 		Object.assign(el.style, { maxHeight, overflow });
 		el.removeAttribute('data-animating');
 	};
-	animation.finished.then(restore, restore);
+	// Отмена возвращает стили сразу: промис `finished` отклоняется позже и затёр бы то, что элементу успели выставить после отмены
+	const cancel = animation.cancel.bind(animation);
+	animation.cancel = () => {
+		cancel();
+		restore();
+	};
+	animation.finished.then(restore, () => {});
 	return animation;
 }
 

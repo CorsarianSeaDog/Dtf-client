@@ -39,6 +39,7 @@ let currentOrigin: ClickOrigin | null = null;
 let failSafeTimer: ReturnType<typeof setTimeout> | undefined;
 
 let outgoingScreen: HTMLElement | null = null;
+let restoreIncoming: (() => void) | null = null;
 let unfreezeOutgoing: (() => void) | null = null;
 
 let currentRecedeAnim: Animation | undefined;
@@ -146,7 +147,9 @@ export function freeze(screen: HTMLElement, rect: DOMRect, headerBottom: number)
 
 /** Запустить переход от старого слоя к новому */
 export function startTransition(fromId: string, toId: string, screenEl: HTMLElement) {
-	cleanup();
+	// Страницу открыли поверх ещё едущей: прежний переход обрывается, а его старый экран прячется сразу. Иначе
+	// он вернулся бы в поток до смены слоёв, сдвинул новый экран вниз и тот заморозился бы не на своём месте
+	cleanup(active);
 
 	if (!shouldTransition()) return;
 
@@ -303,10 +306,12 @@ export async function incomingReady(layerId: string, incomingScreen: HTMLElement
 		};
 
 		currentIncomingAnim = playClipped(incomingScreen, anim, 'forwards');
-		const restore = () => {
+		// Сбрасывает и cleanup: отклонённый позже `finished` затёр бы стили, которые экрану выставил следующий переход
+		restoreIncoming = () => {
+			restoreIncoming = null;
 			for (const p of ['z-index', 'position', 'transform-origin', 'will-change', 'filter']) incomingScreen.style.removeProperty(p);
 		};
-		if (currentIncomingAnim) promises.push(currentIncomingAnim.finished.then(restore, restore));
+		if (currentIncomingAnim) promises.push(currentIncomingAnim.finished.then(() => restoreIncoming?.(), () => {}));
 	}
 
 	// Делаем входящий экран видимым: он уже начал анимацию с 0-го кадра, исключая вспышку
@@ -409,6 +414,7 @@ function cleanup(hideOutgoing = false) {
 
 	currentIncomingAnim?.cancel();
 	currentIncomingAnim = undefined;
+	restoreIncoming?.();
 
 	currentReturnAnim?.cancel();
 	currentReturnAnim = undefined;
