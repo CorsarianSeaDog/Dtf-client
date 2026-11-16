@@ -5,7 +5,7 @@
 	import { drawerSwipe, provideDrawer } from '$lib/drawerSwipe';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { reducedMotion } from '$lib/motion';
-	import { getProfilePath, openFeed, openPost, openProfile, openSettings, openSupport } from '$lib/navigation';
+	import { getProfilePath, getSidebarActive, openFeed, openPost, openProfile, openSettings, openSupport } from '$lib/navigation';
 	import { startWriting } from '../dtf2022/actions.svelte';
 	import { clickOnKey } from '../dtf2022/a11y';
 	import { sidebar } from '../dtf2022/sidebar.svelte';
@@ -31,7 +31,8 @@
 	let node = $state<HTMLElement>();
 	let panel = $state<HTMLElement>();
 	let items = $state<HTMLElement>();
-	let activeIndex = $derived(feeds.findIndex((item) => item.id === feed.current));
+	let active = $derived(getSidebarActive());
+	let activeIndex = $derived(feeds.findIndex((item) => item.id === active.feed));
 
 	$effect(() => {
 		if (node) return sidebar.attach(node);
@@ -119,13 +120,13 @@
 			</div>
 
 			<div class="sidebar-top">
-				<nav class="feed-switcher" aria-label="Ленты" style:--i={activeIndex}>
+				<nav class="feed-switcher" aria-label="Ленты" style:--i={activeIndex >= 0 ? activeIndex : 0}>
 					<!-- Подсветка вкладки одна на всех: при выборе она переезжает на новое место -->
-					<span class="feed-indicator" aria-hidden="true"></span>
+					<span class={['feed-indicator', { hidden: activeIndex < 0 }]} aria-hidden="true"></span>
 					{#each feeds as item (item.id)}
 						<button
-							class={['switch-button', { active: feed.current === item.id }]}
-							aria-current={feed.current === item.id ? 'page' : undefined}
+							class={['switch-button', { active: active.feed === item.id }]}
+							aria-current={active.feed === item.id ? 'page' : undefined}
 							onpointerenter={() => prefetchFeed(item.id, feed.sortingOf(item.id))}
 							onfocus={() => prefetchFeed(item.id, feed.sortingOf(item.id))}
 							onclick={() => openFeedTab(item.id)}
@@ -144,7 +145,12 @@
 
 				<nav class="subsites-switcher" aria-label="Темы">
 					{#each subsites as subsite (subsite.label)}
-						<a class="switch-button" href={resolve(getProfilePath(subsite.id) as any)} onclick={(e) => openProfile(e, subsite.id)}>
+						<a
+							class={['switch-button', { active: active.profileId === String(subsite.id) }]}
+							aria-current={active.profileId === String(subsite.id) ? 'page' : undefined}
+							href={resolve(getProfilePath(subsite.id) as any)}
+							onclick={(e) => openProfile(e, subsite.id)}
+						>
 							<img
 								height="24"
 								width="24"
@@ -260,7 +266,14 @@
 		border-radius: 8px;
 		background: var(--bg-card);
 		translate: 0 calc(var(--i) * var(--step));
-		transition: translate 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+		transition:
+			translate 0.4s cubic-bezier(0.165, 0.84, 0.44, 1),
+			opacity 0.2s ease;
+	}
+
+	.feed-indicator.hidden {
+		opacity: 0;
+		pointer-events: none;
 	}
 
 	.subsites-switcher {
@@ -308,10 +321,14 @@
 		max-width: 111px;
 	}
 
-	/* Фон активной вкладки рисует переезжающая подсветка */
-	.switch-button.active,
-	.switch-button.active:hover {
+	/* Фон активной вкладки ленты рисует переезжающая подсветка */
+	.feed-switcher .switch-button.active,
+	.feed-switcher .switch-button.active:hover {
 		background: none;
+	}
+
+	.subsites-switcher .switch-button.active {
+		background: var(--bg-card);
 	}
 
 	.switch-button.active .icon {

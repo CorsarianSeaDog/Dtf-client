@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { feed, openFeedTab, type FeedName } from '$lib/feed.svelte';
-	import { getProfilePath, openFeed, openPost, openProfile, openSettings, openSupport } from '$lib/navigation';
+	import { getProfilePath, getSidebarActive, openFeed, openPost, openProfile, openSettings, openSupport } from '$lib/navigation';
 	import { startWriting } from './actions.svelte';
 	import { clickOnKey } from './a11y';
 	import { sidebar } from './sidebar.svelte';
@@ -23,6 +23,7 @@
 	];
 
 	let node = $state<HTMLElement>();
+	let active = $derived(getSidebarActive());
 
 	$effect(() => {
 		if (node) return sidebar.attach(node);
@@ -74,8 +75,8 @@
 			<nav class="feed-switcher" aria-label="Ленты">
 				{#each feeds as item (item.id)}
 					<button
-						class={['switch-button', { active: feed.current === item.id }]}
-						aria-current={feed.current === item.id ? 'page' : undefined}
+						class={['switch-button', { active: active.feed === item.id }]}
+						aria-current={active.feed === item.id ? 'page' : undefined}
 						onclick={() => openFeedTab(item.id)}
 					>
 						<svg height="24" width="24" class="icon" aria-hidden="true">
@@ -93,7 +94,12 @@
 
 			<nav class="subsites-switcher" aria-label="Темы">
 				{#each subsites as subsite (subsite.label)}
-					<a class="switch-button" href={resolve(getProfilePath(subsite.id) as any)} onclick={(e) => openProfile(e, subsite.id)}>
+					<a
+						class={['switch-button', { active: active.profileId === String(subsite.id) }]}
+						aria-current={active.profileId === String(subsite.id) ? 'page' : undefined}
+						href={resolve(getProfilePath(subsite.id) as any)}
+						onclick={(e) => openProfile(e, subsite.id)}
+					>
 						<img
 							height="24"
 							width="24"

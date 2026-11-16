@@ -2,7 +2,7 @@ import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { page } from '$app/state';
 import { parseDtfUrl, dtfTargetToPath, safeDecode } from './dtfLinks';
-import { feed, feedPath, openFeedTab } from './feed.svelte';
+import { feed, feedPath, openFeedTab, type FeedName } from './feed.svelte';
 import { scrollBehavior } from './motion';
 import { markOrigin } from './pageTransition.svelte';
 import { settings, DEFAULT_SHARE_SERVICE_URL } from '$lib/storage/settings.svelte';
@@ -147,6 +147,18 @@ function findActivePostIndex(postId: number, sourceId: string, overlays: App.Ove
 export function isOnTop(type: 'notifications' | 'account' | 'messages'): boolean {
 	const top = page.state.overlays?.at(-1);
 	return top ? top.type === type : page.route?.id === `/${type}`;
+}
+
+/** Что сейчас активно в боковой панели: одна из лент или открытый профиль/подсайт. Поверх постов сохраняется подложка. */
+export function getSidebarActive(): { feed?: FeedName; profileId?: string } {
+	const overlays = page.state.overlays as App.OverlayState[] | undefined;
+	const base = overlays?.findLast((o) => o.presentation === 'page' && o.type !== 'post');
+	if (base) {
+		return base.type === 'profile' ? { profileId: String(base.data.profileId) } : {};
+	}
+	if (page.route?.id === '/') return { feed: feed.current };
+	if (page.route?.id?.startsWith('/u/') && page.params.id) return { profileId: page.params.id };
+	return {};
 }
 
 /** Открыть оверлей поверх текущего экрана */

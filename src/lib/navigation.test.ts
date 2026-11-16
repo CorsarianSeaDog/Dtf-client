@@ -18,7 +18,7 @@ vi.mock('$app/navigation', () => ({
 
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
-import { getPostPath, getPostShareUrl, getSettingsPath, pushSubstate, popSubstate, closeOverlay, resetSubstates, clearSubstates, openOverlay, openPost, openSearch, openDtfUrl, openDtfLink, openLightbox, takeLightboxOrigin, overlayReuser } from './navigation';
+import { getPostPath, getPostShareUrl, getSettingsPath, getSidebarActive, pushSubstate, popSubstate, closeOverlay, resetSubstates, clearSubstates, openOverlay, openPost, openSearch, openDtfUrl, openDtfLink, openLightbox, takeLightboxOrigin, overlayReuser } from './navigation';
 import { settings } from './storage/settings.svelte';
 import { embedToPost } from './api/embed';
 import { clearPostCache, peekPost } from './postCache';
@@ -345,6 +345,50 @@ describe('navigation', () => {
 			} finally {
 				(page.route as { id: string | null }).id = prevRouteId;
 			}
+		}
+	});
+
+	it('getSidebarActive определяет ленту, подсайт, их сохранение под постом и сброс на других экранах', () => {
+		const prevRouteId = page.route.id;
+		const prevParams = { ...page.params };
+		try {
+			// На главной без оверлеев — активна лента
+			mockPageState.overlays = [];
+			(page.route as { id: string | null }).id = '/';
+			expect(getSidebarActive()).toEqual({ feed: 'popular' });
+
+			// Пост и модалка поверх главной — лента остаётся активной
+			mockPageState.overlays = [
+				{ id: 'p1', type: 'post', presentation: 'page', data: { postId: 1, sourceId: 'dtf' } },
+				{ id: 's1', type: 'settings', presentation: 'modal', data: {} }
+			];
+			expect(getSidebarActive()).toEqual({ feed: 'popular' });
+
+			// Профиль/подсайт и пост поверх него — активен профиль
+			mockPageState.overlays = [
+				{ id: 'u1', type: 'profile', presentation: 'page', data: { profileId: 64953 } },
+				{ id: 'p2', type: 'post', presentation: 'page', data: { postId: 2, sourceId: 'dtf' } }
+			];
+			expect(getSidebarActive()).toEqual({ profileId: '64953' });
+
+			// Другой экран (поиск, тег, уведомления) — выделение снято
+			mockPageState.overlays = [{ id: 'sr1', type: 'search', presentation: 'page', data: { query: 'test' } }];
+			expect(getSidebarActive()).toEqual({});
+
+			// Прямая страница профиля и пост поверх неё
+			mockPageState.overlays = [{ id: 'p3', type: 'post', presentation: 'page', data: { postId: 3, sourceId: 'dtf' } }];
+			(page.route as { id: string | null }).id = '/u/[id]';
+			(page.params as Record<string, string>).id = '64957';
+			expect(getSidebarActive()).toEqual({ profileId: '64957' });
+
+			// Прямая страница поста — выделение снято
+			mockPageState.overlays = [];
+			(page.route as { id: string | null }).id = '/post/[id]';
+			expect(getSidebarActive()).toEqual({});
+		} finally {
+			mockPageState.overlays = [];
+			(page.route as { id: string | null }).id = prevRouteId;
+			page.params = prevParams;
 		}
 	});
 });
