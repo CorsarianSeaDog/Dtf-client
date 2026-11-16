@@ -24,6 +24,7 @@ const PRESENTATION: Record<App.OverlayData['type'], App.OverlayState['presentati
 	profile: 'page',
 	settings: 'modal',
 	notifications: 'page',
+	messages: 'page',
 	tag: 'page',
 	search: 'page',
 	drafts: 'page',
@@ -103,6 +104,8 @@ function overlayPath(overlay: Exclude<App.OverlayData, { type: 'lightbox' }>): s
 			return getSettingsPath(overlay.data?.page, overlay.data?.section);
 		case 'notifications':
 			return '/notifications';
+		case 'messages':
+			return '/messages';
 		case 'tag':
 			return getTagPath(overlay.data.tag);
 		case 'search':
@@ -141,7 +144,7 @@ function findActivePostIndex(postId: number, sourceId: string, overlays: App.Ove
 }
 
 /** Экран сверху: верхним оверлеем или, без оверлеев, по прямой ссылке */
-export function isOnTop(type: 'notifications' | 'account'): boolean {
+export function isOnTop(type: 'notifications' | 'account' | 'messages'): boolean {
 	const top = page.state.overlays?.at(-1);
 	return top ? top.type === type : page.route?.id === `/${type}`;
 }
@@ -215,8 +218,8 @@ export function openOverlay(overlay: App.OverlayData) {
 		}
 	}
 
-	// Повторное открытие уже открытых уведомлений или аккаунта не плодит слои
-	if ((overlay.type === 'notifications' || overlay.type === 'account') && isOnTop(overlay.type)) return Promise.resolve();
+	// Повторное открытие уже открытых уведомлений, сообщений или аккаунта не плодит слои
+	if ((overlay.type === 'notifications' || overlay.type === 'account' || overlay.type === 'messages') && isOnTop(overlay.type)) return Promise.resolve();
 
 	const opened: App.OverlayState = { ...overlay, id: nextOverlayId(overlay.type), presentation: PRESENTATION[overlay.type] };
 	// Просмотр картинок остаётся на текущем адресе: это шаг истории для кнопки «Назад», а не страница.
@@ -443,6 +446,11 @@ export function openPost(
 /** Открыть страницу уведомлений */
 export function openNotifications(e: MouseEvent) {
 	openFromLink(e, { type: 'notifications' });
+}
+
+/** Открыть страницу сообщений */
+export function openMessages(e: MouseEvent) {
+	openFromLink(e, { type: 'messages' });
 }
 
 /** Открыть профиль пользователя или подсайта поверх текущего экрана */

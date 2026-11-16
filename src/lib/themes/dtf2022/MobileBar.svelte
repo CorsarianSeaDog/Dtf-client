@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { isNewTabClick, isOnTop, openFeed, openNotifications, openOverlay } from '$lib/navigation';
+	import { isNewTabClick, isOnTop, openFeed, openMessages, openNotifications, openOverlay } from '$lib/navigation';
 	import { notifications } from '$lib/api/notifications.svelte';
 	import { authStorage } from '$lib/storage/auth.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
@@ -15,12 +15,24 @@
 	// Тема со страницей аккаунта ведёт на неё (гостю она сама предлагает войти), остальные — в настройки или во вход
 	let hasAccountPage = $derived(hasThemeComponent(activeTheme.chain, 'AccountPage'));
 	let notificationsOpen = $derived(isOnTop('notifications'));
+	let messagesOpen = $derived(isOnTop('messages'));
 	let accountOpen = $derived(isOnTop('account'));
 	let avatarUrl = $derived(authStorage.isAuthenticated ? currentUser.value?.avatarUrl : undefined);
 
 	function handleFeed(e: MouseEvent) {
 		haptics.tick();
 		openFeed(e);
+	}
+
+	function handleMessages(e: MouseEvent) {
+		if (isNewTabClick(e)) return;
+		haptics.tick();
+		if (messagesOpen) {
+			e.preventDefault();
+			window.scrollTo({ top: 0, behavior: scrollBehavior() });
+		} else {
+			openMessages(e);
+		}
 	}
 
 	function handleNotifications(e: MouseEvent) {
@@ -62,11 +74,11 @@
 		</div>
 		<!-- TODO: мессенджер у DTF по подписке, на аккаунте без неё его запросы не снять -->
 		<div class="mobile-bar__link-wrapper">
-			<button class="mobile-bar__link" aria-label="Сообщения" onclick={() => haptics.tick()}>
+			<a href={resolve('/messages')} class={['mobile-bar__link', { 'mobile-bar__link--is-active': messagesOpen }]} aria-label="Сообщения" onclick={handleMessages}>
 				<svg height="28" width="28" class="icon" aria-hidden="true">
 					<use href="#v_messenger"></use>
 				</svg>
-			</button>
+			</a>
 		</div>
 		<div class="mobile-bar__link-wrapper">
 			<!-- На мобильном вместо попапа — страница уведомлений -->
@@ -146,7 +158,8 @@
 			0 0 0 3px var(--color-accent);
 	}
 
-	.mobile-bar__account--is-active {
+	.mobile-bar__account--is-active,
+	.mobile-bar__link--is-active {
 		color: var(--color-accent);
 	}
 

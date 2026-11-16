@@ -15,7 +15,7 @@
 	let { screen, title, post, profile, tag }: ThemeComponents['ScreenBar'] = $props();
 
 	/** Экраны без панели: от неё остаётся полоска безопасной зоны, чтобы содержимое не уходило под системную строку */
-	let bare = $derived(screen === 'notifications' || screen === 'account');
+	let bare = $derived(screen === 'notifications' || screen === 'account' || screen === 'messages');
 	let isMe = $derived(!!profile && currentUser.value?.id === profile.id);
 	let menuOpen = $state(false);
 

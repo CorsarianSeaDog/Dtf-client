@@ -59,7 +59,7 @@ export function parseDtfUrl(href: string): DtfTarget | undefined {
 	const post = /^\/(?:(?:post|(?:s\/)?[^/]+)\/)?(\d+)(?:-[^/]*)?(?:\/(comments)?)?\/?$/i.exec(url.pathname);
 	if (!post) {
 		const alias = /^\/(?:(?:u|s)\/)?([a-z][a-z0-9_-]*)(?:\/(?:entries|comments|favorites|subscribers|subscriptions))?\/?$/i.exec(url.pathname);
-		if (!alias || /^(?:rules|terms|privacy|settings|account|auth|login|logout|write|editor|drafts|bookmarks|search|discovery|store|m|tag|u|s|post|popular|new|my|notifications|about|contacts|help|ads|advertising|vacancies|rating)$/i.test(alias[1])) return undefined;
+		if (!alias || /^(?:rules|terms|privacy|settings|account|auth|login|logout|write|editor|drafts|bookmarks|search|discovery|store|m|messages|tag|u|s|post|popular|new|my|notifications|about|contacts|help|ads|advertising|vacancies|rating)$/i.test(alias[1])) return undefined;
 		return { type: 'profile', profileId: alias[1] };
 	}
 

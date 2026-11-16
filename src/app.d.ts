@@ -15,6 +15,7 @@ declare global {
 			| { type: 'profile'; data: { profileId: number | string } }
 			| { type: 'settings'; data?: { page?: string; section?: string; solo?: boolean } }
 			| { type: 'notifications' }
+			| { type: 'messages' }
 			| { type: 'tag'; data: { tag: string } }
 			| { type: 'search'; data: { query: string } }
 			| { type: 'drafts' }

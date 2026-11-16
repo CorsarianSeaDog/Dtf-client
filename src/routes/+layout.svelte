@@ -7,6 +7,7 @@
 	import SearchContent from '$lib/components/SearchContent.svelte';
 	import DraftsContent from '$lib/components/DraftsContent.svelte';
 	import NotificationsContent from '$lib/components/NotificationsContent.svelte';
+	import MessagesContent from '$lib/components/MessagesContent.svelte';
 	import AccountContent from '$lib/components/AccountContent.svelte';
 	import EditorOverlay from '$lib/components/overlays/EditorOverlay.svelte';
 	import LightboxOverlay from '$lib/components/overlays/LightboxOverlay.svelte';
@@ -457,6 +458,8 @@
 		<SettingsOverlay {...overlay.data} />
 	{:else if overlay.type === 'notifications'}
 		<NotificationsContent active={depth === 0} />
+	{:else if overlay.type === 'messages'}
+		<MessagesContent />
 	{:else if overlay.type === 'tag'}
 		<TagContent {...overlay.data} />
 	{:else if overlay.type === 'search'}

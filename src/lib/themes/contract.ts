@@ -33,7 +33,7 @@ export interface ThemeComponents {
 	 */
 	ScreenBar: {
 		/** Какой экран рисует панель */
-		screen: 'feed' | 'post' | 'profile' | 'tag' | 'search' | 'drafts' | 'notifications' | 'account';
+		screen: 'feed' | 'post' | 'profile' | 'tag' | 'search' | 'drafts' | 'notifications' | 'account' | 'messages';
 		/** Заголовок экрана, если он уже известен */
 		title?: string;
 		/** Открытый пост: для «Поделиться» */
