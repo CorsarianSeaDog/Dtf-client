@@ -1,4 +1,5 @@
 import { asset } from '$app/paths';
+import { isNative } from '$lib/capacitor';
 
 export type AppIconId = 'default' | 'bluer' | 'white' | 'custom';
 
@@ -202,46 +203,129 @@ export async function processCustomIcon(file: File): Promise<string> {
 	});
 }
 
+let faviconGen = 0;
+let badgeCache: { src: string; dataUrl: string } | null = null;
+let currentFavBase: { url: string; type: string } | null = null;
+let hasUnreadDot = false;
+
+function ensureLink(rel: string): HTMLLinkElement {
+	let link = document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
+	if (!link) {
+		link = document.createElement('link');
+		link.rel = rel;
+		document.head.appendChild(link);
+	}
+	return link;
+}
+
+function setFavicon(link: HTMLLinkElement, type: string, href: string) {
+	if (link.type !== type) link.type = type;
+	if (link.getAttribute('href') !== href) link.setAttribute('href', href);
+}
+
+function renderUnreadFavicon(src: string, gen: number, favLink: HTMLLinkElement) {
+	if (typeof Image === 'undefined') return;
+
+	const img = new Image();
+	img.onload = () => {
+		if (gen !== faviconGen) return;
+		const size = 64;
+		const canvas = document.createElement('canvas');
+		canvas.width = size;
+		canvas.height = size;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return;
+
+		const cx = size * 0.8;
+		const cy = size * 0.8;
+		const r = size * 0.183;
+
+		ctx.drawImage(img, 0, 0, size, size);
+
+		// Прозрачный зазор под точкой отделяет её от букв и пёстрых кастомных иконок на любом фоне вкладки
+		ctx.globalCompositeOperation = 'destination-out';
+		ctx.beginPath();
+		ctx.arc(cx, cy, r + size * 0.045, 0, Math.PI * 2);
+		ctx.fill();
+
+		ctx.globalCompositeOperation = 'source-over';
+		ctx.beginPath();
+		ctx.arc(cx, cy, r, 0, Math.PI * 2);
+		ctx.fillStyle = '#e62e3b';
+		ctx.fill();
+
+		try {
+			const dataUrl = canvas.toDataURL('image/png');
+			badgeCache = { src, dataUrl };
+			setFavicon(favLink, 'image/png', dataUrl);
+		} catch {
+			// Tainted canvas у некорректного источника — остаётся базовый favicon
+		}
+	};
+	img.src = src;
+}
+
+function syncFavicon() {
+	if (typeof document === 'undefined' || !currentFavBase) return;
+	const favLink = ensureLink('icon');
+	const { url, type } = currentFavBase;
+	const gen = ++faviconGen;
+
+	if (!hasUnreadDot) {
+		setFavicon(favLink, type, url);
+		return;
+	}
+	if (badgeCache?.src === url) {
+		setFavicon(favLink, 'image/png', badgeCache.dataUrl);
+		return;
+	}
+	setFavicon(favLink, type, url);
+	renderUnreadFavicon(url, gen, favLink);
+}
+
+function syncPwaAppBadge(unread: number) {
+	if (typeof navigator === 'undefined') return;
+	const nav = navigator as Navigator & {
+		setAppBadge?: (contents?: number) => Promise<void>;
+		clearAppBadge?: () => Promise<void>;
+	};
+	if (unread > 0) {
+		nav.setAppBadge?.(unread)?.catch?.(() => {});
+	} else {
+		nav.clearAppBadge?.()?.catch?.(() => {});
+	}
+}
+
+/**
+ * Обновляет индикатор непрочитанных уведомлений: красная точка на favicon в браузере
+ * или системный бейдж через Badging API в установленном PWA.
+ */
+export function setUnreadBadge(unread: number) {
+	if (isNative()) return;
+	const pwa = isPwa();
+	if (pwa) {
+		syncPwaAppBadge(unread);
+	}
+	const nextDot = unread > 0 && !pwa;
+	if (nextDot === hasUnreadDot) return;
+	hasUnreadDot = nextDot;
+	syncFavicon();
+}
+
 /**
  * Обновляет иконки в браузере (favicon), apple-touch-icon и ссылку на веб-манифест PWA.
  */
 export function applyAppIcon(iconId: AppIconId, customData?: string | null) {
 	if (typeof document === 'undefined') return;
 
-	// 1. Favicon (вкладка браузера)
-	let favLink = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-	if (!favLink) {
-		favLink = document.createElement('link');
-		favLink.rel = 'icon';
-		favLink.type = 'image/svg+xml';
-		document.head.appendChild(favLink);
-	}
-
-	// 2. Apple Touch Icon
-	let appleLink = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]');
-	if (!appleLink) {
-		appleLink = document.createElement('link');
-		appleLink.rel = 'apple-touch-icon';
-		document.head.appendChild(appleLink);
-	}
-
-	// 3. Web App Manifest
-	let manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
-	if (!manifestLink) {
-		manifestLink = document.createElement('link');
-		manifestLink.rel = 'manifest';
-		document.head.appendChild(manifestLink);
-	}
+	const appleLink = ensureLink('apple-touch-icon');
+	const manifestLink = ensureLink('manifest');
 
 	if (iconId === 'custom' && customData) {
-		const isSvg = customData.startsWith('data:image/svg');
-		const type = isSvg ? 'image/svg+xml' : 'image/png';
-		if (favLink.type !== type) {
-			favLink.type = type;
-		}
-		if (favLink.getAttribute('href') !== customData) {
-			favLink.setAttribute('href', customData);
-		}
+		currentFavBase = {
+			url: customData,
+			type: customData.startsWith('data:image/svg') ? 'image/svg+xml' : 'image/png'
+		};
 		if (appleLink.getAttribute('href') !== customData) {
 			appleLink.setAttribute('href', customData);
 		}
@@ -250,14 +334,11 @@ export function applyAppIcon(iconId: AppIconId, customData?: string | null) {
 			manifestLink.setAttribute('href', customManifest);
 		}
 	} else {
-		if (favLink.type !== 'image/svg+xml') {
-			favLink.type = 'image/svg+xml';
-		}
 		const info = getAppIcon(iconId);
-		const favUrl = asset(info.favSvg);
-		if (favLink.getAttribute('href') !== favUrl) {
-			favLink.setAttribute('href', favUrl);
-		}
+		currentFavBase = {
+			url: asset(info.favSvg),
+			type: 'image/svg+xml'
+		};
 		const appleUrl = asset(info.appleIcon);
 		if (appleLink.getAttribute('href') !== appleUrl) {
 			appleLink.setAttribute('href', appleUrl);
@@ -268,6 +349,8 @@ export function applyAppIcon(iconId: AppIconId, customData?: string | null) {
 		}
 	}
 
-	// 4. Уведомление Capacitor / нативного окружения
+	syncFavicon();
+
+	// Уведомление Capacitor / нативного окружения
 	notifyCapacitorIconChange(iconId).catch(() => {});
 }

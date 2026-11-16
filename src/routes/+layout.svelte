@@ -23,7 +23,7 @@
 	import { cleanupHangingBio } from '$lib/api/sources/bio-auth';
 	import { startTracking, type TickContext } from '$lib/storage/stats.svelte';
 	import { settings } from '$lib/storage/settings.svelte';
-	import { applyAppIcon } from '$lib/icons';
+	import { applyAppIcon, setUnreadBadge } from '$lib/icons';
 	import { pwa } from '$lib/pwa.svelte';
 	import { initCapacitor, updateStatusBar } from '$lib/capacitor';
 	
@@ -369,8 +369,15 @@
 	});
 
 	// Применение активной иконки приложения (favicon, manifest, capacitor)
+	const appIcon = $derived(settings.value.appIcon ?? 'default');
+	const customIconData = $derived(settings.value.customIconData);
 	$effect(() => {
-		applyAppIcon(settings.value.appIcon ?? 'default', settings.value.customIconData);
+		applyAppIcon(appIcon, customIconData);
+	});
+
+	// Индикатор непрочитанных на favicon вкладки или бейдже PWA
+	$effect(() => {
+		setUnreadBadge(notifications.unread);
 	});
 
 	// Глобальный жизненный цикл сессии и уведомлений на уровне корня (работает при любом состоянии шапки)

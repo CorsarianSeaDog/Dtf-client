@@ -1,13 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import {
-	APP_ICONS,
-	getAppIcon,
-	isPwa,
-	applyAppIcon,
-	registerCapacitorIconBridge,
-	notifyCapacitorIconChange,
-	type AppIconId
-} from './index';
+import type { AppIconId } from './index';
+
+const { isNative } = vi.hoisted(() => ({ isNative: vi.fn(() => false) }));
+vi.mock('$lib/capacitor', () => ({ isNative }));
 
 interface MockElement {
 	rel: string;
@@ -33,23 +28,17 @@ function createMockElement(rel: string): MockElement {
 
 describe('App Icons & PWA Manifest management', () => {
 	let elements: MockElement[] = [];
-	const originalDoc = (globalThis as unknown as { document?: unknown }).document;
+	let icons: typeof import('./index');
 
-	beforeEach(() => {
-		elements = [];
-		registerCapacitorIconBridge(null);
-
-		const mockDoc = {
+	function createMockDocument(createElementOverride?: (tag: string) => unknown) {
+		return {
 			querySelector: (selector: string) => {
 				const match = selector.match(/rel="([^"]+)"/);
 				if (!match) return null;
 				const rel = match[1];
 				return elements.find((el) => el.rel === rel) || null;
 			},
-			createElement: () => {
-				const el = createMockElement('');
-				return el;
-			},
+			createElement: (tag: string) => createElementOverride?.(tag) ?? createMockElement(''),
 			head: {
 				appendChild: (el: MockElement) => {
 					elements.push(el);
@@ -57,36 +46,35 @@ describe('App Icons & PWA Manifest management', () => {
 				}
 			}
 		};
+	}
 
-		Object.defineProperty(globalThis, 'document', {
-			value: mockDoc,
-			writable: true,
-			configurable: true
-		});
+	beforeEach(async () => {
+		vi.resetModules();
+		isNative.mockReturnValue(false);
+		elements = [];
+		vi.stubGlobal('document', createMockDocument());
+		icons = await import('./index');
 	});
 
 	afterEach(() => {
-		Object.defineProperty(globalThis, 'document', {
-			value: originalDoc,
-			writable: true,
-			configurable: true
-		});
+		vi.unstubAllGlobals();
+		vi.restoreAllMocks();
 	});
 
 	it('содержит 3 набора иконок: default, bluer, white', () => {
-		expect(APP_ICONS.map((i) => i.id)).toEqual(['default', 'bluer', 'white']);
+		expect(icons.APP_ICONS.map((i) => i.id)).toEqual(['default', 'bluer', 'white']);
 	});
 
 	it('getAppIcon возвращает правильные данные для каждого id', () => {
-		expect(getAppIcon('default').bgColor).toBe('#D9F5FF');
-		expect(getAppIcon('default').manifest).toBe('manifest.webmanifest');
-		expect(getAppIcon('bluer').bgColor).toBe('#BEE6FF');
-		expect(getAppIcon('white').bgColor).toBe('#FFFFFF');
-		expect(getAppIcon('unknown' as AppIconId).id).toBe('default');
+		expect(icons.getAppIcon('default').bgColor).toBe('#D9F5FF');
+		expect(icons.getAppIcon('default').manifest).toBe('manifest.webmanifest');
+		expect(icons.getAppIcon('bluer').bgColor).toBe('#BEE6FF');
+		expect(icons.getAppIcon('white').bgColor).toBe('#FFFFFF');
+		expect(icons.getAppIcon('unknown' as AppIconId).id).toBe('default');
 	});
 
 	it('applyAppIcon обновляет favicon, apple-touch-icon и manifest в DOM', () => {
-		applyAppIcon('bluer');
+		icons.applyAppIcon('bluer');
 
 		const fav = (globalThis.document as unknown as { querySelector: (s: string) => MockElement | null }).querySelector('link[rel="icon"]');
 		const apple = (globalThis.document as unknown as { querySelector: (s: string) => MockElement | null }).querySelector('link[rel="apple-touch-icon"]');
@@ -99,7 +87,7 @@ describe('App Icons & PWA Manifest management', () => {
 	});
 
 	it('applyAppIcon повторно переключает на white и обратно на default', () => {
-		applyAppIcon('white');
+		icons.applyAppIcon('white');
 
 		const fav = (globalThis.document as unknown as { querySelector: (s: string) => MockElement | null }).querySelector('link[rel="icon"]');
 		const manifest = (globalThis.document as unknown as { querySelector: (s: string) => MockElement | null }).querySelector('link[rel="manifest"]');
@@ -107,18 +95,18 @@ describe('App Icons & PWA Manifest management', () => {
 		expect(fav?.getAttribute('href')).toContain('icons/fav-white.svg');
 		expect(manifest?.getAttribute('href')).toContain('manifest-white.webmanifest');
 
-		applyAppIcon('default');
+		icons.applyAppIcon('default');
 		expect(fav?.getAttribute('href')).toContain('icons/fav-default.svg');
 		expect(manifest?.getAttribute('href')).toContain('manifest.webmanifest');
 	});
 
 	it('isPwa возвращает false в стандартном браузере без standalone', () => {
-		expect(isPwa()).toBe(false);
+		expect(icons.isPwa()).toBe(false);
 	});
 
 	it('applyAppIcon с custom icon обновляет DOM с data URI и выставляет правильный type', () => {
 		const customUri = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
-		applyAppIcon('custom', customUri);
+		icons.applyAppIcon('custom', customUri);
 
 		const fav = (globalThis.document as unknown as { querySelector: (s: string) => MockElement | null }).querySelector('link[rel="icon"]');
 		const apple = (globalThis.document as unknown as { querySelector: (s: string) => MockElement | null }).querySelector('link[rel="apple-touch-icon"]');
@@ -136,9 +124,122 @@ describe('App Icons & PWA Manifest management', () => {
 
 	it('вызывает зарегистрированный Capacitor мост при смене иконки', async () => {
 		const bridge = vi.fn();
-		registerCapacitorIconBridge(bridge);
+		icons.registerCapacitorIconBridge(bridge);
 
-		await notifyCapacitorIconChange('white');
+		await icons.notifyCapacitorIconChange('white');
 		expect(bridge).toHaveBeenCalledWith('white');
+	});
+
+	it('рисует красную точку с вырезом, отменяет устаревший рендер и сохраняет точку при смене иконки', () => {
+		const ops: string[] = [];
+		const drawCtx = {
+			drawImage: vi.fn(),
+			beginPath: vi.fn(),
+			arc: vi.fn(),
+			fill: vi.fn(() => ops.push(drawCtx.globalCompositeOperation)),
+			fillStyle: '',
+			globalCompositeOperation: 'source-over'
+		};
+		const pendingImages: Array<{ onload?: () => void; src: string }> = [];
+
+		vi.stubGlobal(
+			'document',
+			createMockDocument((tag) =>
+				tag === 'canvas'
+					? { width: 0, height: 0, getContext: () => drawCtx, toDataURL: () => 'data:image/png;base64,BADGED' }
+					: undefined
+			)
+		);
+		vi.stubGlobal(
+			'Image',
+			class {
+				onload?: () => void;
+				private _src = '';
+				set src(v: string) {
+					this._src = v;
+					pendingImages.push(this);
+				}
+				get src() {
+					return this._src;
+				}
+			}
+		);
+
+		const bridge = vi.fn();
+		icons.registerCapacitorIconBridge(bridge);
+
+		icons.applyAppIcon('default');
+		expect(bridge).toHaveBeenCalledTimes(1);
+
+		// Отмена: unread -> 1, но до onload сбрасывается в 0
+		icons.setUnreadBadge(1);
+		expect(pendingImages).toHaveLength(1);
+		icons.setUnreadBadge(0);
+		pendingImages[0].onload?.();
+
+		const fav = (globalThis.document as unknown as { querySelector: (s: string) => MockElement | null }).querySelector('link[rel="icon"]');
+		expect(fav?.getAttribute('href')).toContain('icons/fav-default.svg');
+		expect(drawCtx.drawImage).not.toHaveBeenCalled();
+
+		// Штатный рендер + прозрачный вырез под точкой; изменение счётчика 1 -> 2 не перезапускает рендер и не дёргает Capacitor
+		icons.setUnreadBadge(1);
+		icons.setUnreadBadge(2);
+		expect(pendingImages).toHaveLength(2);
+		pendingImages[1].onload?.();
+		expect(drawCtx.drawImage).toHaveBeenCalledTimes(1);
+		expect(drawCtx.arc).toHaveBeenCalledTimes(2);
+		expect(ops).toEqual(['destination-out', 'source-over']);
+		expect(drawCtx.fillStyle).toBe('#e62e3b');
+		expect(fav?.type).toBe('image/png');
+		expect(fav?.getAttribute('href')).toBe('data:image/png;base64,BADGED');
+		expect(bridge).toHaveBeenCalledTimes(1);
+
+		// Смена иконки при активных непрочитанных сохраняет точку для новой иконки
+		icons.applyAppIcon('bluer');
+		expect(pendingImages).toHaveLength(3);
+		expect(pendingImages[2].src).toContain('icons/fav-bluer.svg');
+		pendingImages[2].onload?.();
+		expect(fav?.type).toBe('image/png');
+
+		// Повторный цикл 0 -> 1 для той же иконки берёт кэш без повторной загрузки Image
+		icons.setUnreadBadge(0);
+		expect(fav?.type).toBe('image/svg+xml');
+		expect(fav?.getAttribute('href')).toContain('icons/fav-bluer.svg');
+		icons.setUnreadBadge(1);
+		expect(pendingImages).toHaveLength(3);
+		expect(fav?.getAttribute('href')).toBe('data:image/png;base64,BADGED');
+
+		// Сброс возвращает SVG
+		icons.setUnreadBadge(0);
+		expect(fav?.type).toBe('image/svg+xml');
+		expect(fav?.getAttribute('href')).toContain('icons/fav-bluer.svg');
+	});
+
+	it('в PWA обновляет Badging API без точки на favicon, а в нативном приложении не трогает ни то, ни другое', async () => {
+		const setAppBadge = vi.fn().mockResolvedValue(undefined);
+		const clearAppBadge = vi.fn().mockResolvedValue(undefined);
+		vi.stubGlobal('window', { matchMedia: (q: string) => ({ matches: q === '(display-mode: standalone)' }) });
+		vi.stubGlobal('navigator', { setAppBadge, clearAppBadge });
+
+		icons.applyAppIcon('default');
+		icons.setUnreadBadge(3);
+		icons.setUnreadBadge(5);
+		const fav = (globalThis.document as unknown as { querySelector: (s: string) => MockElement | null }).querySelector('link[rel="icon"]');
+		expect(fav?.getAttribute('href')).toContain('icons/fav-default.svg');
+		expect(setAppBadge).toHaveBeenNthCalledWith(1, 3);
+		expect(setAppBadge).toHaveBeenNthCalledWith(2, 5);
+
+		icons.setUnreadBadge(0);
+		expect(clearAppBadge).toHaveBeenCalledTimes(1);
+
+		vi.unstubAllGlobals();
+		vi.stubGlobal('document', createMockDocument());
+		isNative.mockReturnValue(true);
+
+		icons.applyAppIcon('bluer');
+		icons.setUnreadBadge(5);
+		const nativeFav = (globalThis.document as unknown as { querySelector: (s: string) => MockElement | null }).querySelector('link[rel="icon"]');
+		expect(nativeFav?.getAttribute('href')).toContain('icons/fav-bluer.svg');
+		expect(setAppBadge).toHaveBeenCalledTimes(2);
 	});
 });

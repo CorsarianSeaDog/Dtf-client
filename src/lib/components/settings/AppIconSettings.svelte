@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { asset } from '$app/paths';
-	import { APP_ICONS, isPwa, type AppIconId, applyAppIcon, processCustomIcon } from '$lib/icons';
+	import { APP_ICONS, isPwa, type AppIconId, processCustomIcon } from '$lib/icons';
 	import { settings } from '$lib/storage/settings.svelte';
 	import { haptics } from '$lib/haptics';
 	import SettingsGroup from './SettingsGroup.svelte';
@@ -62,7 +62,6 @@
 		haptics.click();
 		const fallbackId = currentIcon === 'custom' ? 'default' : currentIcon;
 		settings.patch({ customIconData: null, appIcon: fallbackId });
-		applyAppIcon(fallbackId);
 	}
 
 	function applySelection(id: AppIconId, data?: string | null) {
@@ -71,7 +70,6 @@
 			update.customIconData = data;
 		}
 		settings.patch(update);
-		applyAppIcon(id, data ?? customIconData);
 
 		showPwaModal = false;
 		pendingIconId = null;
