@@ -202,11 +202,12 @@ describe('mapComment', () => {
 });
 
 describe('mapNotification', () => {
-	it('статус 1 — не прочитано, аватар берётся у первого пользователя', () => {
-		const unread = mapNotification({ id: 1, status: 1, text: 'Ответили', date: 1700000000, users: [{ avatar_url: 'https://x/a.png' }] });
+	it('прочитано только со статусом 2 (0 — новое, 1 — увидено), аватар берётся у первого пользователя', () => {
+		const unread = mapNotification({ id: 1, status: 0, text: 'Ответили', date: 1700000000, users: [{ avatar_url: 'https://x/a.png' }] });
 
 		expect(unread).toMatchObject({ id: 1, isRead: false, text: 'Ответили', avatarUrl: 'https://x/a.png' });
-		expect(mapNotification({ id: 2, status: 2 }).isRead).toBe(true);
+		expect(mapNotification({ id: 2, status: 1 }).isRead).toBe(false);
+		expect(mapNotification({ id: 3, status: 2 }).isRead).toBe(true);
 	});
 
 	it('обрезает аватар первого пользователя через scale_crop при наличии uuid', () => {

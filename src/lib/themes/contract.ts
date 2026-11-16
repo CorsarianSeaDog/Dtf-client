@@ -68,7 +68,7 @@ export interface ThemeComponents {
 		onSearch?: (query: string, sorting: SearchSorting) => void;
 	};
 	/** Страница уведомлений (оверлей notifications) */
-	Notifications: {};
+	Notifications: { active?: boolean };
 	/** Записи с тегом `tag` (без `#`): одна страница без подгрузки */
 	TagPage: {
 		tag: string;

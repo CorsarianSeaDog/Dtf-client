@@ -1,15 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { notifications } from '$lib/api/notifications.svelte';
 	import NotificationsPanel from './NotificationsPanel.svelte';
 
-	onMount(() => {
-		notifications.load().then(() => notifications.markSeen());
-	});
+	let { active = true }: { active?: boolean } = $props();
 </script>
 
 <div class="notifications-page">
-	<NotificationsPanel page />
+	<NotificationsPanel page {active} />
 </div>
 
 <style>

@@ -250,7 +250,7 @@ export function mapNotification(item: any): Notification {
 
 	return {
 		id: item.id,
-		isRead: item.status !== 1,
+		isRead: item.status === 2,
 		text,
 		parts: parts.length > 0 ? parts : [{ text }],
 		type: item.type || 0,

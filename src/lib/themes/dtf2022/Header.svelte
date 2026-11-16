@@ -39,13 +39,7 @@
 	let user = $derived(currentUser.value);
 
 	$effect(() => {
-		if (authStorage.isAuthenticated) {
-			currentUser.load();
-			notifications.load();
-		} else {
-			currentUser.clear();
-			donationAccount.clear();
-			notifications.clear();
+		if (!authStorage.isAuthenticated) {
 			subscriptions.clear();
 			isUserMenuOpen = false;
 		}

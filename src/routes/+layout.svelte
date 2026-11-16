@@ -37,6 +37,10 @@
 	import { activeThemeSettings } from '$lib/themes/settings.svelte';
 	import { abortTransition, incomingReady, pageTransition, shouldTransition, startTransition } from '$lib/pageTransition.svelte';
 	import { api } from '$lib/api/index.svelte';
+	import { currentUser } from '$lib/api/currentUser.svelte';
+	import { donationAccount } from '$lib/api/donationAccount.svelte';
+	import { notifications } from '$lib/api/notifications.svelte';
+	import { authStorage } from '$lib/storage/auth.svelte';
 	import { swipeBack, swipeBackGesture } from '$lib/swipeBack.svelte';
 	
 	let { children } = $props();
@@ -369,6 +373,30 @@
 		applyAppIcon(settings.value.appIcon ?? 'default', settings.value.customIconData);
 	});
 
+	// Глобальный жизненный цикл сессии и уведомлений на уровне корня (работает при любом состоянии шапки)
+	let prevSessionGen: number | undefined;
+	$effect(() => {
+		if (authStorage.isAuthenticated) {
+			const gen = authStorage.generation;
+			if (prevSessionGen !== gen) {
+				if (prevSessionGen !== undefined) {
+					currentUser.clear();
+					donationAccount.clear();
+					notifications.clear();
+				}
+				currentUser.load();
+				prevSessionGen = gen;
+			}
+			// Эффект срабатывает и при обновлении токенов: connect() при живой подписке ничего не делает
+			notifications.connect();
+		} else {
+			prevSessionGen = undefined;
+			currentUser.clear();
+			donationAccount.clear();
+			notifications.clear();
+		}
+	});
+
 	// Прокрутка, на которую слой встанет после закрытия страницы над ним. Ленту могли выбрать из-под страницы:
 	// её прокрутку забираем сейчас, тогда восстановление при закрытии возьмёт то же значение
 	const backSwipe = swipeBackGesture({
@@ -409,6 +437,7 @@
 		});
 
 		return () => {
+			notifications.clear();
 			stopTracking();
 			stopPendingScroll();
 			(window.cancelIdleCallback ?? clearTimeout)(idle);
@@ -426,7 +455,7 @@
 	{:else if overlay.type === 'settings'}
 		<SettingsOverlay {...overlay.data} />
 	{:else if overlay.type === 'notifications'}
-		<ThemeLoader componentName="Notifications" />
+		<ThemeLoader componentName="Notifications" active={depth === 0} />
 	{:else if overlay.type === 'tag'}
 		<TagContent {...overlay.data} />
 	{:else if overlay.type === 'search'}
