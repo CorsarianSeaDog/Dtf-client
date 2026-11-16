@@ -18,14 +18,14 @@ function createMockSession() {
 		subsites: [{ value: 1, label: 'Игры' }],
 		historyVersions: [],
 		loadingHistory: false,
-		saveMessage: 'Сохранено',
+		saveState: 'saved',
+		canPublish: true,
 		commentPermission: 'everyone',
 		isAdult: false,
 		title: '',
 		ready: false,
 		repostOf: null,
 		postId: null,
-		isSaving: false,
 		selectedSubsiteId: 1
 	};
 }

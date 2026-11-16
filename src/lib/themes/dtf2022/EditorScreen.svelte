@@ -53,6 +53,22 @@
 		session.editorInstance?.caret.setToFirstBlock('start');
 	}
 
+	// Временно, до шага A3: текст успеха и ошибки теперь показывает экран, а не сессия
+	const statusText = $derived(
+		{ idle: '', dirty: 'Не сохранено', saving: 'Сохранение…', saved: 'Сохранено', error: 'Не удалось сохранить' }[
+			session.saveState as 'idle' | 'dirty' | 'saving' | 'saved' | 'error'
+		]
+	);
+
+	async function act(run: () => Promise<unknown>, success?: string) {
+		try {
+			await run();
+			if (success) notify.success(success);
+		} catch (e: any) {
+			notify.error(e.message);
+		}
+	}
+
 	let confirmingDelete = $state(false);
 
 	async function deleteEntry() {
@@ -74,13 +90,13 @@
 
 		{@render barExtra?.()}
 
-		<span class="writing__status" aria-live="polite">{session.saveMessage}</span>
+		<span class="writing__status" aria-live="polite">{statusText}</span>
 
 		{#if session.postId}
 			<Popover
 				bind:open={() => session.showHistory, (open) => !open && session.showHistory && session.toggleHistory()}
 				items={historyItems}
-				onselect={(id) => id && session.loadVersion(id)}
+				onselect={(id) => id && act(() => session.loadVersion(id), 'Версия восстановлена')}
 				width={220}
 				label="История черновика"
 			>
@@ -99,7 +115,7 @@
 		{/if}
 
 		<div class="writing__publish">
-			<Button variant="blue" label="Опубликовать" disabled={session.isSaving} onclick={session.publish} />
+			<Button variant="blue" label="Опубликовать" disabled={!session.canPublish} onclick={() => act(session.publish, 'Опубликовано')} />
 		</div>
 	</div>
 
@@ -115,7 +131,7 @@
 			<Select
 				bind:value={
 					() => session.commentPermission,
-					(value) => session.updateCommentPermission({ target: { value } } as unknown as Event)
+					(value) => act(() => session.updateCommentPermission({ target: { value } } as unknown as Event), 'Права изменены')
 				}
 				options={commentOptions}
 				placeholder="Кто может комментировать"

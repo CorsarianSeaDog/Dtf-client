@@ -1,11 +1,17 @@
-import { untrack } from 'svelte';
+import { tick, untrack } from 'svelte';
 import { closeOverlay } from '$lib/navigation';
 import { api } from '$lib/api/index.svelte';
 import type { Post, SubsiteItem, PostHistoryVersion } from '$lib/api/types';
 import { editorJsToDtf, dtfToEditorJs } from './mapper';
 import type { OutputData } from '@editorjs/editorjs';
 
+/** idle — правок нет; dirty — есть несохранённое; saving — идёт запрос; saved — всё сохранено; error — последняя попытка не удалась */
+export type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
+
 /**
+ * Сессия не хранит текстов для пользователя: о сохранении говорит `saveState`, а успех или ошибку действия
+ * (публикация, права, версия) метод возвращает или бросает — текст показывает экран.
+ *
  * `repostId` — id поста, на который пишется ответ (репост у DTF теперь ответ): уходит в запись при сохранении,
  * у такой записи может не быть ни заголовка, ни блоков.
  */
@@ -21,10 +27,17 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 	let isAdult = $state(false);
 	let title = $state('');
 	let commentPermission = $state<'everyone' | 'nobody' | 'only_plus' | 'only_subscribers'>('everyone');
-	
-	let isSaving = $state(false);
-	let saveMessage = $state('');
-	
+
+	let saveState = $state<SaveState>('idle');
+	/** Время (мс) последнего удачного сохранения */
+	let savedAt = $state<number | null>(null);
+	/** Текст последней ошибки сохранения или загрузки записи; очищается при следующей попытке сохранения */
+	let error = $state('');
+	/** Есть ли в записи блоки: обновляется вместе со снимком, чтобы canPublish не трогал редактор */
+	let hasBlocks = $state(false);
+	/** Содержимое до восстановления версии: до следующей правки его можно вернуть */
+	let beforeVersion = $state<{ title: string; isAdult: boolean; data: OutputData } | null>(null);
+
 	let showHistory = $state(false);
 	let historyVersions: PostHistoryVersion[] = $state([]);
 	let loadingHistory = $state(false);
@@ -47,6 +60,11 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 	const MAX_WAIT_MS = 120000;
 	let isFirstRender = true;
 
+	function remember(data: OutputData) {
+		snapshot = data;
+		hasBlocks = (data.blocks?.length ?? 0) > 0;
+	}
+
 	async function init() {
 		try {
 			subsites = await api.getSubsites();
@@ -64,11 +82,13 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 			try {
 				const entry = await api.getEditorEntry(postId);
 				initialData = dtfToEditorJs(entry);
+				remember(initialData);
 				title = entry.title || '';
 				isAdult = entry.is_adult || false;
 				if (entry.subsite_id) selectedSubsiteId = entry.subsite_id;
 			} catch (e: any) {
-				saveMessage = 'Ошибка: ' + e.message;
+				error = e.message;
+				saveState = 'error';
 				console.error(e);
 			}
 		}
@@ -81,25 +101,34 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 		if (saveTimer) clearTimeout(saveTimer);
 		if (maxWaitTimer) clearTimeout(maxWaitTimer);
 		saveTimer = maxWaitTimer = null;
-		if (!deleted && changes > savedChanges) performSave(false, snapshot ?? initialData ?? { blocks: [] });
+		if (!deleted && changes > savedChanges) autosave(snapshot ?? initialData ?? { blocks: [] });
+	}
+
+	/** Сохранение без ожидателя: ошибка остаётся в saveState и error */
+	function autosave(content?: OutputData) {
+		return performSave(false, content).catch(() => {});
+	}
+
+	/** Сохраняет сразу, если есть несохранённое: экран зовёт, когда страница уходит в фон */
+	function flush() {
+		if (deleted || changes <= savedChanges) return;
+		return autosave(editorInstance ? undefined : (snapshot ?? initialData ?? { blocks: [] }));
 	}
 
 	function queueSave() {
 		if (!editorInstance || deleted) return;
 
 		changes++;
-		editorInstance.save().then((data: OutputData) => (snapshot = data), () => {});
+		beforeVersion = null;
+		if (saveState !== 'saving') saveState = 'dirty';
+		editorInstance.save().then(remember, () => {});
 
 		if (saveTimer) clearTimeout(saveTimer);
-		
-		saveTimer = setTimeout(() => {
-			performSave(false);
-		}, DEBOUNCE_MS);
-		
+
+		saveTimer = setTimeout(() => autosave(), DEBOUNCE_MS);
+
 		if (!maxWaitTimer) {
-			maxWaitTimer = setTimeout(() => {
-				performSave(false);
-			}, MAX_WAIT_MS);
+			maxWaitTimer = setTimeout(() => autosave(), MAX_WAIT_MS);
 		}
 	}
 
@@ -109,7 +138,7 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 		return run;
 	}
 
-	/** `content` — готовое содержимое, когда редактора уже нет */
+	/** `content` — готовое содержимое, когда редактора уже нет. Ошибку записывает в состояние и бросает */
 	async function save(isPublishing: boolean, content?: OutputData) {
 		if (!isPublishing) {
 			if (saveTimer) clearTimeout(saveTimer);
@@ -120,18 +149,22 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 
 		if (deleted || (!content && !editorInstance)) return;
 
+		const reached = changes;
 		try {
-			const reached = changes;
 			const data = content ?? await editorInstance.save();
+			if (!content) remember(data);
 
 			if (!repostId && title.trim() === '' && (!data.blocks || data.blocks.length === 0)) {
-				if (isPublishing) saveMessage = 'Ошибка: Содержимое поста пусто';
+				if (isPublishing) throw new Error('Содержимое поста пусто');
+				// Пустой черновик не отправляем: правки были, но сохранять нечего
+				savedChanges = Math.max(savedChanges, reached);
+				saveState = changes > savedChanges ? 'dirty' : 'idle';
 				return;
 			}
-			
-			isSaving = true;
-			saveMessage = isPublishing ? 'Публикация...' : 'Сохранение черновика...';
-			
+
+			saveState = 'saving';
+			error = '';
+
 			const dtfEntry = editorJsToDtf(data, {
 				id: postId || 0,
 				title,
@@ -140,53 +173,43 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 				is_published: isPublishing,
 				repostId
 			});
-			
+
 			const result = await api.saveDraft(dtfEntry);
 			savedChanges = Math.max(savedChanges, reached);
 
 			if (!postId && result && result.id) {
 				postId = result.id;
 			}
-			
-			if (isPublishing) {
-				saveMessage = 'Опубликовано!';
-				setTimeout(closeOverlay, 1000);
-			} else {
-				saveMessage = 'Черновик сохранен';
-			}
+
+			savedAt = Date.now();
+			// Правка могла прийти, пока шёл запрос
+			saveState = changes > savedChanges ? 'dirty' : 'saved';
+			if (isPublishing) setTimeout(closeOverlay, 1000);
 		} catch (e: any) {
-			saveMessage = 'Ошибка: ' + e.message;
+			error = e.message;
+			saveState = 'error';
 			console.error(e);
-		} finally {
-			if (!isPublishing || saveMessage.startsWith('Ошибка')) {
-				isSaving = false;
-				setTimeout(() => { if (saveMessage === 'Черновик сохранен') saveMessage = ''; }, 3000);
-			}
+			throw e;
 		}
 	}
 
+	/** Публикует запись; ошибка уходит в saveState/error и бросается вызывающему */
 	function publish() {
-		performSave(true);
+		return performSave(true);
 	}
 
+	/** Бросает ошибку, если права не удалось поставить */
 	async function updateCommentPermission(e: Event) {
 		const target = e.target as HTMLSelectElement;
 		const perm = target.value as 'everyone' | 'nobody' | 'only_plus' | 'only_subscribers';
 		commentPermission = perm;
-		
+
+		// У новой записи сначала нужен черновик: права ставятся на существующую запись
 		if (!postId) {
-			await performSave(false);
+			await performSave(false).catch(() => {});
 		}
-		
-		if (postId) {
-			try {
-				await api.setCommentPermissions(postId, perm);
-				saveMessage = 'Права изменены';
-				setTimeout(() => { if (saveMessage === 'Права изменены') saveMessage = ''; }, 3000);
-			} catch (err: any) {
-				saveMessage = 'Ошибка: ' + err.message;
-			}
-		}
+
+		if (postId) await api.setCommentPermissions(postId, perm);
 	}
 
 	async function toggleHistory() {
@@ -203,21 +226,33 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 			}
 		}
 	}
-	
+
+	/** Заменяет содержимое версией; прежнее запоминается для undoLoadVersion(). Ошибку бросает */
 	async function loadVersion(versionId: number) {
 		if (!postId || !editorInstance) return;
-		try {
-			const entry = await api.getPostHistoryVersion(postId, versionId);
-			const editorData = dtfToEditorJs(entry);
-			await editorInstance.render(editorData);
-			title = entry.title || '';
-			isAdult = entry.is_adult || false;
-			showHistory = false;
-			saveMessage = 'Версия восстановлена';
-			setTimeout(() => { if (saveMessage === 'Версия восстановлена') saveMessage = ''; }, 3000);
-		} catch (e: any) {
-			saveMessage = 'Ошибка: ' + e.message;
-		}
+		const entry = await api.getPostHistoryVersion(postId, versionId);
+		const previous = { title, isAdult, data: (await editorInstance.save()) as OutputData };
+		await applyContent(dtfToEditorJs(entry), entry.title || '', entry.is_adult || false);
+		showHistory = false;
+		// Правки-следствия (смена заголовка запускает queueSave) уже прошли: отмена доступна до следующей правки
+		beforeVersion = previous;
+	}
+
+	/** Возвращает содержимое, которое было до последнего loadVersion() */
+	async function undoLoadVersion() {
+		if (!beforeVersion || !editorInstance) return;
+		const { data, title: oldTitle, isAdult: oldAdult } = beforeVersion;
+		await applyContent(data, oldTitle, oldAdult);
+		beforeVersion = null;
+	}
+
+	async function applyContent(data: OutputData, newTitle: string, newAdult: boolean) {
+		await editorInstance.render(data);
+		title = newTitle;
+		isAdult = newAdult;
+		remember(data);
+		queueSave();
+		await tick();
 	}
 
 	function goBack() {
@@ -246,7 +281,7 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 		const _t = title;
 		const _s = selectedSubsiteId;
 		const _a = isAdult;
-		
+
 		untrack(() => {
 			if (isFirstRender) {
 				isFirstRender = false;
@@ -270,22 +305,29 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 		get title() { return title; },
 		set title(v) { title = v; },
 		get commentPermission() { return commentPermission; },
-		get isSaving() { return isSaving; },
-		get saveMessage() { return saveMessage; },
+		get saveState() { return saveState; },
+		get savedAt() { return savedAt; },
+		get error() { return error; },
+		/** Публиковать можно, пока не идёт сохранение и запись не пуста (репост может быть без текста) */
+		get canPublish() { return saveState !== 'saving' && (!!repostId || title.trim() !== '' || hasBlocks); },
+		/** Можно ли вернуть содержимое до последнего loadVersion(): пропадает после следующей правки */
+		get canUndoLoad() { return beforeVersion !== null; },
 		get showHistory() { return showHistory; },
 		get historyVersions() { return historyVersions; },
 		get loadingHistory() { return loadingHistory; },
-		
+
 		get editorInstance() { return editorInstance; },
 		set editorInstance(v) { editorInstance = v; },
 
 		init,
 		destroy,
 		queueSave,
+		flush,
 		publish,
 		updateCommentPermission,
 		toggleHistory,
 		loadVersion,
+		undoLoadVersion,
 		deletePost,
 		goBack
 	};
