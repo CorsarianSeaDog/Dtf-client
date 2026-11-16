@@ -339,6 +339,17 @@ export default defineTheme({
 			// Колонка текста у́же самой ленты на 40px (как у DTF: 600 при 640)
 			cssVars: (width) => ({ '--content-width': `${width}px`, '--inner-content-width': `${width - 40}px` }),
 			device: 'desktop'
+		},
+		{
+			key: 'postMediaWidth',
+			type: 'radio',
+			title: 'Медиа в посте',
+			description: 'Как отображать фото, видео и галереи на странице поста.',
+			default: 'full',
+			options: [
+				{ value: 'full', title: 'На всю ширину', description: 'Горизонтальные медиа выходят на всю ширину поста, как на DTF 2022' },
+				{ value: 'content', title: 'На ширину контента', description: 'Медиа выравниваются по ширине текста, как на современном DTF' }
+			]
 		}
 	],
 	get motion() {

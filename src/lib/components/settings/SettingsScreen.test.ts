@@ -258,6 +258,7 @@ describe('SettingsScreen', () => {
 		});
 
 		expect(body).not.toContain('Сортировать по моему рейтингу');
+		expect(body).toContain('Медиа в посте');
 		expect(body).toContain('Рекомендации под постом');
 		expect(body).toContain('Фильтрация контента');
 		expect(body).toContain('Чёрный список и стоп-слова');

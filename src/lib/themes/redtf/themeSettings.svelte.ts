@@ -53,5 +53,9 @@ export const themeSettings = {
 	/** Режим строки поиска: 'always' (всегда) или 'button' (скрывать за кнопкой) */
 	get searchBarMode(): 'always' | 'button' {
 		return (activeThemeSettings().value.searchBarMode as 'always' | 'button') ?? 'always';
+	},
+	/** Ширина медиа на странице поста: 'full' (на всю ширину) или 'content' (на ширину контента) */
+	get postMediaWidth(): 'full' | 'content' {
+		return activeThemeSettings().value.postMediaWidth === 'content' ? 'content' : 'full';
 	}
 };

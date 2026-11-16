@@ -1,9 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { render } from 'svelte/server';
 import PostBlocks from './PostBlocks.svelte';
+import { activeTheme } from '../../index.svelte';
+import { getThemeSettings } from '../../settings.svelte';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -81,5 +83,75 @@ describe('PostBlocks DTF link handling', () => {
 			.filter((file) => /(srcset|sizes)=/.test(fs.readFileSync(path.join(src, file), 'utf8')));
 
 		expect(offenders).toEqual([]);
+	});
+});
+
+describe('PostBlocks: настройка postMediaWidth в redtf', () => {
+	afterEach(() => {
+		activeTheme.set('redtf');
+		getThemeSettings('redtf').patch({ postMediaWidth: 'full' });
+	});
+
+	const sampleBlocks = [
+		{ type: 'media', data: { items: [{ image: { data: { uuid: 'wide', width: 1200, height: 675 } } }] } },
+		{ type: 'media', data: { items: [{ image: { data: { uuid: 'tall', width: 600, height: 1000 } } }] } },
+		{ type: 'media', data: { items: [{ image: { data: { uuid: 'g1' } } }, { image: { data: { uuid: 'g2' } } }] } }
+	];
+
+	it('по умолчанию (full) горизонтальное медиа и галерея выходят на всю ширину, без скругления', () => {
+		activeTheme.set('redtf');
+		const { body } = render(PostBlocks, { props: { variant: 'page', blocks: sampleBlocks } });
+
+		const figures = [...body.matchAll(/<figure class="([^"]+)"/g)].map((m) => m[1]);
+		expect(figures).toHaveLength(3);
+		expect(figures[0]).not.toContain('media-figure--column');
+		expect(figures[1]).toContain('media-figure--column');
+		expect(figures[2]).not.toContain('media-figure--column');
+		expect(body).not.toContain('media-figure--rounded');
+	});
+
+	it('при postMediaWidth: content на странице поста все медиа выравниваются по контенту и скругляются на 8px', () => {
+		activeTheme.set('redtf');
+		getThemeSettings('redtf').patch({ postMediaWidth: 'content' });
+		const { body } = render(PostBlocks, { props: { variant: 'page', blocks: sampleBlocks } });
+
+		const figures = [...body.matchAll(/<figure class="([^"]+)"/g)].map((m) => m[1]);
+		expect(figures).toHaveLength(3);
+		for (const cls of figures) {
+			expect(cls).toContain('media-figure--column');
+			expect(cls).toContain('media-figure--rounded');
+		}
+		// Горизонтальное медиа не сжимается по 460px
+		expect(body).toContain('--media-max-w: 1200px');
+		// Вертикальное сохраняет ограничение по высоте 460px
+		expect(body).toContain('--media-max-w: 276px');
+
+		const svelteContent = fs.readFileSync(path.join(__dirname, 'PostBlocks.svelte'), 'utf8');
+		expect(svelteContent).toContain('.media-figure--rounded > .media-frame');
+		expect(svelteContent).toContain('.media-figure--rounded > .media-gallery');
+		expect(svelteContent).toContain('border-radius: 8px;');
+	});
+
+	it('в теме dtf2022 отображение всегда остаётся полноширинным без скруглений', () => {
+		activeTheme.set('dtf2022');
+		const { body } = render(PostBlocks, { props: { variant: 'page', blocks: sampleBlocks } });
+
+		const figures = [...body.matchAll(/<figure class="([^"]+)"/g)].map((m) => m[1]);
+		expect(figures).toHaveLength(3);
+		expect(figures[0]).not.toContain('media-figure--column');
+		expect(figures[1]).toContain('media-figure--column');
+		expect(figures[2]).not.toContain('media-figure--column');
+		expect(body).not.toContain('media-figure--rounded');
+	});
+
+	it('в ленте (card) и встроенном посте (embed) классы скругления страницы не применяются', () => {
+		activeTheme.set('redtf');
+		getThemeSettings('redtf').patch({ postMediaWidth: 'content' });
+
+		const cardBody = render(PostBlocks, { props: { variant: 'card', blocks: [sampleBlocks[0]] } }).body;
+		const embedBody = render(PostBlocks, { props: { variant: 'embed', blocks: [sampleBlocks[0]] } }).body;
+
+		expect(cardBody).not.toContain('media-figure--rounded');
+		expect(embedBody).not.toContain('media-figure--rounded');
 	});
 });

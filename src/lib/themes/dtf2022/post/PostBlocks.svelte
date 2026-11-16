@@ -17,6 +17,7 @@
 	import PersonBlock from './PersonBlock.svelte';
 	import QuizBlock from './QuizBlock.svelte';
 	import { FEED_MEDIA_MAX_HEIGHT, isWideMedia, mediaMaxWidth, mediaPreviewUrl } from '../media';
+	import { themeSettings } from '../themeSettings.svelte';
 
 	/*
 	 * Блоки редактора DTF. Каждый блок — .post-block.post-block--{тип}.
@@ -93,12 +94,20 @@
 		return image?.type === 'movie' || type === 'mp4' || type === 'gif' || image?.data?.isVideo;
 	}
 
-	/** На странице поста горизонтальное медиа — на всю ширину и без ограничения высоты (см. media.ts) */
-	const isFullWidth = (data: any) => variant === 'page' && isWideMedia(data?.width, data?.height);
+	let mediaInContent = $derived(variant === 'page' && themeSettings.postMediaWidth === 'content');
+
+	/** На странице поста горизонтальное медиа не ограничивается по высоте (см. media.ts) */
+	const isWideOnPage = (data: any) => variant === 'page' && isWideMedia(data?.width, data?.height);
 
 	function figureClass(data: any) {
 		if (variant === 'card') return 'post-block post-block--media';
-		return ['media-figure', { 'media-figure--column': variant === 'page' && !isFullWidth(data) }];
+		return [
+			'media-figure',
+			{
+				'media-figure--column': variant === 'page' && (mediaInContent || !isWideOnPage(data)),
+				'media-figure--rounded': mediaInContent
+			}
+		];
 	}
 
 	// Без srcset/sizes: Blink удерживает ViewportChangeListener в MediaQueryMatcher на оторванном <img>, не давая выгрузить закрытый слой поста
@@ -112,7 +121,7 @@
 	Размеры берём из данных картинки, ограничение высоты — как на DTF (см. media.ts).
 -->
 {#snippet placeholder(data: any, kind: 'video' | undefined, content: Snippet)}
-	{@const maxWidth = mediaMaxWidth(data?.width, data?.height, isFullWidth(data) ? Infinity : FEED_MEDIA_MAX_HEIGHT)}
+	{@const maxWidth = mediaMaxWidth(data?.width, data?.height, isWideOnPage(data) ? Infinity : FEED_MEDIA_MAX_HEIGHT)}
 	<div class="media-frame" style:--media-max-w={maxWidth ? `${maxWidth}px` : '100%'}>
 		<div
 			class={['media-placeholder', kind && `media-placeholder--${kind}`, data?.base64preview && 'media-placeholder--preview']}
@@ -447,6 +456,12 @@
 		width: 100%;
 		margin-left: 0;
 		transform: none;
+	}
+
+	.media-figure--rounded > .media-frame,
+	.media-figure--rounded > .media-gallery {
+		border-radius: 8px;
+		overflow: hidden;
 	}
 
 	/* Медиа */
@@ -844,6 +859,10 @@
 		width: 100%;
 		margin-left: 0;
 		transform: none;
+	}
+
+	.post-hidden:has(> .media-figure--rounded) > .post-hidden__cover {
+		border-radius: 8px;
 	}
 
 	@media (max-width: 859px) {
