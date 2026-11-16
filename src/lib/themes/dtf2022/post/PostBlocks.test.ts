@@ -76,6 +76,14 @@ describe('PostBlocks DTF link handling', () => {
 		expect(svelteContent).toContain('padding-left: calc(var(--island-offset-x, 16px) + 1.5em)');
 	});
 
+	it('задаёт списку и его пунктам вертикальные отступы как в оригинале DTF', () => {
+		const svelteContent = fs.readFileSync(path.join(__dirname, 'PostBlocks.svelte'), 'utf8');
+
+		expect(svelteContent).toMatch(/\.post-block--list\s*\{[^}]*margin:\s*12px 0;/);
+		expect(svelteContent).toMatch(/\.post-block--list li\s*\{[^}]*margin:\s*10px 0;/);
+		expect(svelteContent).toContain('.post-blocks--card > .post-block:not(.post-block--title, :last-child)');
+	});
+
 	it('нигде в src нет img с srcset и sizes: Blink удерживает по ним оторванный слой поста', () => {
 		const src = path.resolve(__dirname, '../../../..');
 		const offenders = (fs.readdirSync(src, { recursive: true }) as string[])

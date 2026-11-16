@@ -434,9 +434,10 @@
 		margin-bottom: 4px;
 	}
 
-	/* Страница поста и встроенный пост */
+	/* Страница поста и встроенный пост; в карточке ленты отступ нужен только между блоками (последний текст прижат к футеру) */
 	.post-blocks--page > .post-block,
-	.post-blocks--embed > .post-block {
+	.post-blocks--embed > .post-block,
+	.post-blocks--card > .post-block:not(.post-block--title, :last-child) {
 		margin-bottom: 12px;
 	}
 
@@ -760,7 +761,12 @@
 	}
 
 	.post-block--list {
+		margin: 12px 0;
 		padding-left: 1.5em;
+	}
+
+	.post-block--list li {
+		margin: 10px 0;
 	}
 
 	.post-blocks--card > .post-block--list,
