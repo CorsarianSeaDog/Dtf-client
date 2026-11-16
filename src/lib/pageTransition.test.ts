@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { freeze, pageTransition, shouldTransition } from './pageTransition.svelte';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { abortTransition, freeze, incomingReady, pageTransition, shouldTransition, startTransition } from './pageTransition.svelte';
 import { fluent } from './motion';
 import { activeTheme } from './themes/index.svelte';
 
@@ -83,5 +83,153 @@ describe('pageTransition', () => {
 		expect(mockScreen.scrollTop).toBe(510);
 
 		unfreeze();
+	});
+
+	describe('отложенный recede (80 мс)', () => {
+		function makeScreen(withLayer = false, deferred = false) {
+			const style = Object.assign({} as Record<string, string>, {
+				removeProperty: vi.fn((prop: string) => {
+					delete style[prop];
+				})
+			});
+			const layer = withLayer ? { style: {} as Record<string, string>, toggleAttribute: vi.fn() } : null;
+			const resolvers: (() => void)[] = [];
+			const animate = vi.fn(() => {
+				let resolve!: () => void;
+				const finished = deferred
+					? new Promise<void>((r) => {
+							resolve = r;
+							resolvers.push(r);
+						})
+					: Promise.resolve();
+				return {
+					finished,
+					cancel: vi.fn(() => resolve?.()),
+					commitStyles: vi.fn()
+				};
+			});
+			return {
+				style,
+				scrollTop: 0,
+				getBoundingClientRect: () => ({ top: 0, left: 0, width: 390, height: 844 }) as DOMRect,
+				closest: () => layer,
+				setAttribute: vi.fn(),
+				removeAttribute: vi.fn(),
+				animate,
+				layer,
+				resolveAnims: () => resolvers.splice(0).forEach((r) => r())
+			} as unknown as HTMLElement & {
+				animate: ReturnType<typeof vi.fn>;
+				layer: { style: Record<string, string>; toggleAttribute: ReturnType<typeof vi.fn> } | null;
+				resolveAnims: () => void;
+			};
+		}
+
+		beforeEach(() => {
+			vi.useFakeTimers();
+			vi.stubGlobal('window', { matchMedia: () => ({ matches: false }), innerHeight: 844 });
+			vi.stubGlobal('innerHeight', 844);
+			vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+				cb(0);
+				return 1;
+			});
+			vi.stubGlobal('document', {
+				querySelector: () => null,
+				querySelectorAll: () => [],
+				documentElement: { dataset: {}, setAttribute: vi.fn(), removeAttribute: vi.fn() }
+			});
+			activeTheme.set('redtf');
+		});
+
+		afterEach(() => {
+			vi.useRealTimers();
+			vi.unstubAllGlobals();
+		});
+
+		it('при готовности быстрее 80 мс не запускает recede и сразу играет fastApproach + fastDepart', async () => {
+			const outgoing = makeScreen();
+			const incoming = makeScreen();
+
+			startTransition('__feed__', 'layer-1', outgoing);
+			expect(outgoing.animate).not.toHaveBeenCalled();
+
+			await incomingReady('layer-1', incoming);
+
+			expect(outgoing.animate).toHaveBeenCalledWith(fluent.fastDepart!.keyframes, expect.objectContaining({ duration: fluent.fastDepart!.duration }));
+			expect(incoming.animate).toHaveBeenCalledWith(
+				activeTheme.motion!.fastApproach!.keyframes,
+				expect.objectContaining({ duration: activeTheme.motion!.fastApproach!.duration })
+			);
+			expect(pageTransition.active).toBe(false);
+		});
+
+		it('при задержке больше 80 мс запускает recede, а затем approach + depart', async () => {
+			const outgoing = makeScreen();
+			const incoming = makeScreen();
+
+			startTransition('__feed__', 'layer-2', outgoing);
+			expect(outgoing.animate).not.toHaveBeenCalled();
+
+			vi.advanceTimersByTime(80);
+			expect(outgoing.animate).toHaveBeenCalledWith(fluent.recede!.keyframes, expect.objectContaining({ duration: fluent.recede!.duration }));
+
+			await incomingReady('layer-2', incoming);
+
+			expect(outgoing.animate).toHaveBeenCalledWith(fluent.depart!.keyframes, expect.objectContaining({ duration: fluent.depart!.duration }));
+			expect(incoming.animate).toHaveBeenCalledWith(fluent.approach!.keyframes, expect.objectContaining({ duration: fluent.approach!.duration }));
+			expect(pageTransition.active).toBe(false);
+		});
+
+		it('abortTransition до 80 мс завершает переход без return-анимации и не ставит data-hidden на уходящий слой', () => {
+			const outgoing = makeScreen(true);
+
+			startTransition('__feed__', 'layer-3', outgoing);
+			abortTransition();
+
+			expect(outgoing.animate).not.toHaveBeenCalled();
+			expect(outgoing.layer!.toggleAttribute).not.toHaveBeenCalledWith('data-hidden', true);
+			expect(pageTransition.active).toBe(false);
+		});
+
+		it('abortTransition во время approach после recede не даёт incomingReady скрыть слой до конца возврата', async () => {
+			const outgoing = makeScreen(true, true);
+			const incoming = makeScreen(true, true);
+
+			startTransition('__feed__', 'layer-4', outgoing);
+			vi.advanceTimersByTime(80);
+
+			const readyPromise = incomingReady('layer-4', incoming);
+			// Имитируем «Назад» пока идут анимации approach + depart
+			abortTransition();
+
+			// Отменённые анимации разрешают Promise.all в incomingReady, но cleanup(true) не должен сработать раньше returnAnim
+			await readyPromise;
+			expect(pageTransition.active).toBe(true);
+			expect(outgoing.layer!.toggleAttribute).not.toHaveBeenCalledWith('data-hidden', true);
+
+			// Завершается returnAnim
+			outgoing.resolveAnims();
+			await Promise.resolve();
+			await Promise.resolve();
+
+			expect(pageTransition.active).toBe(false);
+			expect(outgoing.layer!.toggleAttribute).not.toHaveBeenCalledWith('data-hidden', true);
+		});
+
+		it('новый startTransition во время прошлого incomingReady не сбрасывается его завершением', async () => {
+			const outgoing = makeScreen(true, true);
+			const incoming1 = makeScreen(true, true);
+			const outgoing2 = makeScreen(true, true);
+
+			startTransition('__feed__', 'layer-5', outgoing);
+			const readyPromise = incomingReady('layer-5', incoming1);
+
+			startTransition('__feed__', 'layer-6', outgoing2);
+			await readyPromise;
+
+			expect(pageTransition.active).toBe(true);
+			expect(pageTransition.incomingId).toBe('layer-6');
+			abortTransition();
+		});
 	});
 });
