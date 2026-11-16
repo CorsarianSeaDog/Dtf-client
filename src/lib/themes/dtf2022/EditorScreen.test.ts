@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { createRawSnippet } from 'svelte';
 import { render } from 'svelte/server';
 import fs from 'fs';
 import path from 'path';
@@ -98,5 +99,55 @@ describe('EditorScreen', () => {
 		expect(content).toContain('env(safe-area-inset-left, 0px)');
 		expect(content).toContain('env(safe-area-inset-right, 0px)');
 		expect(content).toContain('.writing--window .writing__bar');
+	});
+});
+
+describe('EditorScreen: точки расширения', () => {
+	const marker = (text: string) => createRawSnippet(() => ({ render: () => `<i data-marker="${text}"></i>` }));
+	const withId = () => ({ ...createMockSession(), postId: 5388155 });
+
+	it('без пропсов рисует строку настроек, историю и удаление', () => {
+		const { body } = render(EditorScreen, { props: { session: withId() } });
+
+		expect(body).toContain('writing__settings');
+		expect(body).toContain('Комментарии: всем');
+		expect(body).toContain('writing__adult');
+		expect(body).toContain('История изменений');
+		expect(body).toContain('Удалить запись');
+	});
+
+	it('settings подменяет строку настроек', () => {
+		const { body } = render(EditorScreen, { props: { session: createMockSession(), settings: marker('settings') } });
+
+		expect(body).toContain('data-marker="settings"');
+		expect(body).not.toContain('writing__settings');
+		expect(body).not.toContain('writing__adult');
+	});
+
+	it('barActions подменяет историю и удаление и получает версии', () => {
+		const session = { ...withId(), historyVersions: [{ id: 7, dateCreated: 1700000000 }] };
+		const barActions = createRawSnippet((ctx: () => { historyItems: { value: number }[]; requestDelete: () => void }) => ({
+			render: () => `<i data-marker="actions" data-items="${ctx().historyItems.map((i) => i.value)}" data-delete="${typeof ctx().requestDelete}"></i>`
+		}));
+		const { body } = render(EditorScreen, { props: { session, barActions } });
+
+		expect(body).toContain('data-marker="actions"');
+		expect(body).toContain('data-items="7"');
+		expect(body).toContain('data-delete="function"');
+		expect(body).not.toContain('История изменений');
+		expect(body).not.toContain('Удалить запись');
+	});
+
+	it('barActions не рисуется у записи без id', () => {
+		const { body } = render(EditorScreen, { props: { session: createMockSession(), barActions: marker('actions') } });
+
+		expect(body).not.toContain('data-marker="actions"');
+	});
+
+	it('footer стоит после тела редактора', () => {
+		const { body } = render(EditorScreen, { props: { session: createMockSession(), footer: marker('footer') } });
+
+		expect(body.indexOf('data-marker="footer"')).toBeGreaterThan(body.indexOf('writing__body'));
+		expect(render(EditorScreen, { props: { session: createMockSession() } }).body).not.toContain('data-marker');
 	});
 });
