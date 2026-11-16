@@ -33,4 +33,13 @@ describe('PostHeader menu items', () => {
 		expect(svelteContent).toContain('ConfirmPopup');
 		expect(svelteContent).toContain('api.deletePost(post.id)');
 	});
+
+	it('на узком мобильном экране оставляет у кнопки подписки только иконку с aria-label и защищает дату от сжатия', () => {
+		const svelteContent = fs.readFileSync(path.join(__dirname, 'PostHeader.svelte'), 'utf8');
+
+		expect(svelteContent).toContain('aria-label="Подписаться"');
+		expect(svelteContent).toContain('@media (max-width: 639px)');
+		expect(svelteContent).toMatch(/\.subscribe-button::after[\s\S]*?height:\s*44px/);
+		expect(svelteContent).toMatch(/\.post-header-time[\s\S]*?flex-shrink:\s*0/);
+	});
 });

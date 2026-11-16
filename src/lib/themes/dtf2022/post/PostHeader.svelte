@@ -192,7 +192,13 @@
 		<div class="spacer"></div>
 
 		<div class="post-header__item post-header__subscribe">
-			<button class="subscribe-button" onclick={() => post.subsite && subscriptions.toggle(post.subsite.id, post.subsite.isSubscribed)}>
+			<button
+				type="button"
+				class="subscribe-button"
+				title="Подписаться"
+				aria-label="Подписаться"
+				onclick={() => post.subsite && subscriptions.toggle(post.subsite.id, post.subsite.isSubscribed)}
+			>
 				<span class="subscribe-button__icon">
 					<svg height="20" width="20" class="icon" aria-hidden="true">
 						<use href="#v_follow"></use>
@@ -312,6 +318,12 @@
 		font-weight: 500;
 	}
 
+	.post-header-subsite a {
+		display: block;
+		min-width: 0;
+		max-width: 100%;
+	}
+
 	.post-header-subsite__avatar {
 		position: absolute;
 		flex-shrink: 0;
@@ -341,6 +353,7 @@
 	}
 
 	.post-header-author__name {
+		min-width: 0;
 		max-width: 200px;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -355,7 +368,7 @@
 	.post-header-time {
 		display: flex;
 		align-items: center;
-		flex-shrink: 1;
+		flex-shrink: 0;
 		min-width: 0;
 		color: var(--text-muted);
 	}
@@ -374,6 +387,7 @@
 	.post-header-pin {
 		position: relative;
 		display: flex;
+		flex-shrink: 0;
 		color: var(--text-muted);
 	}
 
@@ -385,12 +399,25 @@
 
 	.subscribe-button {
 		--offset: 8px;
+		position: relative;
 		display: flex;
 		align-items: center;
 		color: var(--text-link);
 		font-size: 14px;
 		white-space: nowrap;
 		cursor: pointer;
+	}
+
+	@media (pointer: coarse), (max-width: 859px) {
+		.subscribe-button::after {
+			content: '';
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			width: max(100%, 44px);
+			height: 44px;
+			transform: translate(-50%, -50%);
+		}
 	}
 
 	.subscribe-button__icon {
@@ -444,6 +471,24 @@
 
 		.time--short {
 			display: block;
+		}
+	}
+
+	@media (max-width: 639px) {
+		.post-header-subsite {
+			flex-shrink: 1;
+		}
+
+		.post-header-author {
+			flex-shrink: 2;
+		}
+
+		.subscribe-button__icon:not(:only-child) {
+			margin: 0;
+		}
+
+		.subscribe-button__label {
+			display: none;
 		}
 	}
 
