@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
+	import { settle, swipe } from '$lib/swipe';
 	import AboutSettings from './AboutSettings.svelte';
 	import AccountSettings from './AccountSettings.svelte';
 	import AppIconSettings from './AppIconSettings.svelte';
@@ -115,6 +116,13 @@
 	let openedByUser = $state<boolean>();
 	let opened = $derived(openedByUser ?? (selectedPageId !== null && (!!page || isSolo)));
 
+	// Слайд страницы на узком экране: 0 — виден список, 1 — страница. Пока палец ведёт страницу, значение задаёт жест
+	let slide = $state<number>();
+	// То же для подменю: 0 — главная, 1 — подменю (слайд работает и на десктопе)
+	let folderSlide = $state<number>();
+	let dragging = $state(false);
+	let gestures = $derived(activeTheme.gestures && currentDevice === 'mobile');
+
 	let scroller = $state<HTMLElement>();
 	let faded = $state(false);
 	let peeking = $state(false);
@@ -159,6 +167,7 @@
 	function performMobileBack() {
 		resetSolo();
 		openedByUser = false;
+		slide = undefined;
 	}
 
 	function handleMobileBack() {
@@ -224,6 +233,7 @@
 	}
 
 	function performBackToRoot() {
+		folderSlide = undefined;
 		resetSolo();
 		activeFolderId = null;
 		selectedPageId = null;
@@ -267,6 +277,32 @@
 		}
 	}
 
+	// Свайп вправо — «назад». Слой (страница или подменю) уезжает слайдом вслед за пальцем; из соло-страницы с возвратом жест просто срабатывает
+	const follows = () => (opened ? !(isSolo && soloBackTarget) : activeFolderId !== null);
+	const setSlide = (p?: number) => (opened ? (slide = p) : (folderSlide = p));
+
+	function goBack() {
+		if (isSolo && soloBackTarget) handleReturnFromSolo();
+		else if (opened) handleMobileBack();
+		else handleBackToRoot();
+	}
+
+	const backSwipe = swipe({
+		start: (e) => gestures && (opened || activeFolderId !== null) && !(e.target as Element).closest('input, textarea, select, [contenteditable]'),
+		begin: (dx) => dx > 0,
+		move(x) {
+			if (!follows()) return;
+			dragging = true;
+			setSlide(1 - Math.min(1, x / innerWidth));
+		},
+		end(x, v) {
+			dragging = false;
+			const back = v !== null && settle(x, v, innerWidth) === -1;
+			if (follows()) setSlide(back ? 0 : undefined);
+			if (back) goBack();
+		}
+	});
+
 	function toggleFade() {
 		faded = !faded;
 		peeking = false;
@@ -294,66 +330,101 @@
 	data-view={opened ? 'page' : 'list'}
 	data-solo={isSolo ? 'true' : 'false'}
 	data-fade={faded ? 'active' : (peeking ? 'peek' : undefined)}
+	data-gestures={gestures || undefined}
+	data-dragging={dragging || undefined}
+	style:--slide={slide ?? (opened ? 1 : 0)}
+	style:--folder={folderSlide ?? (activeFolderId !== null ? 1 : 0)}
+	{@attach gestures ? backSwipe : undefined}
 >
 	<div class="panes">
 		<!-- Левая колонка (Сайдбар) -->
 		<nav class="sidebar" aria-label="Разделы настроек">
 			<header class="side-bar">
-				<h2 class="side-title">{folderTitle}</h2>
-				{#if activeFolderId && !showSearchResults}
-					<button
-						class="icon-button folder-back"
-						type="button"
-						aria-label="Назад к разделам"
-						onclick={handleBackToRoot}
-					>
-						<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-							<path d="M10 3L5 8l5 5" />
-						</svg>
-					</button>
-				{/if}
+				<!-- Заголовки лежат друг на друге и перетекают по --folder вместе со слайдом списка -->
+				<div class="side-titles">
+					<h2 class="side-title side-title--root">Настройки</h2>
+					<div class="side-title side-title--folder" aria-hidden={activeFolderId === null}>Интерфейс</div>
+				</div>
+				<button
+					class="icon-button folder-back"
+					type="button"
+					aria-label="Назад к разделам"
+					inert={activeFolderId === null}
+					onclick={handleBackToRoot}
+				>
+					<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<path d="M10 3L5 8l5 5" />
+					</svg>
+				</button>
 			</header>
 
-			<div class="nav-container">
-				<!-- Уровень 1: Поиск и главное меню -->
-				<div
-					class={['nav-layer', { 'nav-layer--hidden': activeFolderId !== null }]}
-					inert={activeFolderId !== null}
-				>
-					<div class="search-box">
-						<svg class="search-box__icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-							<circle cx="7" cy="7" r="4.5" />
-							<path d="M10.5 10.5L13.5 13.5" />
-						</svg>
-						<input
-							bind:this={searchInputEl}
-							class="search-box__input"
-							type="search"
-							aria-label="Поиск по настройкам"
-							placeholder="Поиск по настройкам"
-							bind:value={searchQuery}
-							onkeydown={handleSearchKeydown}
-						/>
-						{#if searchQuery}
-							<button
-								class="search-box__clear"
-								type="button"
-								aria-label="Очистить поиск"
-								onclick={() => {
-									searchQuery = '';
-									searchInputEl?.focus();
-								}}
-							>
-								<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
-									<path d="M4 4l8 8M12 4l-8 8" />
-								</svg>
-							</button>
-						{/if}
-					</div>
+				<div class="nav-container">
+					<!-- Уровень 1: заставка (только на мобильном), поиск и главное меню — одним прокручиваемым списком -->
+					<div
+						class="nav-layer"
+						inert={activeFolderId !== null}
+					>
+						<div class="nav">
+							<div class="hero">
+								<svg class="hero__logo" width="123" height="50" aria-hidden="true"><use href="#redtf_logo"></use></svg>
+								<h1 class="hero__title">Настройки</h1>
+							</div>
 
-					<div class="nav-container">
-						<div class={['nav-layer', { 'nav-layer--hidden': showSearchResults }]}>
-							<div class="nav">
+							<div class="search-box">
+								<svg class="search-box__icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+									<circle cx="7" cy="7" r="4.5" />
+									<path d="M10.5 10.5L13.5 13.5" />
+								</svg>
+								<input
+									bind:this={searchInputEl}
+									class="search-box__input"
+									type="search"
+									aria-label="Поиск по настройкам"
+									placeholder="Поиск по настройкам"
+									bind:value={searchQuery}
+									onkeydown={handleSearchKeydown}
+								/>
+								{#if searchQuery}
+									<button
+										class="search-box__clear"
+										type="button"
+										aria-label="Очистить поиск"
+										onclick={() => {
+											searchQuery = '';
+											searchInputEl?.focus();
+										}}
+									>
+										<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+											<path d="M4 4l8 8M12 4l-8 8" />
+										</svg>
+									</button>
+								{/if}
+							</div>
+
+							{#if showSearchResults}
+								<!-- Результаты поиска в стиле Android (пункт / найденный сеттинг) -->
+								{#if searchResults.length > 0}
+									<div class="nav__list">
+										{#each searchResults as match (match.item.id)}
+											<button
+												class="search-result"
+												type="button"
+												onclick={() => handleSearchResultClick(match.item)}
+											>
+												<SettingsIcon name={match.item.icon} />
+												<span class="search-result__body">
+													<span class="search-result__path">
+														{match.item.path}{#if match.matchedOption} · {match.matchedOption}{/if}
+													</span>
+													<span class="search-result__title">{match.item.title}</span>
+												</span>
+											</button>
+										{/each}
+									</div>
+								{:else}
+									<p class="search-empty">Ничего не найдено</p>
+								{/if}
+							{:else}
 								{#each rootNavigation as group (group.title)}
 									<section class="nav__section">
 										<h3 class="nav__group">{group.title}</h3>
@@ -377,68 +448,36 @@
 										</div>
 									</section>
 								{/each}
-							</div>
+							{/if}
 						</div>
-
-						<!-- Результаты поиска в стиле Android (пункт / найденный сеттинг) -->
-						{#if showSearchResults}
-							<div class="nav-layer search-layer">
-								<div class="nav search-results">
-									{#if searchResults.length > 0}
-										<div class="nav__list search-results__list">
-											{#each searchResults as match (match.item.id)}
-												<button
-													class="search-result"
-													type="button"
-													onclick={() => handleSearchResultClick(match.item)}
-												>
-													<SettingsIcon name={match.item.icon} />
-													<span class="search-result__body">
-														<span class="search-result__path">
-															{match.item.path}{#if match.matchedOption} · {match.matchedOption}{/if}
-														</span>
-														<span class="search-result__title">{match.item.title}</span>
-													</span>
-												</button>
-											{/each}
-										</div>
-									{:else}
-										<p class="search-empty">Ничего не найдено</p>
-									{/if}
-								</div>
-							</div>
-						{/if}
 					</div>
-				</div>
 
 				<!-- Уровень 2: Подменю выбранной папки -->
 				<div
-					class={['nav-layer', { 'nav-layer--hidden': activeFolderId === null }]}
+					class="nav-layer"
 					inert={activeFolderId === null}
 				>
 					<div class="nav">
-						{#if activeFolderId === 'interface'}
-							{#each INTERFACE_SUBNAV as group (group.title)}
-								<section class="nav__section">
-									<h3 class="nav__group">{group.title}</h3>
-									<div class="nav__list">
-										{#each group.items as item (item.id)}
-											{#if (!item.device || item.device === currentDevice) && !emptyPageIds.has(item.id)}
-												<button
-													class={['nav__item', { 'nav__item--active': item.id === selectedPageId }]}
-													type="button"
-													aria-current={item.id === selectedPageId ? 'page' : undefined}
-													onclick={() => handleSubItemClick(item)}
-												>
-													<SettingsIcon name={item.icon} />
-													<span class="nav__title">{item.title}</span>
-												</button>
-											{/if}
-										{/each}
-									</div>
-								</section>
-							{/each}
-						{/if}
+						{#each INTERFACE_SUBNAV as group (group.title)}
+							<section class="nav__section">
+								<h3 class="nav__group">{group.title}</h3>
+								<div class="nav__list">
+									{#each group.items as item (item.id)}
+										{#if (!item.device || item.device === currentDevice) && !emptyPageIds.has(item.id)}
+											<button
+												class={['nav__item', { 'nav__item--active': item.id === selectedPageId }]}
+												type="button"
+												aria-current={item.id === selectedPageId ? 'page' : undefined}
+												onclick={() => handleSubItemClick(item)}
+											>
+												<SettingsIcon name={item.icon} />
+												<span class="nav__title">{item.title}</span>
+											</button>
+										{/if}
+									{/each}
+								</div>
+							</section>
+						{/each}
 					</div>
 				</div>
 			</div>
@@ -663,7 +702,7 @@
 		flex-direction: column;
 		width: 260px;
 		background: var(--st-side);
-		box-shadow: inset -1px 0 var(--st-side-border);
+		border-right: 1px solid var(--st-side-border);
 		transition:
 			margin-left 280ms var(--ease-smooth, cubic-bezier(0.2, 0, 0, 1)),
 			opacity 220ms ease,
@@ -689,7 +728,13 @@
 		padding: 0 48px;
 	}
 
+	.side-titles {
+		display: grid;
+		min-width: 0;
+	}
+
 	.side-title {
+		grid-area: 1 / 1;
 		overflow: hidden;
 		min-width: 0;
 		font-size: 15px;
@@ -697,37 +742,51 @@
 		line-height: 22px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		transition: opacity 180ms ease, transform 180ms ease;
+		transition: var(--slide-move);
 	}
 
-	/* Круглая кнопка возврата из подменю в шапке сайдбара */
-	.folder-back {
+	.side-title--root {
+		opacity: calc(1 - var(--folder));
+	}
+
+	.side-title--folder {
+		opacity: var(--folder);
+	}
+
+	/* Круглая кнопка возврата из подменю в шапке сайдбара: проявляется вместе со слайдом */
+	.icon-button.folder-back {
 		position: absolute;
 		left: 12px;
 		top: calc((var(--st-header) - 32px) / 2);
 		width: 32px;
 		height: 32px;
-		animation: buttonPop 200ms var(--ease-smooth, cubic-bezier(0.2, 0, 0, 1));
+		opacity: var(--folder);
+		transform: scale(calc(0.8 + 0.2 * var(--folder)));
+		transition: var(--slide-move), background-color var(--duration-base);
 	}
 
-	@keyframes buttonPop {
-		from {
-			opacity: 0;
-			transform: scale(0.8);
-		}
-		to {
-			opacity: 1;
-			transform: scale(1);
-		}
-	}
-
-	/* Поле поиска в сайдбаре */
 	.search-box {
 		position: relative;
 		display: flex;
 		align-items: center;
-		flex: none;
-		margin: 5px 10px 10px;
+		margin: 5px 4px 10px;
+	}
+
+	/* Заставка главной настроек: только на мобильном, прокручивается вместе со списком */
+	.hero {
+		display: none;
+	}
+
+	.hero__logo {
+		width: 112px;
+		height: auto;
+	}
+
+	.hero__title {
+		font-size: 46px;
+		font-weight: 300;
+		letter-spacing: -0.02em;
+		line-height: 52px;
 	}
 
 	.search-box__icon {
@@ -787,10 +846,6 @@
 	.search-box__clear:focus-visible {
 		outline: 2px solid var(--st-accent);
 		outline-offset: 1px;
-	}
-
-	.search-results {
-		padding-top: 2px;
 	}
 
 	.search-result {
@@ -860,24 +915,34 @@
 		overflow: hidden;
 	}
 
+	/* Слайд слоёв: нижний уходит влево на треть, верхний выезжает справа. Положение --p: 0 — нижний, 1 — верхний.
+	   Закрытый слой не получает фокус (inert) */
+	.nav-container {
+		--p: var(--folder);
+		--layer-bg: var(--st-side);
+	}
+
 	.nav-layer {
 		position: absolute;
 		inset: 0;
 		display: flex;
 		flex-direction: column;
-		transition:
-			opacity 220ms var(--ease-smooth, cubic-bezier(0.2, 0, 0, 1)),
-			transform 240ms var(--ease-smooth, cubic-bezier(0.2, 0, 0, 1));
+		transition: var(--slide-move);
 	}
 
-	.nav-layer--hidden {
-		opacity: 0;
-		transform: translateX(-24px);
-		pointer-events: none;
+	.nav-layer:first-child {
+		transform: translateX(calc(var(--p) * -30%));
 	}
 
-	.nav-layer:nth-child(2).nav-layer--hidden {
-		transform: translateX(24px);
+	.nav-layer:nth-child(2) {
+		background: var(--layer-bg);
+		box-shadow: -12px 0 32px rgba(0, 0, 0, calc(0.18 * var(--p)));
+		transform: translateX(calc((1 - var(--p)) * 100%));
+	}
+
+	/* Пока слой ведёт палец, он идёт без анимации */
+	.window[data-dragging] :is(.nav-layer, .side-title, .folder-back, .sidebar, .content) {
+		transition: none;
 	}
 
 	.nav {
@@ -899,7 +964,7 @@
 		line-height: 18px;
 	}
 
-	.nav__section:first-child .nav__group {
+	.nav__section:first-of-type .nav__group {
 		padding-top: 2px;
 	}
 
@@ -1152,7 +1217,7 @@
 			box-sizing: border-box;
 		}
 
-		.folder-back {
+		.icon-button.folder-back {
 			position: static;
 			margin-left: auto;
 			margin-right: 0;
@@ -1169,22 +1234,73 @@
 	/* Узкое окно: двухшаговый режим drill-down */
 	@container (max-width: 719px) {
 		.panes {
-			flex-direction: column;
+			position: relative;
+		}
+
+		/* Список и страница лежат друг на друге: страница выезжает справа, список чуть уходит влево.
+		   Положение задаёт --slide (0 — список, 1 — страница), невидимый слой прячется после слайда */
+		.sidebar,
+		.content {
+			position: absolute;
+			inset: 0;
+			visibility: hidden;
+			transition:
+				var(--slide-move),
+				visibility 0s linear 300ms;
+		}
+
+		.window[data-view='list'] .sidebar,
+		.window[data-view='page'] .content,
+		.window[data-dragging] .sidebar {
+			visibility: visible;
+			transition-delay: 0s;
+		}
+
+		.nav-container {
+			--layer-bg: var(--st-bg);
 		}
 
 		.sidebar {
-			flex: 1;
 			width: auto;
-			min-height: 0;
 			background: none;
-			box-shadow: none;
+			border: none;
+			transform: translateX(calc(var(--slide) * -30%));
+		}
+
+		.content {
+			background: var(--st-bg);
+			box-shadow: -12px 0 32px rgba(0, 0, 0, calc(0.18 * var(--slide)));
+			transform: translateX(calc((1 - var(--slide)) * 100%));
 		}
 
 		.window[data-solo='true'] .sidebar {
 			margin-left: 0;
-			transform: none;
+			transform: translateX(calc(var(--slide) * -30%));
 			opacity: 1;
 			pointer-events: auto;
+		}
+
+		.window[data-gestures],
+		.window[data-gestures] :is(.scroller, .nav) {
+			touch-action: pan-y pinch-zoom;
+		}
+
+		.hero {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			gap: 18px;
+			min-height: 30dvh;
+			text-align: center;
+		}
+
+		.side-title--root {
+			visibility: hidden;
+		}
+
+		.search-box {
+			margin: 0;
 		}
 
 		.nav {
@@ -1194,7 +1310,7 @@
 		}
 
 		.nav__group,
-		.nav__section:first-child .nav__group {
+		.nav__section:first-of-type .nav__group {
 			padding: 0 4px 8px;
 		}
 
@@ -1214,10 +1330,6 @@
 
 		.nav__item:not(:first-child) {
 			border-top: 1px solid var(--st-separator);
-		}
-
-		.search-box {
-			margin: 4px 16px 4px;
 		}
 
 		.search-box__input {
@@ -1280,18 +1392,13 @@
 		}
 
 		.page {
-			padding: 0 20px 32px;
+			padding: 20px 20px 32px;
 		}
 
 		.page__title {
 			margin-bottom: 20px;
 			font-size: 30px;
 			line-height: 38px;
-		}
-
-		.window[data-view='list'] .content,
-		.window[data-view='page'] .sidebar {
-			display: none;
 		}
 	}
 
@@ -1314,6 +1421,13 @@
 		}
 	}
 
+	/* На телефоне в тёмной теме фон темнее, карточки на нём выделяются */
+	@media (max-width: 719px) {
+		:global(html[data-theme-mode='dark']) .window {
+			--st-bg: color-mix(in srgb, var(--theme-st-bg, #242424) 50%, #000);
+		}
+	}
+
 	/* Ползунок ползунка и эффекты полупрозрачности */
 	.panes,
 	.close {
@@ -1321,6 +1435,10 @@
 	}
 
 	.window {
+		--slide-move:
+			transform 300ms var(--ease-smooth, cubic-bezier(0.2, 0, 0, 1)),
+			opacity 300ms var(--ease-smooth, cubic-bezier(0.2, 0, 0, 1)),
+			box-shadow 300ms var(--ease-smooth, cubic-bezier(0.2, 0, 0, 1));
 		--fade: 0.45s cubic-bezier(0.2, 0, 0, 1);
 		transition:
 			background-color var(--fade),

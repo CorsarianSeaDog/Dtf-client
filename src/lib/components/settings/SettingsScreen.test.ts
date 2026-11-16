@@ -409,17 +409,17 @@ describe('SettingsScreen', () => {
 		const desktopMain = render(SettingsScreen, {
 			props: { onclose: () => {}, device: 'desktop' }
 		});
-		expect(desktopMain.body).toMatch(/class="nav-layer[^"]*">\s*<div class="search-box/);
+		expect(desktopMain.body).toMatch(/class="nav-layer[^"]*">\s*<div class="nav[^"]*">[\s\S]*?class="search-box/);
 
 		const desktopPage = render(SettingsScreen, {
 			props: { onclose: () => {}, device: 'desktop', page: 'sources' }
 		});
-		expect(desktopPage.body).toMatch(/class="nav-layer[^"]*">\s*<div class="search-box/);
+		expect(desktopPage.body).toMatch(/class="nav-layer[^"]*">\s*<div class="nav[^"]*">[\s\S]*?class="search-box/);
 
 		const desktopFolder = render(SettingsScreen, {
 			props: { onclose: () => {}, device: 'desktop', section: 'appearance' }
 		});
-		expect(desktopFolder.body).toMatch(/nav-layer--hidden[^>]*>\s*<div class="search-box/);
+		expect(desktopFolder.body).toMatch(/nav-layer[^>]*inert[^>]*>\s*<div class="nav[^"]*">[\s\S]*?class="search-box/);
 
 		const mobilePage = render(SettingsScreen, {
 			props: { onclose: () => {}, device: 'mobile', page: 'sources' }
