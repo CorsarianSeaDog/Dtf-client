@@ -11,6 +11,10 @@ const config: CapacitorConfig = {
 		hostname
 	},
 	plugins: {
+		// «Назад» ведёт плагин NativeBack: ему нужен ход системного жеста
+		App: {
+			disableBackButtonHandler: true
+		},
 		CapacitorUpdater: {
 			autoUpdate: 'off',
 			statsUrl: '',

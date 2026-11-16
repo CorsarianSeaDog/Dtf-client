@@ -24,8 +24,10 @@ const appMocks = vi.hoisted(() => ({
 
 vi.mock('@capacitor/core', () => ({
 	Capacitor: {
-		isNativePlatform: appMocks.isNativePlatform
-	}
+		isNativePlatform: appMocks.isNativePlatform,
+		isPluginAvailable: () => false
+	},
+	registerPlugin: () => ({})
 }));
 
 vi.mock('@capacitor/browser', () => ({

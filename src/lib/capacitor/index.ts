@@ -6,6 +6,7 @@ import { Browser } from '@capacitor/browser';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { page } from '$app/state';
 import { closeOverlay, openDtfLink, openDtfUrl, popSubstate } from '$lib/navigation';
+import { initNativeBack, setBackEnabled } from './back';
 import { otaUpdater, shellUpdater } from './updater.svelte';
 
 let initialized = false;
@@ -206,6 +207,19 @@ export function handleBackButton(canGoBack: boolean = false): void {
 }
 
 /**
+ * Перехватывать ли «Назад» в приложении. Когда закрывать нечего (главная лента без оверлеев и полноэкранного режима),
+ * жест достаётся системе, и она показывает свою анимацию вместо нашего сворачивания. Читает реактивное состояние:
+ * вызывайте из `$effect`. Вложенные шаги (`pushSubstate`) бывают только внутри оверлея или не на главной.
+ */
+export function syncBackHandler(): void {
+	if (typeof window === 'undefined' || !isNative()) return;
+	const doc = document as Document & { webkitFullscreenElement?: Element | null };
+	void page.url;
+	const busy = Boolean(doc.fullscreenElement || doc.webkitFullscreenElement) || (page.state.overlays ?? []).length > 0 || (window.location.pathname !== '/' && window.location.pathname !== '');
+	setBackEnabled(busy);
+}
+
+/**
  * Инициализация нативных обработчиков Capacitor (кнопка «Назад», StatusBar, SplashScreen, App Links).
  */
 export function initCapacitor(): void {
@@ -237,10 +251,14 @@ export function initCapacitor(): void {
 		}).catch(() => {});
 	}
 
-	// Обработка аппаратной кнопки / системного свайпа «Назад»
+	// «Назад» ведёт плагин NativeBack (с ходом жеста), а `backButton` приходит только от старых оболочек без него:
+	// OTA обновляет JS, а оболочку нет
+	initNativeBack(() => handleBackButton(window.history.length > 1));
 	App.addListener('backButton', ({ canGoBack }) => {
 		handleBackButton(canGoBack);
 	});
+	// Полноэкранное видео перехватывает «Назад» само, даже на главной
+	document.addEventListener('fullscreenchange', syncBackHandler);
 
 	// Обработка входящих ссылок (App Links / Deep Links) при открытии свернутого/активного приложения
 	App.addListener('appUrlOpen', (event) => {
