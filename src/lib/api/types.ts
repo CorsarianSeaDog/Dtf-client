@@ -268,6 +268,7 @@ export interface Comment {
 	author: User;
 	content: string;
 	createdAt: string;
+	lastModificationDate?: number;
 	replyTo?: number;
 	level?: number;
 	isIgnored?: boolean;
@@ -318,6 +319,9 @@ export interface CommentPatch {
 	content?: string;
 	media?: CommentMedia[];
 }
+
+/** Правка комментария: готовый патч либо функция от его текущего состояния (откат на живых данных) */
+export type CommentUpdate = Partial<Comment> | ((current: Comment) => Partial<Comment>);
 
 export interface CommentTreeItem extends Comment {
 	children: CommentTreeItem[];
@@ -520,9 +524,20 @@ export interface ApiProvider {
 	setSubscription?(subsiteId: number, subscribed: boolean): Promise<void>;
 	setSubscriptionNotifications?(subsiteId: number, enabled: boolean): Promise<void>;
 
-	// Уведомления
+	// Уведомления и realtime
 	getNotifications?(): Promise<Notification[]>;
+	getNotificationsUnreadCount?(): Promise<number>;
 	markNotificationsRead?(ids: number[]): Promise<void>;
+	markAllNotificationsRead?(): Promise<void>;
+	subscribeComments?(
+		postId: number,
+		onUpdate: (event: RealtimeCommentEvent) => void,
+		options?: RealtimeSubscriptionOptions
+	): () => void;
+	subscribeNotifications?(
+		onUpdate: (event: RealtimeNotificationEvent) => void,
+		options?: RealtimeSubscriptionOptions
+	): () => void;
 
 	// Вход
 	login?(email: string, password: string): Promise<Session>;
@@ -572,4 +587,42 @@ export interface ApiProvider {
 	setCommentPermissions?(postId: number, permission: CommentPermission): Promise<void>;
 	getPostHistory?(postId: number): Promise<PostHistoryVersion[]>;
 	getPostHistoryVersion?(postId: number, versionId: number): Promise<DtfEditorEntry>;
+}
+
+export interface RealtimeCommentCreatedOrEditedEvent {
+	type: 'comment_created' | 'comment_edited';
+	comment: Comment;
+	postId: number;
+}
+
+export interface RealtimeCommentVotedEvent {
+	type: 'comment_voted';
+	postId: number;
+	commentId: number;
+	fromReactionId: number;
+	reactionId: number;
+	reactionCount: number;
+	actorId?: number;
+}
+
+export interface RealtimeCommentDonationEvent {
+	type: 'change_donation_amount_for_comment';
+	postId: number;
+	commentId: number;
+	amount: number;
+}
+
+export type RealtimeCommentEvent =
+	| RealtimeCommentCreatedOrEditedEvent
+	| RealtimeCommentVotedEvent
+	| RealtimeCommentDonationEvent;
+
+export interface RealtimeNotificationEvent {
+	type: number;
+	unread: number;
+}
+
+export interface RealtimeSubscriptionOptions {
+	onReady?: (info: { reconnected: boolean }) => void;
+	onError?: (error: Error) => void;
 }

@@ -1,4 +1,17 @@
-import type { ApiProvider, Comment, CommentPatch, CursorData, GetPostsOptions, PaginatedResult, Post, SearchSubsite, User } from './types';
+import type {
+	ApiProvider,
+	Comment,
+	CommentPatch,
+	CursorData,
+	GetPostsOptions,
+	PaginatedResult,
+	Post,
+	RealtimeCommentEvent,
+	RealtimeNotificationEvent,
+	RealtimeSubscriptionOptions,
+	SearchSubsite,
+	User
+} from './types';
 import { dtfApiProvider } from './providers/dtf';
 import { createSourceProvider } from './providers/source';
 import { sourceRegistry } from './sources/registry.svelte';
@@ -286,7 +299,24 @@ export const api = {
 	},
 	setSubscriptionNotifications: dtfApiProvider.setSubscriptionNotifications,
 	getNotifications: dtfApiProvider.getNotifications,
+	getNotificationsUnreadCount: dtfApiProvider.getNotificationsUnreadCount,
 	markNotificationsRead: dtfApiProvider.markNotificationsRead,
+	markAllNotificationsRead: dtfApiProvider.markAllNotificationsRead,
+	subscribeComments(
+		postId: number,
+		sourceId: string,
+		onUpdate: (event: RealtimeCommentEvent) => void,
+		options?: RealtimeSubscriptionOptions
+	): (() => void) | undefined {
+		if (sourceId !== 'dtf' || !Number.isInteger(postId) || postId <= 0) return undefined;
+		return dtfApiProvider.subscribeComments(postId, onUpdate, options);
+	},
+	subscribeNotifications(
+		onUpdate: (event: RealtimeNotificationEvent) => void,
+		options?: RealtimeSubscriptionOptions
+	): () => void {
+		return dtfApiProvider.subscribeNotifications(onUpdate, options);
+	},
 
 	// --- Профили (пока только DTF) ---
 

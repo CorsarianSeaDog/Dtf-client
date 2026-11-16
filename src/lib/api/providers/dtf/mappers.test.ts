@@ -180,6 +180,12 @@ describe('mapComment', () => {
 		expect(comment.deviceSource).toBe('android-app');
 	});
 
+	it('мапит валидный lastModificationDate и игнорирует некорректные значения', () => {
+		expect(mapComment({ id: 12, text: 'a', lastModificationDate: 1700000123 }, 1).lastModificationDate).toBe(1700000123);
+		expect(mapComment({ id: 13, text: 'b', lastModificationDate: null }, 1).lastModificationDate).toBeUndefined();
+		expect(mapComment({ id: 14, text: 'c', lastModificationDate: Number.NaN }, 1).lastModificationDate).toBeUndefined();
+	});
+
 	it('замороженный автор и бан помечают заглушку; заморозка не считается модерацией', () => {
 		const frozen = mapComment({ id: 1, text: 'Комментарий недоступен', author: { id: 20, isFrozen: true } }, 1);
 		expect(frozen.author.isFrozen).toBe(true);
