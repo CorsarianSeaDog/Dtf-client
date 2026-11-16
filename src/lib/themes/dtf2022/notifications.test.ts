@@ -4,6 +4,7 @@ import NotificationsPanel from './NotificationsPanel.svelte';
 import { authStorage } from '$lib/storage/auth.svelte';
 import { filterSettings } from '$lib/storage/filter.svelte';
 import { notifications } from '$lib/api/notifications.svelte';
+import { currentUser } from '$lib/api/currentUser.svelte';
 import { api } from '$lib/api/index.svelte';
 import type { Notification, RealtimeNotificationEvent, RealtimeSubscriptionOptions } from '$lib/api/types';
 
@@ -282,5 +283,59 @@ describe('notifications store: realtime и серверный счётчик', (
 		await marking;
 		expect(notifications.items[0].isRead).toBe(true);
 		expect(warnSpy).toHaveBeenCalled();
+	});
+
+	it('синхронизирует сброс счётчика и прочтение с другими вкладками через BroadcastChannel', async () => {
+		const count = deferred<number>();
+		vi.mocked(api.getNotificationsUnreadCount).mockReturnValueOnce(count.promise);
+		vi.spyOn(api, 'getMe').mockResolvedValue({ id: 777, name: 'User' } as any);
+		await currentUser.load();
+
+		const peer = new BroadcastChannel('redtf:notifications');
+		const sent: unknown[] = [];
+		peer.onmessage = (e) => sent.push(e.data);
+
+		try {
+			notifications.connect();
+			capturedOnUpdate?.({ type: 4, unread: 3 });
+			expect(notifications.unread).toBe(3);
+
+			// Чужой аккаунт игнорируется
+			peer.postMessage({ type: 'loaded', userId: 999, items: [makeNotification(1)] });
+			await new Promise((r) => setTimeout(r, 20));
+			expect(notifications.unread).toBe(3);
+
+			// Своя вкладка загрузила список: unread сбрасывается и опоздавший счётчик его не затирает
+			const syncedItem = makeNotification(10);
+			peer.postMessage({ type: 'loaded', userId: 777, items: [syncedItem, makeNotification(11)] });
+			await vi.waitFor(() => expect(notifications.unread).toBe(0));
+			expect(notifications.items.map((n) => n.id)).toEqual([10, 11]);
+
+			count.resolve(5);
+			await Promise.resolve();
+			await Promise.resolve();
+			expect(notifications.unread).toBe(0);
+
+			// Пометка прочитанным из другой вкладки снимает подсветку, не трогая unread
+			capturedOnUpdate?.({ type: 4, unread: 1 });
+			peer.postMessage({ type: 'markRead', userId: 777, ids: [10] });
+			await vi.waitFor(() => expect(notifications.items[0].isRead).toBe(true));
+			expect(notifications.items[1].isRead).toBe(false);
+			expect(notifications.unread).toBe(1);
+
+			peer.postMessage({ type: 'markRead', userId: 777 });
+			await vi.waitFor(() => expect(notifications.canMarkAll).toBe(false));
+
+			// Свои load() и markRead() рассылают события другим вкладкам
+			vi.mocked(api.getNotifications).mockResolvedValueOnce([makeNotification(20)]);
+			await notifications.load();
+			await notifications.markRead([20]);
+			await vi.waitFor(() => expect(sent).toHaveLength(2));
+			expect(sent[0]).toEqual({ type: 'loaded', userId: 777, items: [makeNotification(20)] });
+			expect(sent[1]).toEqual({ type: 'markRead', userId: 777, ids: [20] });
+		} finally {
+			peer.close();
+			currentUser.clear();
+		}
 	});
 });

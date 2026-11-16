@@ -1,6 +1,15 @@
+import { untrack } from 'svelte';
 import { api } from './index.svelte';
+import { currentUser } from './currentUser.svelte';
 import type { Notification } from './types';
+import { authStorage } from '$lib/storage/auth.svelte';
 import { filterSettings, isNotificationHidden } from '$lib/storage/filter.svelte';
+
+const SYNC_CHANNEL = 'redtf:notifications';
+
+type SyncMessage =
+	| { type: 'loaded'; userId?: number; items: Notification[] }
+	| { type: 'markRead'; userId?: number; ids?: number[] };
 
 let all = $state.raw<Notification[]>([]);
 /** Уведомления без тех, где все авторы скрыты локально */
@@ -22,6 +31,54 @@ let stale = true;
 let visible = 0;
 let running: Promise<void> | undefined;
 let unsubscribe: (() => void) | undefined;
+let channel: BroadcastChannel | undefined;
+
+function currentUserId(): number | undefined {
+	return untrack(() => currentUser.value?.id);
+}
+
+function postSync(msg: { type: 'loaded'; items: Notification[] } | { type: 'markRead'; ids?: number[] }) {
+	if (!channel) return;
+	try {
+		channel.postMessage({ ...msg, userId: currentUserId() } satisfies SyncMessage);
+	} catch {
+		// Игнорируем ошибку сериализации или закрытого канала
+	}
+}
+
+function applySync(raw: unknown) {
+	if (!raw || typeof raw !== 'object' || !untrack(() => authStorage.isAuthenticated)) return;
+	const msg = raw as Partial<SyncMessage>;
+	const myId = currentUserId();
+	if (msg.userId !== undefined && myId !== undefined && msg.userId !== myId) return;
+
+	if (msg.type === 'loaded' && Array.isArray(msg.items)) {
+		all = msg.items;
+		loaded = true;
+		stale = false;
+		unread = 0;
+		fresher++;
+		error = '';
+	} else if (msg.type === 'markRead') {
+		const idSet = Array.isArray(msg.ids) ? new Set(msg.ids) : null;
+		all = all.map((n) => (!n.isRead && (!idSet || idSet.has(n.id)) ? { ...n, isRead: true } : n));
+	}
+}
+
+function openSync() {
+	if (channel || typeof BroadcastChannel !== 'function') return;
+	try {
+		channel = new BroadcastChannel(SYNC_CHANNEL);
+		channel.onmessage = (e) => applySync(e.data);
+	} catch {
+		channel = undefined;
+	}
+}
+
+function closeSync() {
+	channel?.close();
+	channel = undefined;
+}
 
 /** Один запрос за раз; если за время запроса список снова устарел, грузит ещё раз */
 function load(): Promise<void> {
@@ -41,6 +98,7 @@ async function run(): Promise<void> {
 			loaded = true;
 			unread = 0; // запрос списка сам обнуляет серверный счётчик
 			fresher++;
+			if (!stale) postSync({ type: 'loaded', items: next });
 		} while (stale);
 	} catch (e) {
 		if (mine !== epoch) return;
@@ -94,6 +152,7 @@ export const notifications = {
 	/** Подключает счётчик и сокет для текущей сессии; повторный вызов при живой подписке ничего не делает */
 	connect() {
 		if (unsubscribe) return;
+		openSync();
 		syncCount();
 		unsubscribe = api.subscribeNotifications(
 			(event) => {
@@ -132,6 +191,7 @@ export const notifications = {
 		setRead(true);
 		try {
 			await (ids ? api.markNotificationsRead([...changed]) : api.markAllNotificationsRead());
+			if (mine === epoch) postSync({ type: 'markRead', ids: ids ? [...changed] : undefined });
 		} catch (e) {
 			console.warn('[notifications] Не удалось отметить прочитанными:', e);
 			if (mine === epoch) setRead(false);
@@ -140,6 +200,7 @@ export const notifications = {
 
 	clear() {
 		epoch++;
+		closeSync();
 		unsubscribe?.();
 		unsubscribe = undefined;
 		all = [];
