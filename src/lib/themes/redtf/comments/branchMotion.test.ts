@@ -152,6 +152,34 @@ describe('branchMotion reflow', () => {
 		expect(list.anims[0].keyframes).toEqual({ height: ['500px', '400px'] });
 	});
 
+	it('при сворачивании ветки длиннее окна списка новые строки приезжают из-за его нижнего края', async () => {
+		vi.stubGlobal('window', { matchMedia: () => ({ matches: false }) });
+		vi.stubGlobal('innerHeight', 800);
+
+		const a = fakeNode('comment-a', 100);
+		const b = fakeNode('comment-b', 180);
+		const c = fakeNode('comment-c', 260);
+		const d = fakeNode('comment-d', 180);
+		const e = fakeNode('comment-e', 260);
+		const list = fakeList([a, b, c], 5000, 4000);
+
+		const promise = reflow(
+			list as unknown as HTMLElement,
+			() => list.setRows([a, d, e]),
+			(row) => row.id !== 'comment-a'
+		);
+		b.finishAnimations();
+		c.finishAnimations();
+		await promise;
+
+		// Низ последней строки до сворачивания — 340: обе новые строки едут оттуда одним блоком
+		expect(a.anims).toHaveLength(0);
+		for (const node of [d, e]) {
+			expect(node.anims).toHaveLength(1);
+			expect(node.anims[0].keyframes).toEqual([{ transform: 'translateY(160px)' }, { transform: 'none' }]);
+		}
+	});
+
 	it('при разворачивании играет IN для новых строк и MOVE для сдвинутых вниз соседей', async () => {
 		vi.stubGlobal('window', { matchMedia: () => ({ matches: false }) });
 		vi.stubGlobal('innerHeight', 800);

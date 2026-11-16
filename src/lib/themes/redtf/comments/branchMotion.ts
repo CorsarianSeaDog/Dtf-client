@@ -4,7 +4,8 @@ import { ease, reducedMotion } from '$lib/motion';
 /*
  * Плавное сворачивание и разворачивание ветки (FLIP). Уходящие строки сначала гаснут, потом список меняется,
  * и строки, что остались, переезжают со старого места на новое, а новые проявляются, когда соседи их освободили.
- * Работает с тем, что сейчас в DOM: строки, вошедшие снизу в окно списка (решение 0015) при сворачивании, едут вместе с соседями.
+ * Работает с тем, что сейчас в DOM: строки, вошедшие снизу в окно списка (решение 0015) при сворачивании, едут вместе с соседями,
+ * а если соседей в окне не было (ветка длиннее окна) — из-за нижнего края окна.
  */
 
 const MOVE = { duration: 300, easing: ease.smooth };
@@ -26,6 +27,8 @@ export async function reflow(list: HTMLElement | undefined, change: () => void, 
 	for (const node of rowsOf(list)) {
 		if (!gone.has(node)) before.set(node.id, node.getBoundingClientRect().top);
 	}
+	// Низ последней строки в DOM: из-за него приедут строки, которых в окне списка ещё не было
+	const tail = rowsOf(list).at(-1)?.getBoundingClientRect().bottom ?? 0;
 	const h0 = list.offsetHeight;
 	// Браузер не должен якорить прокрутку на строках ниже ветки и зажимать скролл у низа страницы до замера FLIP
 	list.style.overflowAnchor = 'none';
@@ -41,6 +44,8 @@ export async function reflow(list: HTMLElement | undefined, change: () => void, 
 		const old = before.get(node.id);
 		if (old === undefined) {
 			if (out.length) {
+				// Ветка уходила за низ окна списка: соседей снизу в DOM не было, сдвиг считаем от его края
+				if (Math.abs(lastDy) <= 0.5) lastDy = tail - node.getBoundingClientRect().top;
 				if (Math.abs(lastDy) > 0.5) moves.push([node, lastDy]);
 			} else {
 				enters.push(node);
