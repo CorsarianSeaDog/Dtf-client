@@ -1,8 +1,8 @@
-import type { Comment } from '$lib/api/types';
+import type { Comment, CommentUpdate } from '$lib/api/types';
 import { api } from '$lib/api/index.svelte';
 import { ensureLogin } from '../actions.svelte';
 import { ruleOf } from '$lib/storage/reactions.svelte';
-import { applyReaction, nextReactionId, nextVoteReactionId } from '$lib/reactions';
+import { applyReaction, nextReactionId, nextVoteReactionId, rollbackOptimisticReaction } from '$lib/reactions';
 import { notify } from '../ui/notify.svelte';
 import { haptics } from '$lib/haptics';
 
@@ -13,11 +13,12 @@ import { haptics } from '$lib/haptics';
 export function toggleCommentReaction(
 	comment: Comment,
 	reactionId: number,
-	onpatch?: (patch: Partial<Comment>) => void
+	onpatch?: (update: CommentUpdate) => void
 ): boolean {
 	if (comment.sourceId === 'dtf' && !ensureLogin()) return false;
 
 	const prev = $state.snapshot(comment.reactions);
+	const fromReactionId = prev?.reactionId ?? 0;
 	const next = nextReactionId(prev, reactionId);
 	if (!next) haptics.soft();
 	else if (ruleOf(next).kind === 'negative') haptics.dislike();
@@ -27,15 +28,16 @@ export function toggleCommentReaction(
 	else comment.reactions = reactions;
 
 	api.reactToComment(comment.id, next, comment.sourceId, comment.author).catch((e) => {
-		if (onpatch) onpatch({ reactions: prev });
-		else comment.reactions = prev;
+		// Откат на живом состоянии: за время запроса чужие голоса уже могли обновить счётчики
+		if (onpatch) onpatch((cur) => ({ reactions: rollbackOptimisticReaction(cur.reactions, fromReactionId, next) }));
+		else comment.reactions = rollbackOptimisticReaction($state.snapshot(comment.reactions), fromReactionId, next);
 		notify.error(e.message);
 	});
 	return true;
 }
 
 /** Голос «за» или «против» — реакции, которые пользователь выбрал для лайка и дизлайка в настройках (или снятие уже поставленной реакции того же знака) */
-export const voteComment = (comment: Comment, sign: 1 | -1, onpatch?: (patch: Partial<Comment>) => void) =>
+export const voteComment = (comment: Comment, sign: 1 | -1, onpatch?: (update: CommentUpdate) => void) =>
 	toggleCommentReaction(comment, nextVoteReactionId(comment.reactions, sign), onpatch);
 
 export async function toggleCommentFavorite(comment: Comment, onpatch?: (patch: Partial<Comment>) => void) {

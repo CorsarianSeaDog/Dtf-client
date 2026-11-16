@@ -87,3 +87,72 @@ export function customVoteIconOf(reactions: Reactions | undefined, sign: 1 | -1)
 	const id = nextVoteReactionId(reactions, sign);
 	return id !== voteReaction(sign) ? REACTIONS[id] : undefined;
 }
+
+/**
+ * Применяет серверное событие `comment voted`. `reactionCount` — счётчик реакции после голоса,
+ * но при смене A -> B сервер шлёт его без нового голоса (проверено вживую), поэтому B = reactionCount + 1.
+ * Своё действие приходит эхом: после оптимистичного обновления A уже вычтена, второй раз её не трогаем;
+ * если локально ещё стоит A, голос пришёл с другой вкладки или устройства, и A вычитается.
+ */
+export function applyRealtimeVote(
+	reactions: Reactions | undefined,
+	event: { fromReactionId: number; reactionId: number; reactionCount: number; actorId?: number },
+	viewerId?: number
+): Reactions {
+	const current = reactions ?? { counters: [], reactionId: 0 };
+	const counters = current.counters.map((c) => ({ ...c }));
+
+	const setCount = (id: number, count: number) => {
+		const idx = counters.findIndex((c) => c.id === id);
+		if (count > 0) {
+			if (idx >= 0) counters[idx].count = count;
+			else counters.push({ id, count });
+		} else if (idx >= 0) {
+			counters.splice(idx, 1);
+		}
+	};
+
+	const { fromReactionId, reactionId, reactionCount } = event;
+	const own = viewerId !== undefined && event.actorId === viewerId;
+
+	if (fromReactionId && reactionId) {
+		setCount(reactionId, reactionCount + 1);
+		const prev = counters.find((c) => c.id === fromReactionId);
+		if (prev && (!own || current.reactionId === fromReactionId)) setCount(fromReactionId, prev.count - 1);
+	} else if (reactionId || fromReactionId) {
+		setCount(reactionId || fromReactionId, reactionCount);
+	}
+
+	return { counters, reactionId: own ? reactionId : current.reactionId };
+}
+
+/** Откатывает только свой неудавшийся переход реакции на живом состоянии, не затирая чужие голоса */
+export function rollbackOptimisticReaction(
+	current: Reactions | undefined,
+	fromReactionId: number,
+	toReactionId: number
+): Reactions {
+	const base = current ?? { counters: [], reactionId: 0 };
+	const counters = base.counters.map((c) => ({ ...c }));
+
+	if (base.reactionId !== toReactionId) {
+		return { counters, reactionId: base.reactionId };
+	}
+
+	const bump = (id: number, delta: number) => {
+		if (!id) return;
+		const idx = counters.findIndex((c) => c.id === id);
+		if (idx >= 0) {
+			const next = counters[idx].count + delta;
+			if (next > 0) counters[idx].count = next;
+			else counters.splice(idx, 1);
+		} else if (delta > 0) {
+			counters.push({ id, count: delta });
+		}
+	};
+
+	bump(toReactionId, -1);
+	bump(fromReactionId, 1);
+
+	return { counters, reactionId: fromReactionId };
+}

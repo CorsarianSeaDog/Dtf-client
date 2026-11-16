@@ -29,7 +29,7 @@
 	import { COMMENT_MEDIA_MAX_HEIGHT, mediaMaxWidth, mediaPreviewUrl } from '../media';
 	import { parseCommentText } from './commentText';
 	import { commentKey, type CommentRow } from './flatten';
-	import type { Comment } from '$lib/api/types';
+	import type { CommentUpdate } from '$lib/api/types';
 	import { toggleCommentFavorite, toggleCommentReaction, voteComment } from './votes.svelte';
 	import { settings } from '$lib/storage/settings.svelte';
 	import { getCommentBadge } from '$lib/clientBadge';
@@ -77,7 +77,7 @@
 		onexpand: () => void;
 		/** Переход к родительскому комментарию по стрелке */
 		onparent?: (key: string) => void;
-		onpatch?: (patch: Partial<Comment>) => void;
+		onpatch?: (update: CommentUpdate) => void;
 		/** Редактор ответа (один на все комментарии, рендерит родитель) */
 		editor: Snippet<[boolean]>;
 	} = $props();

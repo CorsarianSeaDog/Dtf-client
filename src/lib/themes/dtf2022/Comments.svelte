@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import type { Comment, CommentEditorState, CommentMedia } from '$lib/api/types';
+	import type { CommentUpdate, CommentEditorState, CommentMedia } from '$lib/api/types';
 	import { api } from '$lib/api/index.svelte';
 	import { CommentsLogic } from '$lib/components/Comments/commentsLogic.svelte';
 	import { ensureLogin } from './actions.svelte';
@@ -13,6 +13,7 @@
 	import CommentItem from './comments/CommentItem.svelte';
 	import CommentRestriction from './comments/CommentRestriction.svelte';
 	import { commentKey, flattenComments } from './comments/flatten';
+	import { bindCommentsView } from './comments/commentsView.svelte';
 	import { VirtualRows } from './comments/virtualRows.svelte';
 	import { reactionSettings } from '$lib/storage/reactions.svelte';
 
@@ -25,7 +26,9 @@
 		commentEditor,
 		focusCommentId,
 		focusNonce,
-		onfocused
+		onfocused,
+		onCountChange,
+		onReconnect
 	}: {
 		postId: number;
 		sourceId?: string;
@@ -36,6 +39,8 @@
 		focusCommentId?: number;
 		focusNonce?: number;
 		onfocused?: () => void;
+		onCountChange?: (delta: number) => void;
+		onReconnect?: () => void;
 	} = $props();
 
 	let sortings = $derived([
@@ -57,8 +62,8 @@
 	let rows = $derived(flattenComments(logic.comments, logic.maxVisualDepth));
 
 	/** Оценка или закладка: меняем узел и только его строку, а не пересобираем весь список */
-	function patchRow(key: string, patch: Partial<Comment>) {
-		const next = logic.patchComment(key, patch);
+	function patchRow(key: string, update: CommentUpdate) {
+		const next = logic.patchComment(key, update);
 		if (next) rows = rows.map((row) => (row.key === key ? { ...row, comment: next } : row));
 	}
 
@@ -66,6 +71,15 @@
 	let shown = $derived(collapsed.size ? rows.filter((row) => !row.owners.some((o) => collapsed.has(o))) : rows);
 	/** В DOM только строки около экрана (решение 0015); строка с открытым редактором остаётся */
 	const virtual = new VirtualRows(() => shown, () => replyTo);
+
+	bindCommentsView({
+		logic,
+		onPatchRow: (key, next) => {
+			rows = rows.map((row) => (row.key === key ? { ...row, comment: next } : row));
+		},
+		onCountChange: (delta) => onCountChange?.(delta),
+		onReconnect: () => onReconnect?.()
+	});
 
 	let replyTo = $state<string | null>(null);
 	/** Редактор под комментарием правит его, а не отвечает */
@@ -209,7 +223,7 @@
 			untrack(() => logic.loadComments());
 		} else if (!logic.loading && !refetchAttempted && !logic.error) {
 			refetchAttempted = true;
-			untrack(() => logic.loadComments(true));
+			untrack(() => logic.loadComments(true, { bypassCache: true }));
 		} else if (!logic.loading) {
 			// Комментарий удалён или не найден: дальше искать негде
 			lastScrolledKey = currentFocusKey;
@@ -319,10 +333,12 @@
 					onedit={() => edit(row.key, row.comment.content, row.comment.media)}
 					onlinehover={(line) => highlightBranch(index, line)}
 					onlineclick={collapseBranch}
-					onexpand={() => collapsed.delete(row.key)}
+					onexpand={() => {
+						collapsed.delete(row.key);
+					}}
 					onparent={(key) => virtual.focus(key)}
 					measure={virtual.measure}
-					onpatch={(patch) => patchRow(row.key, patch)}
+					onpatch={(update) => patchRow(row.key, update)}
 					{editor}
 				/>
 			{/each}

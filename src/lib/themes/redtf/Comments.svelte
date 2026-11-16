@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import type { Comment, CommentEditorState, CommentMedia } from '$lib/api/types';
+	import type { Comment, CommentUpdate, CommentEditorState, CommentMedia } from '$lib/api/types';
 	import { api } from '$lib/api/index.svelte';
 	import { CommentsLogic } from '$lib/components/Comments/commentsLogic.svelte';
 	import { settings } from '$lib/storage/settings.svelte';
@@ -14,6 +14,7 @@
 	import CommentItem from '../dtf2022/comments/CommentItem.svelte';
 	import CommentRestriction from '../dtf2022/comments/CommentRestriction.svelte';
 	import { commentKey, flattenComments } from '../dtf2022/comments/flatten';
+	import { bindCommentsView } from '../dtf2022/comments/commentsView.svelte';
 	import { VirtualRows } from '../dtf2022/comments/virtualRows.svelte';
 	import { toggleCommentReaction, voteComment } from '../dtf2022/comments/votes.svelte';
 	import { REACTIONS } from '$lib/config/reactions';
@@ -35,7 +36,9 @@
 		commentEditor,
 		focusCommentId,
 		focusNonce,
-		onfocused
+		onfocused,
+		onCountChange,
+		onReconnect
 	}: {
 		postId: number;
 		sourceId?: string;
@@ -46,6 +49,8 @@
 		focusCommentId?: number;
 		focusNonce?: number;
 		onfocused?: () => void;
+		onCountChange?: (delta: number) => void;
+		onReconnect?: () => void;
 	} = $props();
 
 	/** Писать нельзя: ни нового комментария, ни ответа (правка своего остаётся на усмотрение сервера) */
@@ -74,8 +79,8 @@
 	let rows = $derived(flattenComments(logic.comments, maxDepth));
 
 	/** Оценка или закладка: меняем узел и только его строку, а не пересобираем весь список */
-	function patchRow(key: string, patch: Partial<Comment>) {
-		const next = logic.patchComment(key, patch);
+	function patchRow(key: string, update: CommentUpdate) {
+		const next = logic.patchComment(key, update);
 		if (next) rows = rows.map((row) => (row.key === key ? { ...row, comment: next } : row));
 	}
 
@@ -83,6 +88,15 @@
 	let shown = $derived(collapsed.size ? rows.filter((row) => !row.owners.some((o) => collapsed.has(o))) : rows);
 	/** В DOM только строки около экрана (решение 0015); строка с открытым редактором остаётся */
 	const virtual = new VirtualRows(() => shown, () => replyTo);
+
+	bindCommentsView({
+		logic,
+		onPatchRow: (key, next) => {
+			rows = rows.map((row) => (row.key === key ? { ...row, comment: next } : row));
+		},
+		onCountChange: (delta) => onCountChange?.(delta),
+		onReconnect: () => onReconnect?.()
+	});
 
 	let replyTo = $state<string | null>(null);
 	/** Редактор под комментарием правит его, а не отвечает */
@@ -222,7 +236,7 @@
 			untrack(() => logic.loadComments());
 		} else if (!logic.loading && !refetchAttempted && !logic.error) {
 			refetchAttempted = true;
-			untrack(() => logic.loadComments(true));
+			untrack(() => logic.loadComments(true, { bypassCache: true }));
 		} else if (!logic.loading) {
 			lastScrolledKey = currentFocusKey;
 			onfocused?.();
@@ -254,7 +268,9 @@
 			return;
 		}
 		const hidden = new Set(virtual.items.filter((row) => row.owners.includes(owner)).map((row) => `comment-${row.key}`));
-		reflow(listEl, () => collapsed.add(owner), (row) => hidden.has(row.id));
+		reflow(listEl, () => {
+			collapsed.add(owner);
+		}, (row) => hidden.has(row.id));
 	}
 
 	/** Ответ раскрылся под комментарием: когда дорос, докручиваем, если он ушёл за край экрана */
@@ -263,9 +279,9 @@
 	/* Свайп влево по комментарию: ответ, а под ним по порядку — оценка или любимые реакции */
 	type SwipeAction = { label: string; icon?: string; image?: string; run: (key: string) => void };
 	// Комментарий из реактивного дерева, как у строки списка: в карте лежат копии, правка по ним не видна
-	const withComment = (key: string, act: (comment: Comment, onpatch: (patch: Partial<Comment>) => void) => void) => {
+	const withComment = (key: string, act: (comment: Comment, onpatch: (update: CommentUpdate) => void) => void) => {
 		const comment = rows.find((row) => row.key === key)?.comment;
-		if (comment) act(comment, (patch) => patchRow(key, patch));
+		if (comment) act(comment, (update) => patchRow(key, update));
 	};
 	let swipeActions = $derived.by((): SwipeAction[] => {
 		const extra: SwipeAction[] =
@@ -392,10 +408,13 @@
 						onedit={() => edit(row.key, row.comment.content, row.comment.media)}
 						onlinehover={(line) => highlightBranch(index, line)}
 						onlineclick={collapseBranch}
-						onexpand={() => reflow(listEl, () => collapsed.delete(row.key))}
+						onexpand={() =>
+							reflow(listEl, () => {
+								collapsed.delete(row.key);
+							})}
 						onparent={(key) => virtual.focus(key)}
 						measure={virtual.measure}
-						onpatch={(patch) => patchRow(row.key, patch)}
+						onpatch={(update) => patchRow(row.key, update)}
 						{editor}
 					/>
 				{/each}

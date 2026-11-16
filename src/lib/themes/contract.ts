@@ -50,6 +50,10 @@ export interface ThemeComponents {
 		focusNonce?: number;
 		/** Поиск `focusCommentId` закончился (нашли или не нашли): вызывается до прокрутки, чтобы экран успел показать список */
 		onfocused?: () => void;
+		/** Изменение числа комментариев поста из realtime или при отправке */
+		onCountChange?: (delta: number) => void;
+		/** Канал комментариев переподключился после обрыва */
+		onReconnect?: () => void;
 	};
 	Profile: {
 		profile: Profile;

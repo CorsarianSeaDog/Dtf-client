@@ -2,7 +2,7 @@ import { beforeEach, describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { applyReaction, customVoteIconOf, nextReactionId, nextVoteReactionId, rankByScore, scoreOf, votesOf } from './reactions';
+import { applyReaction, applyRealtimeVote, customVoteIconOf, nextReactionId, nextVoteReactionId, rankByScore, rollbackOptimisticReaction, scoreOf, votesOf } from './reactions';
 import { reactionSettings, resetRules, setRule, voteReaction } from './storage/reactions.svelte';
 import { FREE_REACTION_IDS, PLUS_REACTION_IDS, REACTIONS } from './config/reactions';
 
@@ -32,6 +32,51 @@ describe('applyReaction', () => {
 		applyReaction(reactions, 2);
 
 		expect(reactions.counters[0].count).toBe(1);
+	});
+});
+
+describe('applyRealtimeVote', () => {
+	const ME = 1;
+	const event = (fromReactionId: number, reactionId: number, reactionCount: number, actorId = 2) => ({ fromReactionId, reactionId, reactionCount, actorId });
+
+	it('чужой A -> B: B = reactionCount + 1 (сервер шлёт счётчик без нового голоса), A уменьшается', () => {
+		const result = applyRealtimeVote({ counters: [{ id: 5, count: 3 }, { id: 7, count: 1 }], reactionId: 0 }, event(5, 7, 1), ME);
+
+		expect(result).toEqual({ counters: [{ id: 5, count: 2 }, { id: 7, count: 2 }], reactionId: 0 });
+	});
+
+	it('своё эхо после оптимистичного A -> B не вычитает A второй раз', () => {
+		const optimistic = applyReaction({ counters: [{ id: 5, count: 3 }], reactionId: 5 }, 8);
+		const result = applyRealtimeVote(optimistic, event(5, 8, 0, ME), ME);
+
+		expect(result).toEqual({ counters: [{ id: 5, count: 2 }, { id: 8, count: 1 }], reactionId: 8 });
+	});
+
+	it('своё A -> B с другой вкладки (локально ещё A) вычитает A', () => {
+		const result = applyRealtimeVote({ counters: [{ id: 5, count: 3 }], reactionId: 5 }, event(5, 8, 0, ME), ME);
+
+		expect(result).toEqual({ counters: [{ id: 5, count: 2 }, { id: 8, count: 1 }], reactionId: 8 });
+	});
+
+	it('0 -> B и A -> 0 идемпотентны, счётчик 0 удаляется', () => {
+		const start = { counters: [{ id: 5, count: 2 }], reactionId: 0 };
+		const added = applyRealtimeVote(start, event(0, 7, 1), ME);
+		expect(applyRealtimeVote(added, event(0, 7, 1), ME)).toEqual(added);
+
+		const removed = applyRealtimeVote(added, event(7, 0, 0), ME);
+		expect(removed).toEqual(start);
+		expect(applyRealtimeVote(removed, event(7, 0, 0), ME)).toEqual(start);
+	});
+
+	it('без viewerId событие считается чужим и свою реакцию не трогает', () => {
+		expect(applyRealtimeVote({ counters: [], reactionId: 4 }, event(0, 7, 1, ME), undefined).reactionId).toBe(4);
+	});
+});
+
+describe('rollbackOptimisticReaction', () => {
+	it('откат своего 0 -> 5 оставляет чужую реакцию и не трогает уже сменённую свою', () => {
+		expect(rollbackOptimisticReaction({ counters: [{ id: 5, count: 1 }, { id: 12, count: 1 }], reactionId: 5 }, 0, 5)).toEqual({ counters: [{ id: 12, count: 1 }], reactionId: 0 });
+		expect(rollbackOptimisticReaction({ counters: [{ id: 7, count: 1 }], reactionId: 7 }, 0, 5)).toEqual({ counters: [{ id: 7, count: 1 }], reactionId: 7 });
 	});
 });
 
