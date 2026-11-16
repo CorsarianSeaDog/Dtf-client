@@ -138,6 +138,18 @@
 
 	let confirmingDelete = $state(false);
 
+	// Ctrl/Cmd+S сохраняет сразу, Ctrl/Cmd+Enter публикует так же, как кнопка. По коду клавиши: в русской раскладке key другой
+	function onkeydown(e: KeyboardEvent) {
+		if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.defaultPrevented || confirmingDelete) return;
+		if (e.code === 'KeyS') {
+			e.preventDefault();
+			session.flush();
+		} else if (e.key === 'Enter') {
+			e.preventDefault();
+			if (!e.repeat && session.canPublish) requestPublish();
+		}
+	}
+
 	const barActionsContext: EditorBarActions = {
 		get historyItems() {
 			return historyItems;
@@ -159,7 +171,7 @@
 	}
 </script>
 
-<svelte:document {onvisibilitychange} />
+<svelte:document {onvisibilitychange} {onkeydown} />
 
 <div class={['writing', { 'writing--window': windowed }]}>
 	<div class="writing__bar">
