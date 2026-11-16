@@ -85,14 +85,17 @@ export function markOrigin(e: MouseEvent) {
 	};
 }
 
-/** Нижняя граница шапки: зафиксированный экран не заходит под неё */
+/**
+ * Нижняя граница общей шапки: зафиксированный экран не заходит под неё. Панели экранов шапкой не считаются, иначе экран
+ * обрежется по панели соседа. Скрытая шапка (`display: none`) даёт 0
+ */
 export function headerBottomOf(): number {
-	const headerEl = typeof document !== 'undefined' ? (document.querySelector('header.header') ?? document.querySelector('header')) : null;
+	const headerEl = typeof document !== 'undefined' ? document.querySelector('header.header') : null;
 	return headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 0;
 }
 
 /** Временно зафиксировать экран по размерам окна. `headerBottom` задаёт нижнюю границу шапки (0 — заходить под шапку) */
-export function freeze(screen: HTMLElement, rect: DOMRect, headerBottom = headerBottomOf()): () => void {
+export function freeze(screen: HTMLElement, rect: DOMRect, headerBottom: number): () => void {
 	const top = Math.max(rect.top, headerBottom);
 	const winHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
 	const prev = {
@@ -147,8 +150,7 @@ export function startTransition(fromId: string, toId: string, screenEl: HTMLElem
 	hadHoldBlur = false;
 	if (typeof document !== 'undefined') document.documentElement.setAttribute('data-transitioning', '');
 
-	const headerEl = typeof document !== 'undefined' ? (document.querySelector('header.header') ?? document.querySelector('header')) : null;
-	const headerBottom = headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 0;
+	const headerBottom = headerBottomOf();
 	const rect = screenEl.getBoundingClientRect();
 	const top = Math.max(rect.top, headerBottom);
 	const winHeight = typeof window !== 'undefined' ? window.innerHeight : 800;

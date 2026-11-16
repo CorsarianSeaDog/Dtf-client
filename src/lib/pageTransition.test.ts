@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { abortTransition, freeze, incomingReady, pageTransition, shouldTransition, startTransition } from './pageTransition.svelte';
+import { abortTransition, freeze, headerBottomOf, incomingReady, pageTransition, shouldTransition, startTransition } from './pageTransition.svelte';
 import { fluent } from './motion';
 import { activeTheme } from './themes/index.svelte';
 
@@ -45,7 +45,7 @@ describe('pageTransition', () => {
 		} as unknown as HTMLElement;
 
 		const rect = { top: -2944, left: 100, width: 600 } as DOMRect;
-		const unfreeze = freeze(mockScreen, rect);
+		const unfreeze = freeze(mockScreen, rect, 0);
 
 		expect(mockScreen.style.position).toBe('fixed');
 		expect(mockScreen.style.top).toBe('0px');
@@ -83,6 +83,20 @@ describe('pageTransition', () => {
 		expect(mockScreen.scrollTop).toBe(510);
 
 		unfreeze();
+	});
+
+	it('headerBottomOf берёт только общую шапку: панель экрана шапкой не считается', () => {
+		const box = (bottom: number) => ({ getBoundingClientRect: () => ({ bottom }) });
+		try {
+			vi.stubGlobal('document', { querySelector: (s: string) => (s === 'header.header' ? box(60) : box(50)) });
+			expect(headerBottomOf()).toBe(60);
+
+			// Общей шапки нет (скрыта или не смонтирована): остальные <header> и панели не в счёт
+			vi.stubGlobal('document', { querySelector: (s: string) => (s === 'header.header' ? null : box(50)) });
+			expect(headerBottomOf()).toBe(0);
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 
 	describe('отложенный recede (80 мс)', () => {
