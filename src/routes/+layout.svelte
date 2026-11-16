@@ -312,37 +312,23 @@
 		const transparency = values.transparencyEffects !== undefined
 			? Boolean(values.transparencyEffects)
 			: (typeof window !== 'undefined' ? !window.matchMedia?.('(prefers-reduced-transparency: reduce)').matches : true);
-		document.documentElement.dataset.transparency = String(transparency);
-		if (activeTheme.id === 'redtf' && Boolean(values.headerBlur)) {
-			document.documentElement.dataset.headerBlur = 'true';
-		} else {
-			delete document.documentElement.dataset.headerBlur;
-		}
-		if (activeTheme.id === 'redtf' && Boolean(values.mobileBarBlur)) {
-			document.documentElement.dataset.mobileBarBlur = 'true';
-		} else {
-			delete document.documentElement.dataset.mobileBarBlur;
-		}
-		if (activeTheme.id === 'redtf' && Boolean(values.mobileBarFloating)) {
-			document.documentElement.dataset.mobileBarFloating = 'true';
-		} else {
-			delete document.documentElement.dataset.mobileBarFloating;
-		}
-		// Панель экрана вместо общей шапки: на `:root` её режим, остальное решают стили темы
-		if (activeTheme.id === 'redtf' && values.mobileTopBar !== 'web') {
-			document.documentElement.dataset.mobileTopBar = values.mobileTopBarFloating ? 'floating' : 'attached';
-		} else {
-			delete document.documentElement.dataset.mobileTopBar;
-		}
+		const dataset = document.documentElement.dataset;
+		dataset.transparency = String(transparency);
+		// Флаги redtf, в том числе у её форков. mobileTopBar — режим панели экрана вместо общей шапки, остальное решают стили темы
+		const redtf = activeTheme.chain.includes('redtf');
+		const flags = {
+			headerBlur: redtf && values.headerBlur ? 'true' : undefined,
+			mobileBarBlur: redtf && values.mobileBarBlur ? 'true' : undefined,
+			mobileBarFloating: redtf && values.mobileBarFloating ? 'true' : undefined,
+			mobileTopBar: redtf && values.mobileTopBar !== 'web' ? (values.mobileTopBarFloating ? 'floating' : 'attached') : undefined
+		};
+		for (const [name, value] of Object.entries(flags)) if (value) dataset[name] = value;
 		const style = document.documentElement.style;
 		for (const [name, value] of Object.entries(vars)) style.setProperty(name, value);
 		return () => {
 			Object.keys(vars).forEach((name) => style.removeProperty(name));
-			delete document.documentElement.dataset.transparency;
-			delete document.documentElement.dataset.headerBlur;
-			delete document.documentElement.dataset.mobileBarBlur;
-			delete document.documentElement.dataset.mobileBarFloating;
-			delete document.documentElement.dataset.mobileTopBar;
+			delete dataset.transparency;
+			for (const name in flags) delete dataset[name];
 		};
 	});
 
