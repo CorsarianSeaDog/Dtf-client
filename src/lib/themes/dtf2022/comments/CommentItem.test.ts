@@ -19,6 +19,10 @@ describe('CommentItem thread lines hitbox', () => {
 
 		// Пустые линии (без границы и без дуги) игнорируют события указателя
 		expect(svelteContent).toContain('.comment-item__thread-line--empty');
+
+		// Вертикальная линия и дуга начинаются от общего left: 0 (без margin-left: -1px и смешивания border + inset box-shadow)
+		expect(svelteContent).toContain('.comment-item__thread-bar');
+		expect(svelteContent).not.toMatch(/::before\s*\{[^}]*margin-left:\s*-1px/);
 	});
 
 	it('поднимает строку с меню реакций, поповером и редактором ответа и не использует :has()', () => {

@@ -271,7 +271,11 @@
 				onmouseenter={() => onlinehover(i)}
 				onmouseleave={() => onlinehover(null)}
 				onclick={() => onlineclick(line.owner)}
-			></div>
+			>
+				{#if line.border}
+					<span class="comment-item__thread-bar"></span>
+				{/if}
+			</div>
 		{/each}
 	</div>
 
@@ -653,9 +657,16 @@
 		position: relative;
 		flex-shrink: 0;
 		width: var(--gap-branch, 0);
-		border-left: 1px solid var(--color-branch);
 		cursor: pointer;
 		user-select: none;
+	}
+
+	/* Вертикальная линия и дуга рисуются от общего left: 0 (без border-left на родителе и margin-left: -1px), чтобы не разъезжаться на 1px при дробном DPR */
+	.comment-item__thread-bar {
+		position: absolute;
+		inset: 0 auto 0 0;
+		border-left: 1px solid var(--color-branch);
+		pointer-events: none;
 	}
 
 	/* Хитбокс для клика/тапа: расширяет область нажатия влево и вправо на половину шага ветки */
@@ -672,18 +683,12 @@
 	.comment-item__thread-line:not(.comment-item__thread-line--max-level):last-child::before {
 		content: '';
 		display: block;
-		box-sizing: content-box;
-		width: 12px;
-		height: var(--content-offset-top);
-		padding-bottom: calc(var(--size-avatar) * 0.5 + var(--offset-avatar-top));
-		margin-left: -1px;
+		box-sizing: border-box;
+		width: 13px;
+		height: calc(var(--content-offset-top) + var(--size-avatar) * 0.5 + var(--offset-avatar-top) + 1px);
 		border: solid var(--color-branch);
 		border-width: 0 0 1px 1px;
 		border-bottom-left-radius: 8px;
-	}
-
-	.comment-item__thread-line--no-border {
-		border-color: transparent;
 	}
 
 	.comment-item__thread-line--empty {
@@ -691,14 +696,14 @@
 	}
 
 	@media (hover: hover) and (pointer: fine) {
-		.comment-item__thread-line--highlighted:not(.comment-item__thread-line--no-border) {
+		.comment-item__thread-line--highlighted > .comment-item__thread-bar {
 			border-color: var(--color-branch-hover);
-			box-shadow: inset 1px 0 0 0 var(--color-branch-hover);
+			border-left-width: 2px;
 		}
 
 		.comment-item__thread-line--highlighted:not(.comment-item__thread-line--max-level):last-child::before {
 			border-color: var(--color-branch-hover);
-			box-shadow: inset 1px -1px 0 0 var(--color-branch-hover);
+			border-width: 0 0 2px 2px;
 		}
 	}
 
