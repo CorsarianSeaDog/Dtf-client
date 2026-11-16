@@ -6,6 +6,9 @@ import type { CommentRow } from './flatten';
 /** Высота строки, пока ни одна не измерена */
 const ESTIMATE = 128;
 const PREFIX = 'comment-';
+/** Переход закончен, когда цель простояла на месте столько кадров подряд; дольше SETTLE_FRAMES не доводим */
+const STILL_FRAMES = 6;
+const SETTLE_FRAMES = 90;
 const HIGHLIGHT = 'var(--color-blue-tint, var(--bg-highlight, #e8f3ff))';
 
 const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
@@ -40,6 +43,8 @@ export class VirtualRows {
 	/** Строка, к которой идёт переход: держится в окне до прибытия */
 	private target = $state<string | null>(null);
 	private heights = new Map<string, number>();
+	/** Высота ещё не измеренной строки: средняя по измеренным на момент последнего пересчёта */
+	private estimate = ESTIMATE;
 	private rows: () => CommentRow[];
 	private pinned: () => string | null;
 	private list: HTMLElement | undefined;
@@ -61,9 +66,7 @@ export class VirtualRows {
 	private offsets = $derived.by(() => {
 		void this.version;
 		const rows = this.rows();
-		let sum = 0;
-		for (const height of this.heights.values()) sum += height;
-		const average = this.heights.size ? sum / this.heights.size : ESTIMATE;
+		const average = this.estimate;
 		const offsets = new Array<number>(rows.length + 1);
 		offsets[0] = 0;
 		for (let i = 0; i < rows.length; i++) offsets[i + 1] = offsets[i] + (this.heights.get(rows[i].key) ?? average);
@@ -260,6 +263,7 @@ export class VirtualRows {
 	private sync() {
 		if (this.dirty) {
 			this.dirty = false;
+			this.reestimate();
 			this.version++;
 		}
 		const list = this.list;
@@ -270,8 +274,24 @@ export class VirtualRows {
 	}
 
 	/**
+	 * Оценка неизмеренных строк подтягивается к средней, только пока это не двигает экран: над окном нет неизмеренных строк
+	 * или идёт переход (он сам доводит позицию). Иначе один замер сдвигал бы всё, что на экране, на разницу оценок, умноженную на число строк выше.
+	 */
+	private reestimate() {
+		if (!this.heights.size) return;
+		if (!this.target) {
+			const rows = this.rows();
+			for (let i = this.range[0] - 1; i >= 0; i--) if (!this.heights.has(rows[i].key)) return;
+		}
+		let sum = 0;
+		for (const height of this.heights.values()) sum += height;
+		this.estimate = sum / this.heights.size;
+	}
+
+	/**
 	 * Переход к строке: окно ставится на неё, затем прокрутка и доводка позиции, пока строки вокруг измеряются.
-	 * Дальний переход мгновенный: плавный пролёт смонтировал бы все строки по пути.
+	 * Дальний переход мгновенный: плавный пролёт смонтировал бы все строки по пути. На время его доводки список не рисуется:
+	 * иначе видны рывки, пока оценка высот над целью подтягивается к замерам.
 	 */
 	async focus(
 		key: string,
@@ -284,13 +304,17 @@ export class VirtualRows {
 		this.target = key;
 		const y = list.getBoundingClientRect().top + this.offsets[index];
 		const far = Math.abs(y) > 2 * innerHeight;
-		if (far) scrollBy({ top: y - innerHeight / 3, behavior: 'instant' });
+		if (far) {
+			list.style.visibility = 'hidden';
+			scrollBy({ top: y - innerHeight / 3, behavior: 'instant' });
+		}
 		this.sync();
 		await tick();
 
 		const node = document.getElementById(PREFIX + key);
 		if (!node) {
 			this.target = null;
+			list.style.removeProperty('visibility');
 			return;
 		}
 		// Подсвечиваем сразу, а угасание запускаем по прибытии
@@ -305,13 +329,21 @@ export class VirtualRows {
 				setTimeout(resolve, 2500);
 			});
 		}
-		// Строки вокруг цели измерены через кадр-другой, и оценка над ней сдвигается: доводим
-		for (let i = 0; i < 3 && node.isConnected; i++) {
+		// Строки вокруг цели измеряются по кадрам, и оценка над ней сдвигается: доводим, пока позиция не устоится.
+		// Пользователь начал прокручивать сам — отпускаем
+		let taken = false;
+		const take = () => (taken = true);
+		const inputs = ['wheel', 'touchstart', 'keydown'];
+		for (const type of inputs) addEventListener(type, take, { passive: true });
+		for (let still = 0, frames = 0; still < STILL_FRAMES && frames < SETTLE_FRAMES && !taken && node.isConnected; frames++) {
+			const before = node.getBoundingClientRect().top;
 			node.scrollIntoView({ block, behavior: 'instant' });
 			await frame();
-			await frame();
+			still = Math.abs(node.getBoundingClientRect().top - before) < 1 ? still + 1 : 0;
 		}
+		for (const type of inputs) removeEventListener(type, take);
 		if (this.target === key) this.target = null;
+		list.style.removeProperty('visibility');
 		if (highlight) {
 			node.style.removeProperty('background-color');
 			node.animate([{ backgroundColor: HIGHLIGHT }, { backgroundColor: 'transparent' }], { duration: 2500, easing: 'ease-out' });
