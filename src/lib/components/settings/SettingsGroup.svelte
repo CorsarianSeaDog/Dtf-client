@@ -5,12 +5,17 @@
 	 * Группа настроек в духе libadwaita: заголовок, пояснение и белая карточка со строками на мягкой тени.
 	 * Цвета берутся из переменных окна (SettingsScreen).
 	 */
-	let { id, settingKey, title, description, children }: { id?: string; settingKey?: string; title?: string; description?: string; children: Snippet } = $props();
+	let { id, settingKey, title, note, description, children }: { id?: string; settingKey?: string; title?: string; note?: string; description?: string; children: Snippet } = $props();
 </script>
 
 <section {id} data-setting-key={settingKey} class="group">
 	{#if title}
-		<h3 class="group__title">{title}</h3>
+		<h3 class="group__title">
+			{title}
+			{#if note}
+				<span class="group__note">{note}</span>
+			{/if}
+		</h3>
 	{/if}
 	{#if description}
 		<p class="group__description">{description}</p>
@@ -37,6 +42,13 @@
 
 	.group:has(:global(.select-wrap--open)) {
 		z-index: 50;
+	}
+
+	.group__note {
+		margin-left: 8px;
+		color: var(--st-warn);
+		font-size: 13px;
+		font-weight: 400;
 	}
 
 	.group__title {

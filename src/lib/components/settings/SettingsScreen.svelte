@@ -589,6 +589,7 @@
 		--st-accent: var(--theme-st-accent, var(--color-blue, #3584e4));
 		--st-danger: var(--theme-st-danger, #c01c28);
 		--st-ok: var(--theme-st-ok, #1f8a3b);
+		--st-warn: var(--theme-st-warn, #a16207);
 		--st-nav-active-bg: var(--theme-st-nav-active-bg, var(--st-card));
 		--st-nav-active-shadow: var(--theme-st-nav-active-shadow, var(--st-card-shadow-soft));
 
@@ -625,6 +626,7 @@
 		--st-accent: var(--theme-st-accent, var(--color-blue, #78aeed));
 		--st-danger: var(--theme-st-danger, #e01b24);
 		--st-ok: var(--theme-st-ok, #2ec27e);
+		--st-warn: var(--theme-st-warn, #f5c542);
 		--st-nav-active-bg: var(--theme-st-nav-active-bg, rgba(255, 255, 255, 0.12));
 		--st-nav-active-shadow: var(--theme-st-nav-active-shadow, 0 0 0 1px rgba(255, 255, 255, 0.1), 0 1px 3px rgba(0, 0, 0, 0.25));
 		box-shadow: 0 1px 3px 1px rgba(0, 0, 0, 0.4), 0 12px 48px rgba(0, 0, 0, 0.6);

@@ -21,9 +21,9 @@
 </script>
 
 {#if field.type === 'radio'}
-	<SettingsGroup settingKey={field.key} title={field.title} description={field.description}>
+	<SettingsGroup settingKey={field.key} title={field.title} note={field.note} description={field.description}>
 		{#each field.options as option (option.value)}
-			<SettingsRow tag="label" title={option.title} subtitle={option.description}>
+			<SettingsRow tag="label" title={option.title} subtitle={option.description} note={option.note}>
 				<input
 					class="option__input"
 					type="radio"
@@ -40,7 +40,7 @@
 	</SettingsGroup>
 {:else if field.type === 'select'}
 	<SettingsGroup settingKey={field.key}>
-		<SettingsRow title={field.title} subtitle={field.description}>
+		<SettingsRow title={field.title} subtitle={field.description} note={field.note}>
 			<SettingsSelect
 				id="{uid}-{field.key}"
 				options={field.options}
@@ -52,13 +52,13 @@
 	</SettingsGroup>
 {:else if field.type === 'slider'}
 	<SettingsGroup settingKey={field.key}>
-		<SettingsRow title={field.title} subtitle={field.description}>
+		<SettingsRow title={field.title} subtitle={field.description} note={field.note}>
 			<SettingsSlider steps={field.steps} value={Number(value)} unit={field.unit} label={field.title} onchange={onchange} />
 		</SettingsRow>
 	</SettingsGroup>
 {:else}
 	<SettingsGroup settingKey={field.key}>
-		<SettingsRow tag="label" title={field.title} subtitle={field.description}>
+		<SettingsRow tag="label" title={field.title} subtitle={field.description} note={field.note}>
 			<SettingsSwitch checked={value === true} {onchange} />
 		</SettingsRow>
 	</SettingsGroup>

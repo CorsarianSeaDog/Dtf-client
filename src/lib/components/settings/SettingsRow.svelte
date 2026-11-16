@@ -5,9 +5,11 @@
 	 * Строка группы: слева заголовок и пояснение, справа то, что передали (переключатель, значение, кнопка).
 	 * tag="label" делает кликабельной всю строку.
 	 */
-	let { title, subtitle, tag = 'div', prefix, children }: {
+	let { title, subtitle, note, tag = 'div', prefix, children }: {
 		title: string;
 		subtitle?: string;
+		/** Жёлтая пометка рядом с заголовком */
+		note?: string;
 		tag?: 'div' | 'label';
 		prefix?: Snippet;
 		children?: Snippet;
@@ -17,7 +19,12 @@
 <svelte:element this={tag} class="row">
 	{@render prefix?.()}
 	<span class="row__text">
-		<span class="row__title">{title}</span>
+		<span class="row__head">
+			<span class="row__title">{title}</span>
+			{#if note}
+				<span class="row__note">{note}</span>
+			{/if}
+		</span>
 		{#if subtitle}
 			<span class="row__subtitle">{subtitle}</span>
 		{/if}
@@ -57,8 +64,22 @@
 		min-width: 0;
 	}
 
+	/* Пометка стоит по центру строки заголовка, а не на его базовой линии */
+	.row__head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0 8px;
+	}
+
 	.row__title {
 		font-size: 15px;
+		line-height: 22px;
+	}
+
+	.row__note {
+		color: var(--st-warn);
+		font-size: 13px;
 		line-height: 22px;
 	}
 
