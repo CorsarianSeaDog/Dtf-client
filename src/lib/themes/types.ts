@@ -24,6 +24,8 @@ interface FieldBase {
 	dependsOn?: FieldDependency;
 	/** Устройство, на котором доступна настройка: только смартфоны ('mobile') или десктопы ('desktop') */
 	device?: SettingDevice | SettingDevice[];
+	/** Настройка актуальна только при наличии сенсорного ввода (смартфоны, планшеты, гибридные экраны) */
+	touch?: boolean;
 	/** Настройка временно не показывается в настройках; значение по умолчанию и сохранённое продолжают действовать */
 	hidden?: boolean;
 }
@@ -74,14 +76,29 @@ export function getCurrentDevice(): SettingDevice {
 	return 'desktop';
 }
 
-/** Проверяет, должно ли отображаться поле с учётом его зависимости `dependsOn` и ограничения по устройству `device` */
+/** Определяет, поддерживает ли устройство сенсорный ввод (смартфоны, планшеты, гибридные экраны) */
+export function hasTouchInput(): boolean {
+	if (typeof window !== 'undefined') {
+		if (typeof window.matchMedia === 'function' && window.matchMedia('(any-pointer: coarse)').matches) {
+			return true;
+		}
+		if (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/** Проверяет, должно ли отображаться поле с учётом его зависимости `dependsOn`, устройства `device` и поддержки тач-ввода `touch` */
 export function isFieldVisible(
 	field: SettingField,
 	values: Record<string, any> = {},
 	allFields?: SettingField[],
-	device?: SettingDevice
+	device?: SettingDevice,
+	touch?: boolean
 ): boolean {
 	if (field.hidden) return false;
+	if (field.touch && !(touch ?? hasTouchInput())) return false;
 	if (field.device) {
 		const currentDevice = device ?? getCurrentDevice();
 		const matches = Array.isArray(field.device)

@@ -1,7 +1,7 @@
 import { activeTheme, themes } from '$lib/themes/index.svelte';
 import { activeThemeSettings } from '$lib/themes/settings.svelte';
 import { paletteSelection } from '$lib/themes/palette';
-import { isFieldVisible } from '$lib/themes/types';
+import { hasTouchInput, isFieldVisible } from '$lib/themes/types';
 import type { ChoiceField, SettingDevice, SettingField, SettingValue, ToggleField } from '$lib/themes/types';
 import {
 	DEFAULT_THEME,
@@ -458,15 +458,16 @@ export function buildDeclarativePages(
 	themeFields: SettingField[],
 	themeValues: ReturnType<typeof activeThemeSettings>,
 	currentDevice: SettingDevice,
-	clientBadges: ClientBadgesMode
+	clientBadges: ClientBadgesMode,
+	hasTouch = hasTouchInput()
 ): DeclarativePageConfig[] {
 	const visible = (keys: Set<string>) =>
 		themeFields.filter(
-			(f) => keys.has(f.key) && isFieldVisible(f, themeValues.value, themeFields, currentDevice)
+			(f) => keys.has(f.key) && isFieldVisible(f, themeValues.value, themeFields, currentDevice, hasTouch)
 		);
 
 	const otherFields = themeFields.filter(
-		(f) => !KNOWN_THEME_KEYS.has(f.key) && isFieldVisible(f, themeValues.value, themeFields, currentDevice)
+		(f) => !KNOWN_THEME_KEYS.has(f.key) && isFieldVisible(f, themeValues.value, themeFields, currentDevice, hasTouch)
 	);
 
 	const transparencyField =

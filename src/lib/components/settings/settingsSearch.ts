@@ -1,4 +1,4 @@
-import type { SettingDevice, SettingField } from '$lib/themes/types';
+import { hasTouchInput, type SettingDevice, type SettingField } from '$lib/themes/types';
 
 export interface SettingsSearchItem {
 	id: string;
@@ -17,6 +17,7 @@ export interface SettingsSearchItem {
 	/** Запасной текст заголовка строки/группы для страниц без схемы */
 	anchorText?: string;
 	device?: SettingDevice | SettingDevice[];
+	touch?: boolean;
 	devOnly?: boolean;
 	platform?: 'native' | 'web';
 	requiresGestures?: boolean;
@@ -411,6 +412,7 @@ function fieldToSearchItem(
 		options,
 		settingKey: field.key,
 		device: field.device,
+		touch: field.touch,
 		devOnly: meta.devOnly
 	};
 }
@@ -420,10 +422,12 @@ export function buildSettingsSearchIndex(params: {
 	navPages: SettingsNavPageMeta[];
 	fieldGroups: DeclarativeFieldGroup[];
 	currentDevice: SettingDevice;
+	hasTouch?: boolean;
 	isDevVisible: boolean;
 	isNativePlatform: boolean;
 	hasGestures: boolean;
 }): SettingsSearchItem[] {
+	const hasTouch = params.hasTouch ?? hasTouchInput();
 	const raw: SettingsSearchItem[] = [
 		...params.navPages.map((nav) => ({
 			id: `page:${nav.pageId}`,
@@ -451,6 +455,7 @@ export function buildSettingsSearchIndex(params: {
 	for (const item of prioritized) {
 		if (item.devOnly && !params.isDevVisible) continue;
 		if (!matchesDevice(item.device, params.currentDevice)) continue;
+		if (item.touch && !hasTouch) continue;
 		if (item.platform === 'native' && !params.isNativePlatform) continue;
 		if (item.platform === 'web' && params.isNativePlatform) continue;
 		if (item.requiresGestures && !params.hasGestures) continue;

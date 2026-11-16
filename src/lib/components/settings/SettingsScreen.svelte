@@ -23,7 +23,7 @@
 	import { themeSettingsSchema } from '$lib/themes/registry';
 	import { activeThemeSettings } from '$lib/themes/settings.svelte';
 	import { settings } from '$lib/storage/settings.svelte';
-	import { getCurrentDevice, MOBILE_BREAKPOINT } from '$lib/themes/types';
+	import { getCurrentDevice, hasTouchInput, MOBILE_BREAKPOINT } from '$lib/themes/types';
 	import type { SettingDevice } from '$lib/themes/types';
 	import { pushSubstate, popSubstate } from '$lib/navigation';
 	import { isNative } from '$lib/capacitor';
@@ -59,36 +59,46 @@
 		page,
 		section,
 		solo = false,
-		device
+		device,
+		touch
 	}: {
 		onclose: () => void;
 		page?: string;
 		section?: string;
 		solo?: boolean;
 		device?: SettingDevice;
+		touch?: boolean;
 	} = $props();
 
 	let detectedDevice = $state<SettingDevice>(getCurrentDevice());
+	let detectedTouch = $state(hasTouchInput());
 
 	$effect(() => {
 		if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
 		const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+		const touchMql = window.matchMedia('(any-pointer: coarse)');
 		const update = () => {
 			detectedDevice = mql.matches ? 'mobile' : 'desktop';
+			detectedTouch = hasTouchInput();
 		};
 		update();
 		mql.addEventListener('change', update);
-		return () => mql.removeEventListener('change', update);
+		touchMql.addEventListener('change', update);
+		return () => {
+			mql.removeEventListener('change', update);
+			touchMql.removeEventListener('change', update);
+		};
 	});
 
 	let currentDevice = $derived(device ?? detectedDevice);
+	let currentTouch = $derived(touch ?? detectedTouch);
 	const isDevVisible = $derived(dev || Boolean(settings.value.devMode));
 	const rootNavigation = $derived(getRootNavigation(isDevVisible));
 
 	let themeFields = $derived(themeSettingsSchema(activeTheme.id));
 	let themeValues = $derived(activeThemeSettings());
 	let declarativePages = $derived(
-		buildDeclarativePages(themeFields, themeValues, currentDevice, settings.value.clientBadges)
+		buildDeclarativePages(themeFields, themeValues, currentDevice, settings.value.clientBadges, currentTouch)
 	);
 
 	const initial = untrack(() => resolveInitialNav(page, section, isDevVisible));
@@ -122,6 +132,7 @@
 			navPages: buildNavSearchPages(rootNavigation),
 			fieldGroups: toSearchFieldGroups(declarativePages),
 			currentDevice,
+			hasTouch: currentTouch,
 			isDevVisible,
 			isNativePlatform: isNative(),
 			hasGestures: Boolean(activeTheme.gestures)

@@ -33,6 +33,17 @@ const SAMPLE_FIELDS: SettingField[] = [
 		unit: 'px',
 		device: 'desktop',
 		cssVars: (w) => ({ '--content-width': `${w}px` })
+	},
+	{
+		key: 'swipeColumn',
+		type: 'radio',
+		title: 'Действия свайпа по комментарию',
+		default: 'list',
+		touch: true,
+		options: [
+			{ value: 'list', title: 'Колонка' },
+			{ value: 'drum', title: 'Барабан' }
+		]
 	}
 ];
 
@@ -46,9 +57,11 @@ function createIndex(overrides?: Partial<Parameters<typeof buildSettingsSearchIn
 		fieldGroups: [
 			{ pageId: 'interface-votes', folderId: 'interface', icon: 'votes', path: 'Интерфейс › Оценки', fields: [SAMPLE_FIELDS[0]] },
 			{ pageId: 'interface-mobile-bar', folderId: 'interface', icon: 'mobile-bar', path: 'Интерфейс › Мобильная панель', fields: [SAMPLE_FIELDS[1]] },
-			{ pageId: 'interface-content', folderId: 'interface', icon: 'content', path: 'Интерфейс › Лента и контент', fields: [SAMPLE_FIELDS[2]] }
+			{ pageId: 'interface-content', folderId: 'interface', icon: 'content', path: 'Интерфейс › Лента и контент', fields: [SAMPLE_FIELDS[2]] },
+			{ pageId: 'interface-comments', folderId: 'interface', icon: 'comments', path: 'Интерфейс › Комментарии', fields: [SAMPLE_FIELDS[3]] }
 		],
 		currentDevice: 'desktop',
+		hasTouch: false,
 		isDevVisible: false,
 		isNativePlatform: false,
 		hasGestures: false,
@@ -77,15 +90,21 @@ describe('settingsSearch', () => {
 		expect(matches[0].matchedOption).toContain('Стрелки');
 	});
 
-	it('фильтрует пункты по устройству, devMode, платформе и жестам', () => {
-		const desktopIndex = createIndex({ currentDevice: 'desktop', isDevVisible: false, isNativePlatform: false, hasGestures: false });
+	it('фильтрует пункты по устройству, сенсорному вводу, devMode, платформе и жестам', () => {
+		const desktopIndex = createIndex({ currentDevice: 'desktop', hasTouch: false, isDevVisible: false, isNativePlatform: false, hasGestures: false });
 		expect(searchSettings(desktopIndex, 'блюр мобильного')).toHaveLength(0);
 		expect(searchSettings(desktopIndex, 'ширина контента')).toHaveLength(1);
+		expect(searchSettings(desktopIndex, 'действия свайпа')).toHaveLength(0);
 		expect(searchSettings(desktopIndex, 'safe area')).toHaveLength(0);
 		expect(searchSettings(desktopIndex, 'любимые реакции')).toHaveLength(0);
 		expect(searchSettings(desktopIndex, 'ota')).toHaveLength(0);
 
-		const mobileDevIndex = createIndex({ currentDevice: 'mobile', isDevVisible: true, isNativePlatform: true, hasGestures: true });
+		// Планшет: ширина десктопная, но есть тач-ввод
+		const tabletIndex = createIndex({ currentDevice: 'desktop', hasTouch: true, hasGestures: true });
+		expect(searchSettings(tabletIndex, 'ширина контента')).toHaveLength(1);
+		expect(searchSettings(tabletIndex, 'действия свайпа')).toHaveLength(1);
+
+		const mobileDevIndex = createIndex({ currentDevice: 'mobile', hasTouch: true, isDevVisible: true, isNativePlatform: true, hasGestures: true });
 		expect(searchSettings(mobileDevIndex, 'блюр мобильного')).toHaveLength(1);
 		expect(searchSettings(mobileDevIndex, 'ширина контента')).toHaveLength(0);
 		expect(searchSettings(mobileDevIndex, 'safe area')).toHaveLength(1);

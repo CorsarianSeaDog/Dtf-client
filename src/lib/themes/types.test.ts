@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { isFieldVisible, getCurrentDevice, MOBILE_BREAKPOINT, type SettingField } from './types';
+import { isFieldVisible, getCurrentDevice, hasTouchInput, MOBILE_BREAKPOINT, type SettingField } from './types';
 
 describe('isFieldVisible', () => {
 	const fieldWithoutDeps: SettingField = {
@@ -94,6 +94,37 @@ describe('isFieldVisible', () => {
 		expect(isFieldVisible(mobileWithDepField, { votes: 'likes' }, undefined, 'mobile')).toBe(false);
 		// И устройство, и dependsOn совпали
 		expect(isFieldVisible(mobileWithDepField, { votes: 'rating' }, undefined, 'mobile')).toBe(true);
+	});
+
+	it('учитывает ограничение по сенсорному вводу (touch) независимо от ширины экрана', () => {
+		const touchField: SettingField = {
+			key: 'swipeColumn',
+			type: 'toggle',
+			title: 'Свайп',
+			default: false,
+			touch: true
+		};
+
+		expect(isFieldVisible(touchField, {}, undefined, 'desktop', false)).toBe(false);
+		expect(isFieldVisible(touchField, {}, undefined, 'mobile', false)).toBe(false);
+		expect(isFieldVisible(touchField, {}, undefined, 'desktop', true)).toBe(true);
+		expect(isFieldVisible(touchField, {}, undefined, 'mobile', true)).toBe(true);
+	});
+});
+
+describe('hasTouchInput', () => {
+	it('определяет тач по (any-pointer: coarse) и navigator.maxTouchPoints', () => {
+		vi.stubGlobal('window', { matchMedia: (q: string) => ({ matches: q === '(any-pointer: coarse)' }) });
+		vi.stubGlobal('navigator', { maxTouchPoints: 0 });
+		expect(hasTouchInput()).toBe(true);
+
+		vi.stubGlobal('window', { matchMedia: () => ({ matches: false }) });
+		vi.stubGlobal('navigator', { maxTouchPoints: 5 });
+		expect(hasTouchInput()).toBe(true);
+
+		vi.stubGlobal('navigator', { maxTouchPoints: 0 });
+		expect(hasTouchInput()).toBe(false);
+		vi.unstubAllGlobals();
 	});
 });
 
