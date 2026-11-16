@@ -396,8 +396,8 @@
 	}
 
 	/* Карточки (лента и встроенный пост) — с внутренними отступами; медиа — на всю ширину карточки */
-	.post-blocks--card > .post-block:not(.post-block--media, .post-block--audio, .post-block--quiz),
-	.post-blocks--embed > .post-block:not(.post-block--audio, .post-block--quiz) {
+	.post-blocks--card > .post-block:where(:not(.post-block--media, .post-block--audio, .post-block--quiz)),
+	.post-blocks--embed > .post-block:where(:not(.post-block--audio, .post-block--quiz)) {
 		padding-left: var(--island-offset-x, 16px);
 		padding-right: var(--island-offset-x, 16px);
 	}

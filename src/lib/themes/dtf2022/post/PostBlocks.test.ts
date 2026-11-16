@@ -66,6 +66,14 @@ describe('PostBlocks DTF link handling', () => {
 		expect(svelteContent).not.toMatch(/^\s*\.post-block\s+:global\(a\)/m);
 	});
 
+	it('не перебивает отступ списка в карточке базовым правилом отступов блока', () => {
+		const svelteContent = fs.readFileSync(path.join(__dirname, 'PostBlocks.svelte'), 'utf8');
+
+		expect(svelteContent).toContain('.post-blocks--card > .post-block:where(:not(.post-block--media, .post-block--audio, .post-block--quiz))');
+		expect(svelteContent).toContain('.post-blocks--embed > .post-block:where(:not(.post-block--audio, .post-block--quiz))');
+		expect(svelteContent).toContain('padding-left: calc(var(--island-offset-x, 16px) + 1.5em)');
+	});
+
 	it('нигде в src нет img с srcset и sizes: Blink удерживает по ним оторванный слой поста', () => {
 		const src = path.resolve(__dirname, '../../../..');
 		const offenders = (fs.readdirSync(src, { recursive: true }) as string[])
