@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { api } from '$lib/api/index.svelte';
 	import type { SearchSubsite } from '$lib/api/types';
@@ -11,10 +12,12 @@
 
 	let {
 		autofocus = false,
-		onclose
+		onclose,
+		trigger
 	}: {
 		autofocus?: boolean;
 		onclose?: () => void;
+		trigger?: Snippet<[expanded: boolean, toggle: () => void]>;
 	} = $props();
 
 	/*
@@ -120,11 +123,15 @@
 <svelte:window onclick={closeOnOutside} onkeydown={(e) => e.key === 'Escape' && (focused || active) && close()} />
 
 <div class={['search', { 'search--active': active, 'search--filled': !!value }]} bind:this={root}>
-	<div class="search__button" role="button" tabindex="0" aria-label="Поиск" aria-expanded={active} onclick={toggle} onkeydown={clickOnKey}>
-		<svg class="icon" width="28" height="28" aria-hidden="true">
-			<use href="#v_search"></use>
-		</svg>
-	</div>
+	{#if trigger}
+		{@render trigger(active, toggle)}
+	{:else}
+		<div class="search__button" role="button" tabindex="0" aria-label="Поиск" aria-expanded={active} onclick={toggle} onkeydown={clickOnKey}>
+			<svg class="icon" width="28" height="28" aria-hidden="true">
+				<use href="#v_search"></use>
+			</svg>
+		</div>
+	{/if}
 
 	<form class="search__field" role="search" onsubmit={submit}>
 		<div class={['field', { 'field--focused': focused }]}>
@@ -372,8 +379,8 @@
 			box-sizing: content-box;
 			width: auto;
 			height: auto;
-			padding: 6px 16px 12px;
-			background-color: var(--bg-header);
+			padding: 6px var(--search-overlay-right, 16px) 12px var(--search-overlay-left, 16px);
+			background-color: var(--search-overlay-background, var(--bg-header));
 		}
 
 		.search--active .search__field {
@@ -385,8 +392,8 @@
 		}
 
 		.popup {
-			left: 16px;
-			right: 16px;
+			left: var(--search-overlay-left, 16px);
+			right: var(--search-overlay-right, 16px);
 		}
 	}
 </style>
