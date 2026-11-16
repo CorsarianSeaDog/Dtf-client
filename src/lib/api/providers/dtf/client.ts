@@ -84,36 +84,55 @@ export async function fetchWithProxyFailover(
 }
 
 let refreshPromise: Promise<boolean> | null = null;
+let refreshPromiseGen = -1;
 let lastRefreshFailedAt = 0;
+let lastRefreshFailedGen = -1;
 const REFRESH_COOLDOWN_MS = 10000;
 
 /** Сбросить кулдаун сбоя обновления (например, при явном повторе пользователем) */
 export function resetRefreshCooldown() {
 	lastRefreshFailedAt = 0;
+	lastRefreshFailedGen = -1;
 }
 
 /** Обновляет access-токен по refresh-токену с перебором прокси при ошибках. */
 export function refreshSession(force = false): Promise<boolean> {
-	if (!force && lastRefreshFailedAt && Date.now() - lastRefreshFailedAt < REFRESH_COOLDOWN_MS) {
+	const gen = untrack(() => authStorage.generation);
+	if (!force && lastRefreshFailedGen === gen && lastRefreshFailedAt && Date.now() - lastRefreshFailedAt < REFRESH_COOLDOWN_MS) {
 		return Promise.resolve(false);
 	}
-	if (refreshPromise) return refreshPromise;
-	refreshPromise = doRefreshSession()
+	if (refreshPromise && refreshPromiseGen === gen) return refreshPromise;
+
+	refreshPromiseGen = gen;
+	const pending = doRefreshSession(gen)
 		.then((success) => {
-			lastRefreshFailedAt = success ? 0 : Date.now();
+			if (untrack(() => authStorage.generation) === gen) {
+				lastRefreshFailedAt = success ? 0 : Date.now();
+				lastRefreshFailedGen = success ? -1 : gen;
+			}
 			return success;
 		})
 		.catch(() => {
-			lastRefreshFailedAt = Date.now();
+			if (untrack(() => authStorage.generation) === gen) {
+				lastRefreshFailedAt = Date.now();
+				lastRefreshFailedGen = gen;
+			}
 			return false;
 		})
 		.finally(() => {
-			refreshPromise = null;
+			if (refreshPromise === pending) {
+				refreshPromise = null;
+				refreshPromiseGen = -1;
+			}
 		});
-	return refreshPromise;
+	refreshPromise = pending;
+	return pending;
 }
 
-async function refreshSessionNative(session: NonNullable<typeof authStorage.session>): Promise<boolean> {
+async function refreshSessionNative(
+	session: NonNullable<typeof authStorage.session>,
+	gen: number
+): Promise<boolean> {
 	try {
 		const res = await CapacitorHttp.post({
 			url: `${AUTH_URL}/auth/refresh`,
@@ -135,7 +154,7 @@ async function refreshSessionNative(session: NonNullable<typeof authStorage.sess
 			return entry?.[1];
 		};
 
-		return applyRefreshedSession(session, parseJsonResponse(res.data), getHeader);
+		return applyRefreshedSession(session, gen, parseJsonResponse(res.data), getHeader);
 	} catch {
 		return false;
 	}
@@ -153,9 +172,16 @@ export function parseJsonResponse(data: unknown): any {
 
 function applyRefreshedSession(
 	session: NonNullable<typeof authStorage.session>,
+	gen: number,
 	data: any,
 	getHeader: (name: string) => string | null | undefined
 ): boolean {
+	// Защита от гонки: пока шёл запрос refresh, пользователь мог выйти или переключить аккаунт
+	const current = untrack(() => authStorage.session);
+	if (untrack(() => authStorage.generation) !== gen || !current || current.refreshToken !== session.refreshToken) {
+		return false;
+	}
+
 	const sessionData = data?.data || data || {};
 	const newAccessToken =
 		sessionData.accessToken ||
@@ -168,22 +194,22 @@ function applyRefreshedSession(
 
 	if (!newAccessToken) return false;
 
-	authStorage.session = {
+	authStorage.updateTokens({
 		...session,
 		accessToken: String(newAccessToken).replace('Bearer ', ''),
 		refreshToken: newRefreshToken,
 		accessExpTimestamp: sessionData.accessExpTimestamp ?? session.accessExpTimestamp,
 		refreshExpTimestamp: sessionData.refreshExpTimestamp ?? session.refreshExpTimestamp
-	};
+	});
 	return true;
 }
 
-async function doRefreshSession(): Promise<boolean> {
+async function doRefreshSession(gen: number): Promise<boolean> {
 	const session = untrack(() => authStorage.session);
-	if (!session || !session.refreshToken) return false;
+	if (!session || !session.refreshToken || untrack(() => authStorage.generation) !== gen) return false;
 
 	if (isNative()) {
-		return refreshSessionNative(session);
+		return refreshSessionNative(session, gen);
 	}
 
 	const enabled = getEnabledProxies();
@@ -198,7 +224,7 @@ async function doRefreshSession(): Promise<boolean> {
 			});
 			if (!res.ok) return false;
 			const json = await res.json().catch(() => ({}));
-			return applyRefreshedSession(session, json, (k) => res.headers.get(k));
+			return applyRefreshedSession(session, gen, json, (k) => res.headers.get(k));
 		} catch {
 			return false;
 		}
@@ -218,7 +244,7 @@ async function doRefreshSession(): Promise<boolean> {
 		if (!response.ok) return false;
 
 		const json = await response.json().catch(() => ({}));
-		return applyRefreshedSession(session, json, (k) => response.headers.get(k));
+		return applyRefreshedSession(session, gen, json, (k) => response.headers.get(k));
 	} catch {
 		return false;
 	}
@@ -233,27 +259,32 @@ async function withAuthRetry(
 	authHeader: 'x-device-token' | 'JWTAuthorization',
 	send: (token: string | null) => Promise<Response>
 ): Promise<Response> {
+	const initialGen = untrack(() => authStorage.generation);
+	const sameSession = () => untrack(() => authStorage.generation) === initialGen;
 	const currentToken = untrack(() => authStorage.dtfToken) || null;
 	let response = await send(currentToken);
 
+	// Если сессия сменилась (выход, другой аккаунт), чужой запрос не повторяем и токены не трогаем
 	const hasToken = untrack(() => !!authStorage.dtfToken);
 	const hasRefreshToken = untrack(() => !!authStorage.session?.refreshToken);
 
-	if (response.status === 401 && (hasToken || hasRefreshToken)) {
+	if (response.status === 401 && sameSession() && (hasToken || hasRefreshToken)) {
 		const refreshed = await refreshSession();
-		const nextToken = untrack(() => authStorage.dtfToken);
 
-		if (refreshed && nextToken) {
-			response = await send(nextToken);
-		} else {
-			// Прокси недоступен или токен устарел: сбрасываем невалидный accessToken,
-			// чтобы следующие вызовы не слали мёртвый токен и не тормозили на повторных попытках.
-			// refreshToken сохраняем, чтобы сессию можно было восстановить при доступности прокси.
-			const session = untrack(() => authStorage.session);
-			if (session && session.accessToken) {
-				authStorage.session = { ...session, accessToken: '' };
+		if (sameSession()) {
+			const nextToken = untrack(() => authStorage.dtfToken);
+			if (refreshed && nextToken) {
+				response = await send(nextToken);
+			} else {
+				// Прокси недоступен или токен устарел: сбрасываем невалидный accessToken,
+				// чтобы следующие вызовы не слали мёртвый токен и не тормозили на повторных попытках.
+				// refreshToken сохраняем, чтобы сессию можно было восстановить при доступности прокси.
+				const session = untrack(() => authStorage.session);
+				if (session && session.accessToken) {
+					authStorage.updateTokens({ ...session, accessToken: '' });
+				}
+				response = await send(null);
 			}
-			response = await send(null);
 		}
 	}
 

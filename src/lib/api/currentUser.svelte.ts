@@ -15,15 +15,20 @@ export const currentUser = {
 
 	/** Обновить данные один раз за загрузку страницы. Промис не падает: ошибка уходит в консоль */
 	load(): Promise<void> {
-		return (loading ??= api
+		if (loading) return loading;
+
+		const req = api
 			.getMe()
 			.then((me) => {
-				stored.value = me;
+				// clear() при смене сессии обнуляет loading: ответ прежнего пользователя не применяем
+				if (loading === req) stored.value = me;
 			})
 			.catch((e) => {
-				loading = undefined;
+				if (loading === req) loading = undefined;
 				console.warn('[currentUser] Не удалось получить профиль:', e);
-			}));
+			});
+		loading = req;
+		return req;
 	},
 
 	/** Перечитать: после смены имени или био, по обновлению страницы аккаунта */
