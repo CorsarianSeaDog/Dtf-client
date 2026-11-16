@@ -91,6 +91,9 @@
 
 	bindCommentsView({
 		logic,
+		virtual,
+		collapsed,
+		getPost: () => ({ postId, sourceId }),
 		onPatchRow: (key, next) => {
 			rows = rows.map((row) => (row.key === key ? { ...row, comment: next } : row));
 		},

@@ -60,10 +60,17 @@
 	let lastCommentsHeight = $state<number>(0);
 
 	$effect(() => {
-		if (commentsBox && depth <= 1) {
-			const h = commentsBox.offsetHeight;
+		if (!commentsBox || depth > 1) return;
+		const box = commentsBox;
+		const sync = () => {
+			const h = box.offsetHeight;
 			if (h > 0) lastCommentsHeight = h;
-		}
+		};
+		sync();
+		if (typeof ResizeObserver === 'undefined') return;
+		const ro = new ResizeObserver(sync);
+		ro.observe(box);
+		return () => ro.disconnect();
 	});
 
 	function scrollToAnchor(targetAnchor: string, attempts = 5) {
