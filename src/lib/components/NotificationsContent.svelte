@@ -51,4 +51,11 @@
 	.notifications-screen > :global(.reveal > .stage) {
 		flex-grow: 1;
 	}
+
+	@media (max-width: 719px) {
+		/* Компенсируем отступ .page-content на корне экрана, чтобы фон уходил под нижнюю панель и не обрезался при переходе */
+		.notifications-screen {
+			margin-bottom: calc(-1 * var(--mobile-bar-height));
+		}
+	}
 </style>

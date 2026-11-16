@@ -17,4 +17,10 @@
 		background: var(--bg-card);
 		color: var(--text-primary);
 	}
+
+	@media (max-width: 719px) {
+		.notifications-page {
+			padding-bottom: var(--mobile-bar-height);
+		}
+	}
 </style>
