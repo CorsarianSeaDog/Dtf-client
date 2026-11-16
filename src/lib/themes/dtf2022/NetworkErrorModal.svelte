@@ -59,36 +59,16 @@
 	}
 </script>
 
-<Popup title="Ошибка подключения" width={540} onclose={handleClose}>
+<Popup title={info.title} width={520} onclose={handleClose}>
 	<div class="network-error">
-		<div class="network-error__hero">
-			<div class={['network-error__icon-wrap', `network-error__icon-wrap--${info.badgeType}`]}>
-				<svg class="icon icon--warning" width="36" height="36" aria-hidden="true">
-					<use href="#notify_warning"></use>
-				</svg>
-			</div>
-			<div class="network-error__lead">
-				<span class={['network-error__badge', `network-error__badge--${info.badgeType}`]}>
-					{info.badge}
-				</span>
-				<h3 class="network-error__title">{info.title}</h3>
-				<p class="network-error__subtitle">{info.subtitle}</p>
-			</div>
-		</div>
-
-		<div class="network-error__desc">
-			{info.description}
-		</div>
+		<p class="network-error__desc">{info.description}</p>
 
 		{#if info.suggestions.length > 0}
 			<div class="network-error__section">
-				<div class="network-error__section-title">Что можно сделать:</div>
+				<div class="network-error__section-title">Что можно сделать</div>
 				<ul class="network-error__suggestions">
-					{#each info.suggestions as suggestion, i}
-						<li class="network-error__suggestion-item">
-							<span class="network-error__step-num">{i + 1}</span>
-							<span class="network-error__step-text">{suggestion}</span>
-						</li>
+					{#each info.suggestions as suggestion}
+						<li>{suggestion}</li>
 					{/each}
 				</ul>
 			</div>
@@ -101,31 +81,22 @@
 					<use href="#ui_arrow_down"></use>
 				</svg>
 			</summary>
-			<div class="network-error__debug">
-				<div class="network-error__debug-row">
-					<span class="network-error__debug-label">Адрес:</span>
-					<span class="network-error__debug-val">{info.technicalDetails.url || 'api.dtf.ru'}</span>
-				</div>
+			<dl class="network-error__debug">
+				<dt>Тип</dt>
+				<dd>{info.badge}</dd>
+				<dt>Адрес</dt>
+				<dd>{info.technicalDetails.url || 'api.dtf.ru'}</dd>
 				{#if info.technicalDetails.status}
-					<div class="network-error__debug-row">
-						<span class="network-error__debug-label">HTTP-код:</span>
-						<span class="network-error__debug-val">{info.technicalDetails.status}</span>
-					</div>
+					<dt>HTTP-код</dt>
+					<dd>{info.technicalDetails.status}</dd>
 				{/if}
-				<div class="network-error__debug-row">
-					<span class="network-error__debug-label">Время:</span>
-					<span class="network-error__debug-val">{info.technicalDetails.timestamp}</span>
-				</div>
-				<div class="network-error__debug-raw">
-					<code>{info.technicalDetails.rawMessage}</code>
-				</div>
-				<button type="button" class="network-error__copy-btn" onclick={copyDetails}>
-					<svg class="icon" width="16" height="16" aria-hidden="true">
-						<use href="#{copied ? 'v_tick' : 'v_copy'}"></use>
-					</svg>
-					<span>{copied ? 'Скопировано в буфер' : 'Скопировать отчёт об ошибке'}</span>
-				</button>
-			</div>
+				<dt>Время</dt>
+				<dd>{info.technicalDetails.timestamp}</dd>
+			</dl>
+			<code class="network-error__raw">{info.technicalDetails.rawMessage}</code>
+			<button type="button" class="network-error__copy" onclick={copyDetails}>
+				{copied ? 'Скопировано' : 'Скопировать отчёт'}
+			</button>
 		</details>
 	</div>
 
@@ -136,7 +107,7 @@
 				variant="blue"
 				icon="v_refresh"
 				iconSize={18}
-				label={retrying ? 'Повторяем...' : 'Повторить попытку'}
+				label={retrying ? 'Повторяем…' : 'Повторить'}
 				disabled={retrying}
 				onclick={handleRetry}
 			/>
@@ -145,172 +116,64 @@
 </Popup>
 
 <style>
-	:global(.popup__footer) {
-		--btn-height: 40px;
-		--btn-icon-size: 18px;
-		--btn-icon-margin-left: 12px;
-		--btn-icon-margin-right: -6px;
-		--btn-offset: 14px;
-	}
-
 	.network-error {
 		display: flex;
 		flex-direction: column;
-		gap: 16px;
-	}
-
-	.network-error__hero {
-		display: flex;
-		align-items: flex-start;
-		gap: 16px;
-	}
-
-	.network-error__icon-wrap {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		width: 56px;
-		height: 56px;
-		border-radius: 50%;
-		background: var(--bg-coin, #fff4e5);
-		color: var(--color-dislike, #e65100);
-	}
-
-	.network-error__icon-wrap--error {
-		background: var(--color-danger-bg, #ffebee);
-		color: var(--color-danger-text, #d32f2f);
-	}
-
-	.network-error__icon-wrap--info {
-		background: var(--bg-highlight, #e3f2fd);
-		color: var(--color-blue, #1976d2);
-	}
-
-	.network-error__lead {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 4px;
-	}
-
-	.network-error__badge {
-		display: inline-block;
-		padding: 2px 8px;
-		border-radius: 4px;
-		font-size: 11px;
-		font-weight: 700;
-		letter-spacing: 0.5px;
-		text-transform: uppercase;
-		background: var(--bg-coin, #ffe0b2);
-		color: var(--color-dislike, #b24100);
-	}
-
-	.network-error__badge--error {
-		background: var(--color-danger-bg, #ffcdd2);
-		color: var(--color-danger-text, #b71c1c);
-	}
-
-	.network-error__badge--info {
-		background: var(--bg-highlight, #bbdefb);
-		color: var(--color-blue, #0d47a1);
-	}
-
-	.network-error__title {
-		margin: 0;
-		font-size: 18px;
-		font-weight: 700;
-		line-height: 24px;
-		color: var(--text-primary, #000);
-	}
-
-	.network-error__subtitle {
-		margin: 0;
-		font-size: 13px;
-		line-height: 18px;
-		color: var(--text-muted, #757575);
+		gap: 20px;
 	}
 
 	.network-error__desc {
-		font-size: 14px;
-		line-height: 21px;
-		color: var(--text-secondary, #333);
-	}
-
-	.network-error__section {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-		padding: 12px 14px;
-		border-radius: 8px;
-		background: var(--bg-secondary, #f7f9fa);
-		border: 1px solid var(--border-color, #ebeff2);
+		margin: 0;
+		font-size: 16px;
+		line-height: 24px;
+		color: var(--text-secondary);
 	}
 
 	.network-error__section-title {
-		font-size: 13px;
+		margin-bottom: 8px;
+		font-size: 14px;
 		font-weight: 600;
-		color: var(--text-primary, #000);
+		line-height: 20px;
+		color: var(--text-primary);
 	}
 
 	.network-error__suggestions {
-		list-style: none;
 		margin: 0;
-		padding: 0;
+		padding-left: 18px;
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
+		font-size: 15px;
+		line-height: 22px;
+		color: var(--text-secondary);
 	}
 
-	.network-error__suggestion-item {
-		display: flex;
-		align-items: flex-start;
-		gap: 10px;
-		font-size: 13px;
-		line-height: 18px;
-		color: var(--text-secondary, #444);
-	}
-
-	.network-error__step-num {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		width: 18px;
-		height: 18px;
-		margin-top: 1px;
-		border-radius: 50%;
-		background: var(--bg-tertiary, #e0e5eb);
-		color: var(--text-primary, #4a5568);
-		font-size: 11px;
-		font-weight: 700;
-	}
-
-	.network-error__step-text {
-		flex: 1;
+	.network-error__suggestions li::marker {
+		color: var(--text-placeholder, var(--text-muted));
 	}
 
 	.network-error__details {
-		border-radius: 6px;
-		background: var(--bg-secondary, #fafafa);
-		border: 1px solid var(--border-color, #eee);
-		overflow: hidden;
+		border-top: 1px solid var(--border-color);
 	}
 
 	.network-error__summary {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 8px 12px;
-		font-size: 13px;
-		font-weight: 500;
-		color: var(--text-muted, #666);
+		min-height: 48px;
+		font-size: 14px;
+		color: var(--text-muted);
 		cursor: pointer;
 		user-select: none;
+		list-style: none;
+	}
+
+	.network-error__summary::-webkit-details-marker {
+		display: none;
 	}
 
 	.network-error__summary:hover {
-		color: var(--text-primary, #000);
+		color: var(--text-primary);
 	}
 
 	.details-arrow {
@@ -322,80 +185,48 @@
 	}
 
 	.network-error__debug {
-		padding: 12px;
-		border-top: 1px solid var(--border-color, #eee);
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 4px 16px;
+		margin: 0 0 12px;
+		font-size: 13px;
+		line-height: 18px;
+	}
+
+	.network-error__debug dt {
+		color: var(--text-muted);
+	}
+
+	.network-error__debug dd {
+		margin: 0;
+		color: var(--text-primary);
+		overflow-wrap: anywhere;
+	}
+
+	.network-error__raw {
+		display: block;
+		padding: 10px 12px;
+		border-radius: 8px;
+		background: var(--bg-secondary);
+		color: var(--text-secondary);
+		font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 		font-size: 12px;
-	}
-
-	.network-error__debug-row {
-		display: flex;
-		gap: 8px;
-	}
-
-	.network-error__debug-label {
-		color: var(--text-muted, #888);
-		min-width: 65px;
-	}
-
-	.network-error__debug-val {
-		font-family: monospace;
-		color: var(--text-primary, #111);
-		word-break: break-all;
-	}
-
-	.network-error__debug-raw {
-		margin-top: 4px;
-		padding: 8px;
-		background: var(--bg-card, #fff);
-		border: 1px solid var(--border-color, #e0e0e0);
-		border-radius: 4px;
-		overflow-x: auto;
-	}
-
-	.network-error__debug-raw code {
-		font-family: monospace;
-		font-size: 11px;
-		color: var(--color-danger, #c62828);
+		line-height: 18px;
 		white-space: pre-wrap;
-		word-break: break-all;
+		overflow-wrap: anywhere;
 	}
 
-	.network-error__copy-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		align-self: flex-start;
-		margin-top: 6px;
-		padding: 6px 10px;
-		border: 1px solid var(--border-color, #d0d7de);
-		border-radius: 6px;
-		background: var(--bg-button, #fff);
-		color: var(--text-primary, #24292f);
-		font-size: 12px;
+	.network-error__copy {
+		margin: 4px 0 8px -8px;
+		padding: 8px;
+		border-radius: 8px;
+		color: var(--text-link, var(--color-blue));
+		font-size: 14px;
 		font-weight: 500;
 		cursor: pointer;
-		transition: background 0.15s ease;
 	}
 
-	.network-error__copy-btn:hover {
-		background: var(--bg-button-hover, #f3f4f6);
-	}
-
-	@media (max-width: 859px) {
-		.network-error__hero {
-			gap: 12px;
-		}
-
-		.network-error__icon-wrap {
-			width: 44px;
-			height: 44px;
-		}
-
-		.network-error__title {
-			font-size: 16px;
-		}
+	.network-error__copy:hover {
+		background: var(--bg-button-hover);
 	}
 </style>
