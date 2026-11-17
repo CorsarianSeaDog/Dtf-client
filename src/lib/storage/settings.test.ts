@@ -31,8 +31,7 @@ import {
 	removeCustomProxy,
 	moveProxy,
 	testProxy,
-	applyDefaultProxySettings,
-	enableCloudflareProxy
+	applyDefaultProxySettings
 } from './settings.svelte';
 
 describe('settings & shouldVirtualizeComments', () => {
@@ -285,12 +284,6 @@ describe('settings & shouldVirtualizeComments', () => {
 			const cf = settings.value.proxies.find((p) => p.id === 'cloudflare');
 			expect(valtown?.enabled).toBe(true);
 			expect(cf?.enabled).toBe(false);
-		});
-
-		it('enableCloudflareProxy включает Cloudflare прокси', () => {
-			expect(settings.value.proxies.find((p) => p.id === 'cloudflare')?.enabled).toBe(false);
-			enableCloudflareProxy();
-			expect(settings.value.proxies.find((p) => p.id === 'cloudflare')?.enabled).toBe(true);
 		});
 	});
 

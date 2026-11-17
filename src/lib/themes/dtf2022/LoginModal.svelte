@@ -7,7 +7,6 @@
 		getEnabledProxies,
 		getPrimaryProxyUrl,
 		applyDefaultProxySettings,
-		enableCloudflareProxy,
 		addCustomProxy,
 		DEFAULT_VALTOWN_PROXY_URL
 	} from '$lib/storage/settings.svelte';
@@ -38,10 +37,6 @@
 	let proxies = $derived(settings.value.proxies || []);
 	let enabledList = $derived(proxies.filter((p) => p.enabled && Boolean(p.url?.trim())));
 	let enabledCount = $derived(enabledList.length);
-	let cloudflareProxy = $derived(proxies.find((p) => p.id === 'cloudflare'));
-	let canQuickEnableCloudflare = $derived(
-		Boolean(cloudflareProxy?.url && !cloudflareProxy?.enabled)
-	);
 
 	function performGoBack() {
 		if (mode === 'proxy' && proxyStep === 'custom_input' && DEFAULT_VALTOWN_PROXY_URL) {
@@ -98,8 +93,8 @@
 		closeOverlay();
 	}
 
+	// Окно входа не закрываем: closeOverlay уходит назад по истории асинхронно и закрыл бы только что открытые настройки
 	function openNetworkSettings() {
-		closeModal();
 		openOverlay({ type: 'settings', data: { page: 'network' } });
 	}
 
@@ -145,13 +140,6 @@
 		} catch (err: unknown) {
 			error = err instanceof Error ? err.message : 'Некорректный адрес URL';
 		}
-	}
-
-	function handleQuickEnableCloudflare() {
-		enableCloudflareProxy();
-		isProxyFailure = false;
-		error = '';
-		successMsg = 'Резервный Cloudflare прокси включён. Повторите попытку входа.';
 	}
 
 	async function handleEmailLogin(e: SubmitEvent) {
@@ -240,21 +228,12 @@
 						{#if isProxyFailure}
 							<div class="auth__error-help">
 								<div class="auth__error-btns">
-									{#if canQuickEnableCloudflare}
-										<button
-											type="button"
-											class="auth__action-btn auth__action-btn--quick"
-											onclick={handleQuickEnableCloudflare}
-										>
-											Включить резервный Cloudflare
-										</button>
-									{/if}
 									<button
 										type="button"
 										class="auth__action-btn"
 										onclick={openNetworkSettings}
 									>
-										Открыть настройки и включить резервный →
+										Открыть настройки прокси →
 									</button>
 								</div>
 							</div>
@@ -844,16 +823,6 @@
 
 	.auth__action-btn:hover {
 		background: var(--color-danger-bg, #ffe6e9);
-	}
-
-	.auth__action-btn--quick {
-		background: var(--color-blue, #3584e4);
-		border-color: var(--color-blue, #3584e4);
-		color: var(--text-submit-button, #fff);
-	}
-
-	.auth__action-btn--quick:hover {
-		background: var(--bg-submit-button--hover, #2868b2);
 	}
 
 	/* Мобильный экран: на весь экран по аналогии с настройками */

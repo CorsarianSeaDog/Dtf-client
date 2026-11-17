@@ -234,28 +234,6 @@ export function applyDefaultProxySettings() {
 	settings.patch({ proxies: next });
 }
 
-/** Включить резервный Cloudflare Workers прокси */
-export function enableCloudflareProxy(): boolean {
-	const current = untrack(() => settings.value.proxies) || [];
-	const cf = current.find((p) => p.id === 'cloudflare');
-	if (!cf) {
-		const newCf: ProxyItem = {
-			id: 'cloudflare',
-			name: 'Cloudflare Workers (резервный)',
-			url: DEFAULT_CLOUDFLARE_PROXY_URL,
-			enabled: Boolean(DEFAULT_CLOUDFLARE_PROXY_URL),
-			description:
-				'Резервный шлюз на Cloudflare. Выдерживает большие нагрузки, если основной перегружен, но код закрыт платформой и сервис может быть недоступен в РФ.',
-			isPreset: true
-		};
-		settings.patch({ proxies: [...current, newCf] });
-		return Boolean(newCf.url);
-	}
-	const next = current.map((p) => (p.id === 'cloudflare' ? { ...p, enabled: Boolean(p.url) } : p));
-	settings.patch({ proxies: next });
-	return Boolean(cf.url);
-}
-
 /** Добавить собственный прокси */
 export function addCustomProxy(rawUrl: string, customName?: string, makePrimary = false): ProxyItem {
 	let url = rawUrl.trim();
