@@ -9,7 +9,8 @@
 
 	let { user, onclose }: { user: CurrentUser | null; onclose: () => void } = $props();
 
-	// Пункты меню DTF на десктопе (default-view.vue → itemGroupsDesktop).
+	// Пункты меню DTF на десктопе (default-view.vue → itemGroupsDesktop). «Закладки» — из прежнего меню 2022 года
+	// (navigation-user: Черновики, Донаты, Закладки, Настройки, Выйти): в новом их на десктопе не было.
 	// «Создать сообщество» не добавлен — в re:DTF нет создания сообществ. Донаты ведут в CloudTips, куда их перенёс DTF
 	// (не подключены — на их подключение); баланс — второй строкой пункта (subLabel оригинала), счёт запрашивается при первом открытии меню
 	donationAccount.load();
@@ -19,6 +20,7 @@
 	let items = $derived<{ icon: string; label: string; sub?: string; url?: string; action?: () => void }[]>([
 		{ icon: 'v_pen', label: 'Черновики', action: () => openOverlay({ type: 'drafts' }) },
 		{ icon: 'v_rouble', label: 'Донаты', sub: donationsSub ?? '', url: donationAccount.href },
+		{ icon: 'v_bookmark', label: 'Закладки', action: () => openOverlay({ type: 'bookmarks' }) },
 		{ icon: 'v_gear', label: 'Настройки', action: () => openOverlay({ type: 'settings' }) },
 		{ icon: 'v_logout', label: 'Выйти', action: () => authStorage.logout() }
 	]);

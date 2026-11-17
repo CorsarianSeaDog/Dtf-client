@@ -4,7 +4,7 @@
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import { donationAccount, loadAccount } from '$lib/api/donationAccount.svelte';
 	import { authStorage } from '$lib/storage/auth.svelte';
-	import { getProfilePath, isNewTabClick, openDrafts, openOverlay, openProfile, openSettings } from '$lib/navigation';
+	import { getProfilePath, isNewTabClick, openBookmarks, openDrafts, openOverlay, openProfile, openSettings } from '$lib/navigation';
 	import { haptics } from '$lib/haptics';
 	import Dialog from '$lib/components/Dialog.svelte';
 	import { startWriting } from '../dtf2022/actions.svelte';
@@ -15,7 +15,7 @@
 	import { getAnimatedVideoUrl } from '$lib/api/utils';
 
 	/*
-	 * Страница аккаунта для нижней панели смартфона: карточка с профилем, черновики, донаты и выход.
+	 * Страница аккаунта для нижней панели смартфона: карточка с профилем, черновики, закладки, донаты и выход.
 	 * Настройки — отдельное окно: карандаш на обложке открывает в нём один раздел профиля, кнопка под списком — всё окно.
 	 * Гостю вместо карточки предлагается войти. Профиль — из `currentUser` (кэш и /subsite/me), баланс — из `donationAccount`;
 	 * обновляются повторным нажатием на профиль в нижней панели или жестом сверху вниз.
@@ -143,6 +143,11 @@
 			<a class="row" href={resolve('/drafts')} onclick={(e) => tap(() => openDrafts(e))}>
 				<span class="row__icon"><svg class="icon" width="20" height="20" aria-hidden="true"><use href="#v_pen"></use></svg></span>
 				<span class="row__label">Черновики</span>
+				<svg class="icon row__end" width="16" height="16" aria-hidden="true"><use href="#v_chevron_right"></use></svg>
+			</a>
+			<a class="row" href={resolve('/bookmarks')} onclick={(e) => tap(() => openBookmarks(e))}>
+				<span class="row__icon"><svg class="icon" width="20" height="20" aria-hidden="true"><use href="#v_bookmark"></use></svg></span>
+				<span class="row__label">Закладки</span>
 				<svg class="icon row__end" width="16" height="16" aria-hidden="true"><use href="#v_chevron_right"></use></svg>
 			</a>
 			<a class="row" href={donationAccount.href} target="_blank" rel="noopener noreferrer" onclick={() => haptics.tick()}>

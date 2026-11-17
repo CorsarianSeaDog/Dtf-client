@@ -4,14 +4,14 @@
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import { donationAccount, loadAccount } from '$lib/api/donationAccount.svelte';
 	import { authStorage } from '$lib/storage/auth.svelte';
-	import { getProfilePath, openDrafts, openOverlay, openProfile, openSettings } from '$lib/navigation';
+	import { getProfilePath, openBookmarks, openDrafts, openOverlay, openProfile, openSettings } from '$lib/navigation';
 	import { donationsNote } from './format';
 	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 
 	/*
 	 * Страница /account, куда в DTF 2023 вела кнопка профиля в нижней панели: меню аккаунта на весь экран
 	 * (account-menu/default-view.vue → itemGroupsMobile, обёртка .account-menu--fullpage).
-	 * Из пунктов оригинала оставлены те, что есть в re:DTF. Нет: «Создать сообщество», «Подписки», «Закладки»,
+	 * Из пунктов оригинала оставлены те, что есть в re:DTF. Нет: «Создать сообщество», «Подписки»,
 	 * «Подписка Plus», «Кабинет», «Вакансии», «Рейтинг DTF». Донаты ведут в CloudTips, куда их перенёс DTF (не подключены —
 	 * на их подключение); баланс — второй строкой пункта (`subLabel` оригинала).
 	 */
@@ -32,6 +32,7 @@
 			user
 				? [
 						{ icon: 'v_pen', label: 'Черновики', href: resolve('/drafts'), action: openDrafts },
+						{ icon: 'v_bookmark', label: 'Закладки', href: resolve('/bookmarks'), action: openBookmarks },
 						{ icon: 'v_gear', label: 'Настройки', href: resolve('/settings'), action: (e: MouseEvent) => openSettings(e) }
 					]
 				: [],

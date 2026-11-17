@@ -3,12 +3,13 @@ import type { Comment, CommentEditorState, Post, Profile, ProfileListItem, Profi
 import type { FeedName, FeedSorting } from '$lib/feed.svelte';
 
 export type SearchTab = 'posts' | 'comments' | 'blogs' | 'topics';
+export type BookmarksTab = 'posts' | 'comments';
 
 /**
  * Какие компоненты есть у темы и какие пропсы им передают.
  * Каждый лежит в корне папки темы: `<тема>/<Имя>.svelte`.
  *
- * Обязательные: Header, EditorialNews, FeedTabs, Post, Comments, Profile, Notifications, TagPage, RepostsPage, SearchPage, DraftsPage, LoginModal, NetworkErrorModal, EditorScreen, Spinner, ReloadPrompt.
+ * Обязательные: Header, EditorialNews, FeedTabs, Post, Comments, Profile, Notifications, TagPage, RepostsPage, SearchPage, DraftsPage, BookmarksPage, LoginModal, NetworkErrorModal, EditorScreen, Spinner, ReloadPrompt.
  * Необязательные (если нет, ядро обходится без них): MainLayout.
  * Необязательные, которых без темы просто нет на экране: FeedNotice, Recommendations, AccountPage, ScreenBar, PagePeek.
  * Форк темы (`extends`) может не иметь ничего из этого и взять недостающее у основы.
@@ -33,7 +34,7 @@ export interface ThemeComponents {
 	 */
 	ScreenBar: {
 		/** Какой экран рисует панель */
-		screen: 'feed' | 'post' | 'profile' | 'tag' | 'reposts' | 'search' | 'drafts' | 'notifications' | 'account' | 'messages';
+		screen: 'feed' | 'post' | 'profile' | 'tag' | 'reposts' | 'search' | 'drafts' | 'bookmarks' | 'notifications' | 'account' | 'messages';
 		/** Заголовок экрана, если он уже известен */
 		title?: string;
 		/** Открытый пост: для «Поделиться» */
@@ -135,6 +136,20 @@ export interface ThemeComponents {
 		onretry: () => void;
 		onedit: (post: Post) => void;
 		ondelete: (post: Post) => Promise<void>;
+	};
+	/** Закладки вошедшего пользователя: записи или комментарии (вкладка `tab`), каждая со своей подгрузкой */
+	BookmarksPage: {
+		tab: BookmarksTab;
+		onTabChange: (tab: BookmarksTab) => void;
+		posts: Post[];
+		comments: Comment[];
+		/** Первая страница выбранной вкладки уже пришла */
+		loaded: boolean;
+		loading: boolean;
+		error: unknown;
+		hasMore: boolean;
+		loadMore: () => void;
+		onretry: () => void;
 	};
 	/** Страница аккаунта (оверлей account): профиль, черновики, донаты, вход в настройки, выход. Без неё нижняя панель ведёт в настройки */
 	AccountPage: {};

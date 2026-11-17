@@ -7,6 +7,7 @@
 	import TagContent from '$lib/components/TagContent.svelte';
 	import SearchContent from '$lib/components/SearchContent.svelte';
 	import DraftsContent from '$lib/components/DraftsContent.svelte';
+	import BookmarksContent from '$lib/components/BookmarksContent.svelte';
 	import NotificationsContent from '$lib/components/NotificationsContent.svelte';
 	import MessagesContent from '$lib/components/MessagesContent.svelte';
 	import AccountContent from '$lib/components/AccountContent.svelte';
@@ -477,6 +478,8 @@
 		<SearchContent {...overlay.data} />
 	{:else if overlay.type === 'drafts'}
 		<DraftsContent />
+	{:else if overlay.type === 'bookmarks'}
+		<BookmarksContent />
 	{:else if overlay.type === 'account'}
 		<AccountContent />
 	{:else if overlay.type === 'login'}

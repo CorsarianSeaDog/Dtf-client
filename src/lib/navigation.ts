@@ -29,6 +29,7 @@ const PRESENTATION: Record<App.OverlayData['type'], App.OverlayState['presentati
 	reposts: 'page',
 	search: 'page',
 	drafts: 'page',
+	bookmarks: 'page',
 	account: 'page',
 	login: 'modal',
 	support: 'modal',
@@ -119,6 +120,8 @@ function overlayPath(overlay: Exclude<App.OverlayData, { type: 'lightbox' }>): s
 			return getSearchPath(overlay.data.query);
 		case 'drafts':
 			return '/drafts';
+		case 'bookmarks':
+			return '/bookmarks';
 		case 'account':
 			return '/account';
 		case 'login':
@@ -495,6 +498,11 @@ export function openSearch(query: string) {
 /** Открыть черновики */
 export function openDrafts(e: MouseEvent) {
 	openFromLink(e, { type: 'drafts' });
+}
+
+/** Открыть закладки */
+export function openBookmarks(e: MouseEvent) {
+	openFromLink(e, { type: 'bookmarks' });
 }
 
 /** Открыть окно настроек (опционально конкретную страницу или секцию) */

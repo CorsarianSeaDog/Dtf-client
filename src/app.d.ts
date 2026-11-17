@@ -20,6 +20,7 @@ declare global {
 			| { type: 'reposts'; data: { postId: number } }
 			| { type: 'search'; data: { query: string } }
 			| { type: 'drafts' }
+			| { type: 'bookmarks' }
 			| { type: 'account' }
 			| { type: 'login' }
 			| { type: 'support' }
