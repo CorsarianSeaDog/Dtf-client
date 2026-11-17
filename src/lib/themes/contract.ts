@@ -51,6 +51,8 @@ export interface ThemeComponents {
 		switchSorting: (sorting: FeedSorting) => void;
 	};
 	Post: { post: Post; preview?: boolean; evictMedia?: boolean };
+	/** Плеер блока `audio` внутри поста (`data` — данные блока): форк может нарисовать свой, иначе берётся плеер основы */
+	AudioBlock: { data: any };
 	Comments: {
 		postId: number;
 		sourceId?: string;

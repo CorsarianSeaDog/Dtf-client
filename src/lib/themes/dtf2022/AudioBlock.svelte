@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getAudioUrl, getLeonardoUrl } from '$lib/api/utils';
-	import { formatNumber } from '../format';
-	import { claimPlayback, formatDuration } from './audio';
+	import { formatNumber } from './format';
+	import { claimPlayback, formatDuration } from './post/audio';
 
 	/*
 	 * Блок audio: свой плеер вместо нативного, как у DTF начала 2023 (классы audio_player в оригинале).

@@ -13,7 +13,7 @@
 	import { parseDtfUrl, dtfTargetToPath } from '$lib/dtfLinks';
 	import PostCard from './PostCard.svelte';
 	import UnknownBlock from '../UnknownBlock.svelte';
-	import AudioBlock from './AudioBlock.svelte';
+	import ThemeLoader from '../../ThemeLoader.svelte';
 	import PersonBlock from './PersonBlock.svelte';
 	import QuizBlock from './QuizBlock.svelte';
 	import SpotifyBlock from './SpotifyBlock.svelte';
@@ -288,7 +288,7 @@
 				</div>
 			{/if}
 		{:else if block.type === 'audio'}
-			<div class="post-block post-block--audio"><AudioBlock data={block.data} /></div>
+			<div class="post-block post-block--audio"><ThemeLoader componentName="AudioBlock" data={block.data} /></div>
 		{:else if block.type === 'quiz'}
 			<div class="post-block post-block--quiz"><QuizBlock data={block.data} {postId} {sourceId} /></div>
 		{:else if block.type === 'person'}
