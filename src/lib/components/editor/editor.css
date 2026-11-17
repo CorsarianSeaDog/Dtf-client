@@ -652,6 +652,42 @@
 	transform: scale(0.92);
 }
 
+.dtf-gallery-tool-move {
+	position: absolute;
+	right: 6px;
+	bottom: 6px;
+	z-index: 3;
+	display: flex;
+	gap: 4px;
+}
+
+.dtf-gallery-tool-move button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: rgba(18, 20, 24, 0.68);
+	color: #fff;
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.dtf-gallery-tool-move button:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+
+@media (hover: hover) {
+	.dtf-gallery-tool-move button:not(:disabled):hover {
+		background: var(--dtf-editor-accent-text);
+	}
+}
+
 .dtf-gallery-tool-caption {
 	width: 100%;
 	box-sizing: border-box;
@@ -724,6 +760,18 @@
 		content: '';
 		position: absolute;
 		inset: -7px;
+	}
+
+	/* В списке порядок идёт сверху вниз: стрелки поворачиваем вверх и вниз, области нажатия — 40px */
+	.dtf-gallery-tool-move button {
+		position: relative;
+		transform: rotate(90deg);
+	}
+
+	.dtf-gallery-tool-move button::after {
+		content: '';
+		position: absolute;
+		inset: -7px -2px;
 	}
 
 	.dtf-quiz-tool-option-remove {

@@ -17,6 +17,9 @@ type PendingState = {
 type Entry = {
 	el: HTMLElement;
 	mediaWrap: HTMLElement;
+	/** Кнопки «раньше» и «позже»: на краях списка отключаются */
+	earlier: HTMLButtonElement;
+	later: HTMLButtonElement;
 	item?: Item;
 	pending?: PendingState;
 };
@@ -164,6 +167,24 @@ export default class GalleryTool {
 	private syncMeta() {
 		const count = this.entries.length;
 		this.countEl.textContent = count > 0 ? `${count} ${pluralFiles(count)}` : 'Пусто';
+		this.entries.forEach((entry, i) => {
+			entry.earlier.disabled = i === 0;
+			entry.later.disabled = i === count - 1;
+		});
+	}
+
+	private moveEntry(entry: Entry, delta: -1 | 1) {
+		const from = this.entries.indexOf(entry);
+		const to = from + delta;
+		if (from === -1 || to < 0 || to >= this.entries.length) return;
+		const other = this.entries[to];
+		[this.entries[from], this.entries[to]] = [other, entry];
+		this.grid.replaceChildren(...this.entries.map((e) => e.el));
+		this.syncMeta();
+		// Перенос узла сбрасывает фокус: возвращаем его на ту же кнопку, а если она упёрлась в край, на соседнюю
+		const [same, opposite] = delta < 0 ? [entry.earlier, entry.later] : [entry.later, entry.earlier];
+		(same.disabled ? opposite : same).focus();
+		if (entry.item || other.item) this.onChange();
 	}
 
 	private syncVisibility() {
@@ -173,7 +194,7 @@ export default class GalleryTool {
 		this.addBtn.hidden = !hasItems;
 	}
 
-	private createCell(captionValue: string, onCaption: (val: string) => void, onRemove: () => void) {
+	private createCell(captionValue: string, onCaption: (val: string) => void, onRemove: () => void, onMove: (delta: -1 | 1) => void) {
 		const el = document.createElement('div');
 		el.classList.add('dtf-gallery-tool-item');
 
@@ -195,9 +216,25 @@ export default class GalleryTool {
 		remove.textContent = '×';
 		remove.addEventListener('click', onRemove);
 
-		mediaWrap.appendChild(remove);
+		// Порядок кадров — порядок в галерее поста. Перетаскивание на телефоне неудобно, поэтому две кнопки
+		const move = document.createElement('div');
+		move.classList.add('dtf-gallery-tool-move');
+		const moveButton = (delta: -1 | 1, label: string, glyph: string) => {
+			const btn = document.createElement('button');
+			btn.type = 'button';
+			btn.ariaLabel = label;
+			btn.title = label;
+			btn.textContent = glyph;
+			btn.addEventListener('click', () => onMove(delta));
+			return btn;
+		};
+		const earlier = moveButton(-1, 'Переместить раньше', '‹');
+		const later = moveButton(1, 'Переместить позже', '›');
+		move.append(earlier, later);
+
+		mediaWrap.append(remove, move);
 		el.append(mediaWrap, caption);
-		return { el, mediaWrap };
+		return { el, mediaWrap, earlier, later };
 	}
 
 	private createReadyEntry(item: Item): Entry {
@@ -211,7 +248,8 @@ export default class GalleryTool {
 						this.onChange();
 					}
 				},
-				() => this.removeEntry(entry)
+				() => this.removeEntry(entry),
+				(delta) => this.moveEntry(entry, delta)
 			)
 		};
 		const media = createMediaEl(item.file.url, !!item.file.isVideo, 'dtf-gallery-tool-media');
@@ -237,7 +275,8 @@ export default class GalleryTool {
 						entry.pending.caption = val;
 					}
 				},
-				() => this.removeEntry(entry)
+				() => this.removeEntry(entry),
+				(delta) => this.moveEntry(entry, delta)
 			)
 		};
 
