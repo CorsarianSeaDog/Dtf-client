@@ -9,6 +9,7 @@
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { play } from '$lib/motion';
 	import { smartTypography } from '$lib/smartTypography';
+	import { keepInView } from '$lib/keepInView';
 	import UploadProgress from '$lib/components/UploadProgress.svelte';
 	import Button from '../ui/Button.svelte';
 	import { notify } from '../ui/notify.svelte';
@@ -458,10 +459,10 @@
 		gifsOpen = false;
 	}
 
-	// При открытии ответа сразу ставим курсор в конец поля
+	// При открытии ответа сразу ставим курсор в конец поля; прокручивает к нему keepInView
 	const focusOnReply: Attachment<HTMLElement> = (node) => {
 		if (!replying) return;
-		node.focus();
+		node.focus({ preventScroll: true });
 		if (node.childNodes.length > 0) moveCaretToEnd(node);
 	};
 </script>
@@ -474,7 +475,7 @@
 	</div>
 
 	<div class="comment-editor-container__content">
-		<div class={['comment-editor', { 'comment-editor--focused': focused, 'comment-editor--suggesting': mentionOpen && mentionItems.length > 0 }]} onpaste={handlePaste} {@attach cleanupUploads}>
+		<div class={['comment-editor', { 'comment-editor--focused': focused, 'comment-editor--suggesting': mentionOpen && mentionItems.length > 0 }]} onpaste={handlePaste} {@attach cleanupUploads} {@attach keepInView}>
 			<div class={['comment-editor-box', { 'comment-editor-box--empty': isTextEmpty }]} bind:this={boxEl}>
 				<div class="comment-editor-box__placeholder" aria-hidden="true">{placeholder}</div>
 				<div class="comment-editor-box__content">
@@ -698,6 +699,14 @@
 		border-radius: 10px;
 		background-color: var(--bg-tertiary);
 		transition: background-color 0.1s linear, border-color 0.1s linear, box-shadow 0.1s linear;
+		/* Видимая зона для keepInView: под шапкой и над нижней панелью */
+		scroll-margin: calc(var(--header-height, 60px) + 8px) 0 8px;
+	}
+
+	@media (max-width: 719px) {
+		.comment-editor {
+			scroll-margin-bottom: calc(var(--mobile-bar-height, 0px) + 8px);
+		}
 	}
 
 	.comment-editor--focused {

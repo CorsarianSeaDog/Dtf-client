@@ -27,7 +27,7 @@
 	import { reflow } from './comments/branchMotion';
 	import { slide } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
-	import { reducedMotion, scrollBehavior } from '$lib/motion';
+	import { reducedMotion } from '$lib/motion';
 	import type { ThemeComponents } from '../contract';
 
 	let {
@@ -272,9 +272,6 @@
 		}, (row) => hidden.has(row.id));
 	}
 
-	/** Ответ раскрылся под комментарием: когда дорос, докручиваем, если он ушёл за край экрана */
-	const revealEditor = (e: Event) => (e.currentTarget as HTMLElement).scrollIntoView({ block: 'nearest', behavior: scrollBehavior() });
-
 	/* Свайп влево по комментарию: ответ, а под ним по порядку — оценка или любимые реакции */
 	type SwipeAction = { label: string; icon?: string; image?: string; run: (key: string) => void };
 	// Комментарий из реактивного дерева, как у строки списка: в карте лежат копии, правка по ним не видна
@@ -317,7 +314,7 @@
 </script>
 
 {#snippet editor(continueBranch = false)}
-	<div class="comment-reply" transition:slide={{ duration: reducedMotion() ? 0 : 260, easing: cubicOut }} onintroend={revealEditor}>
+	<div class="comment-reply" transition:slide={{ duration: reducedMotion() ? 0 : 260, easing: cubicOut }}>
 		<CommentEditor bind:text={draft} bind:media bind:donation {paymentLink} {canDonate} replying editing={editMode} {sending} error={sendError} {continueBranch} {sourceId} {mentionCandidates} oncancel={cancel} onsubmit={submit} />
 	</div>
 {/snippet}
