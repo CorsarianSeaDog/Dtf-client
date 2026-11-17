@@ -95,7 +95,12 @@
 			// Скрытая лента (соседняя для свайпа) строит список в простое: сборка десятков карточек не должна совпасть с прокруткой
 			if (!active) await new Promise((done) => ('requestIdleCallback' in window ? requestIdleCallback(done, { timeout: 300 }) : setTimeout(done)));
 			if (id !== requestId) return;
-			if (!cached || (atTop() && !startsWith(cached, result))) {
+			if (isRefresh && feedResult) {
+				// Обновление: карточки с теми же id остаются на месте (список с ключами), создаются только новые. Пересборка всей ленты стоила кадров
+				feedResult = withoutSeen(result);
+				renderedCount = Math.min(renderedCount, feedResult.items.length);
+				void chunks.run();
+			} else if (!cached || (atTop() && !startsWith(cached, result))) {
 				feedResult = withoutSeen(result);
 				renderedCount = 0;
 				epoch++;
