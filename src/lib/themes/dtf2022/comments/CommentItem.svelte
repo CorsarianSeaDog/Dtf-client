@@ -1027,6 +1027,11 @@
 		padding-right: var(--offset-right);
 	}
 
+	/* Пустая строка в тексте — граница абзацев, как в оригинале; без отступа она не видна */
+	.comment-item__text p:not(:last-child) {
+		margin-bottom: 6px;
+	}
+
 	/* В исходной вёрстке у ссылок в комментариях нет стиля — красим как ссылки в постах */
 	.comment-item__text a {
 		color: var(--text-link);
