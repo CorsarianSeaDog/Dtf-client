@@ -27,6 +27,10 @@ export const themeSettings = {
 	get createButtonPos(): 'top' | 'sidebar' {
 		return (activeThemeSettings().value.createButtonPos as 'top' | 'sidebar') ?? 'top';
 	},
+	/** Что открывает счётчик репостов: страницу с записями или короткий список под кнопкой */
+	get repostsView(): 'page' | 'list' {
+		return activeThemeSettings().value.repostsView === 'list' ? 'list' : 'page';
+	},
 	/** Колонка «Комментарии» (Live) справа от ленты включена */
 	get liveEnabled(): boolean {
 		return activeThemeSettings().value.liveEnabled === true;

@@ -21,13 +21,13 @@ describe('настройки темы', () => {
 	beforeEach(() => localStorage.clear());
 
 	it('значения по умолчанию берутся из схемы темы', () => {
-		expect(getThemeSettings('dtf2022').value).toEqual({ votes: 'likes', arrowsSide: 'right', arrowsOrder: 'down-up', liveEnabled: false, liveContent: 'comments', liveCollapsed: false, palette: 'auto' });
+		expect(getThemeSettings('dtf2022').value).toEqual({ votes: 'likes', arrowsSide: 'right', arrowsOrder: 'down-up', repostsView: 'page', liveEnabled: false, liveContent: 'comments', liveCollapsed: false, palette: 'auto' });
 	});
 
 	it('у каждой темы свой ключ, настройки не смешиваются', () => {
 		getThemeSettings('dtf2022').patch({ votes: 'rating' });
 
-		expect(JSON.parse(localStorage.getItem('redtf:theme:dtf2022')!).d).toEqual({ votes: 'rating', arrowsSide: 'right', arrowsOrder: 'down-up', liveEnabled: false, liveContent: 'comments', liveCollapsed: false, palette: 'auto' });
+		expect(JSON.parse(localStorage.getItem('redtf:theme:dtf2022')!).d).toEqual({ votes: 'rating', arrowsSide: 'right', arrowsOrder: 'down-up', repostsView: 'page', liveEnabled: false, liveContent: 'comments', liveCollapsed: false, palette: 'auto' });
 	});
 
 	it('выбор палитры сохраняется отдельно для каждой темы', () => {

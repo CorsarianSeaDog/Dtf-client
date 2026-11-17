@@ -16,16 +16,20 @@
 		align = 'right',
 		label,
 		searchable = false,
+		empty = 'Ничего не найдено',
 		children
 	}: {
 		open?: boolean;
-		/** `hint` — подсказка при наведении: что пункт делает на самом деле */
-		items: { value: T; label: string; icon?: string; hint?: string }[];
+		/** `hint` — подсказка при наведении: что пункт делает на самом деле; `image` и `details` — аватар и вторая строка */
+		items: { value: T; label: string; icon?: string; hint?: string; image?: string; details?: string }[];
 		selected?: T;
 		onselect: (value: T) => void;
+		/** Для `center` нужна числовая ширина: окно центруется по кнопке отрицательным отступом, transform занят анимацией */
 		width?: number | string;
-		align?: 'left' | 'right';
+		align?: 'left' | 'right' | 'center';
 		label?: string;
+		/** Что показать, когда пунктов нет */
+		empty?: string;
 		/** Строка поиска над списком (для длинных списков) */
 		searchable?: boolean;
 		children: Snippet;
@@ -72,8 +76,9 @@
 
 	{#if open}
 		<div
-			class={['popover', { 'popover--left': align === 'left' }]}
+			class={['popover', { 'popover--left': align === 'left', 'popover--center': align === 'center' }]}
 			style:width={typeof width === 'number' ? `${width}px` : width}
+			style:margin-left={align === 'center' && typeof width === 'number' ? `${-width / 2}px` : undefined}
 			role="listbox"
 			aria-label={label}
 			{@attach appear('popoverIn')}
@@ -109,10 +114,18 @@
 								</svg>
 							</div>
 						{/if}
-						<div class="popover-item__label">{item.label}</div>
+						{#if item.image !== undefined}
+							<div class="popover-item__image" style:background-image={item.image ? `url('${item.image}')` : undefined}></div>
+						{/if}
+						<div class="popover-item__main">
+							<div class="popover-item__label">{item.label}</div>
+							{#if item.details}
+								<div class="popover-item__details">{item.details}</div>
+							{/if}
+						</div>
 					</div>
 				{:else}
-					<div class="popover__empty">Ничего не найдено</div>
+					<div class="popover__empty">{empty}</div>
 				{/each}
 			</div>
 		</div>
@@ -150,6 +163,12 @@
 		right: auto;
 		left: var(--popover-left, 0);
 		transform-origin: top left;
+	}
+
+	.popover--center {
+		right: auto;
+		left: 50%;
+		transform-origin: top center;
 	}
 
 	/* Длинный список прокручивается внутри себя, а не растягивает страницу */
@@ -230,11 +249,35 @@
 		color: var(--color-blue);
 	}
 
-	.popover-item__label {
+	/* Аватар пункта, как .popover-item__image у DTF */
+	.popover-item__image {
+		flex-shrink: 0;
+		width: 22px;
+		height: 22px;
+		margin-right: 10px;
+		border-radius: 6px;
+		background-color: var(--bg-avatar, #dedede);
+		background-size: cover;
+		box-shadow: inset 0 0 0 1px var(--border-avatar);
+	}
+
+	.popover-item__main {
+		min-width: 0;
+	}
+
+	.popover-item__label,
+	.popover-item__details {
 		min-width: 0;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+
+	.popover-item__details {
+		margin-top: 1px;
+		color: var(--text-muted);
+		font-size: 14px;
+		line-height: 20px;
 	}
 
 	.popover-item--selected .popover-item__label {

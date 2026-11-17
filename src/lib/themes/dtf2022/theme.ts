@@ -53,6 +53,17 @@ export default defineTheme({
 			]
 		},
 		{
+			key: 'repostsView',
+			type: 'radio',
+			title: 'Список репостов',
+			description: 'Что открывает счётчик репостов под записью.',
+			default: 'page',
+			options: [
+				{ value: 'page', title: 'Страница с записями', description: 'Репосты — записи-ответы, их видно карточками, как в ленте' },
+				{ value: 'list', title: 'Короткий список', description: 'Аватар и имя автора под кнопкой, как у DTF в 2022 году' }
+			]
+		},
+		{
 			key: 'liveEnabled',
 			type: 'toggle',
 			title: 'Колонка «Комментарии»',

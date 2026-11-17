@@ -60,6 +60,7 @@
 	let postPath = $derived(resolve(getPostPath(post) as any));
 	let commentsPath = $derived(resolve(getPostPath(post, 'comments') as any));
 	let onreact = $derived(post.sourceId === 'dtf' ? (id: number) => reactToPost(post, id) : undefined);
+	let showReposts = $state(false);
 	let headerOverlay = $state(false);
 	let pickerOpen = $state(false);
 	let embedOverlay = $state(false);
@@ -84,7 +85,7 @@
 </script>
 
 <article
-	class={['feed-item', { 'feed-item--embed': embed, 'feed-item--elevated': !embed && (headerOverlay || pickerOpen || embedOverlay) }]}
+	class={['feed-item', { 'feed-item--embed': embed, 'feed-item--elevated': !embed && (headerOverlay || pickerOpen || embedOverlay || showReposts) }]}
 	{@attach embed ? undefined : nearViewport((value) => (near = value))}
 >
 	<div class={['post-card', { 'post-card--embed': embed }]}>
@@ -162,7 +163,7 @@
 						<PostButton kind="bookmark" title="В закладки" {iconSize} active={post.isFavorited} onclick={() => toggleFavoritePost(post)} />
 						<PostButton kind="share" title="Поделиться" {iconSize} onclick={() => sharePost(post)} />
 					{:else}
-						<RepostButton {post} />
+						<RepostButton {post} bind:open={showReposts} />
 						<PostButton kind="bookmark" title="В закладки" active={post.isFavorited} onclick={() => toggleFavoritePost(post)} />
 					{/if}
 				</div>

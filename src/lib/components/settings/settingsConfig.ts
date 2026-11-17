@@ -438,7 +438,7 @@ const smartTypographyField: ToggleField = {
 const THEME_GROUP_KEYS = {
 	topBar: new Set(['headerBlur', 'avatarOpensMenu', 'createButtonPos', 'searchBarMode', 'mobileTopBar', 'postTitleInBar', 'hideTopBarOnScroll']),
 	mobileBar: new Set(['mobileBarBlur', 'mobileBarFloating']),
-	content: new Set(['contentWidth', 'postMediaWidth']),
+	content: new Set(['contentWidth', 'postMediaWidth', 'repostsView']),
 	votes: new Set(['votes', 'arrowsSide', 'arrowsOrder']),
 	editor: new Set(['editorFullscreen']),
 	comment: new Set(['swipeColumn']),
