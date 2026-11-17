@@ -8,7 +8,7 @@
 	import { authStorage } from '$lib/storage/auth.svelte';
 	import { Button } from '../ui';
 	import { toasts } from '../ui/notify.svelte';
-	import { reactToPost, repostPost, sharePost, toggleFavoritePost, votePost, withActions } from '../actions.svelte';
+	import { reactToPost, sharePost, toggleFavoritePost, votePost, withActions } from '../actions.svelte';
 	import { votesOf } from '$lib/reactions';
 	import { themeSettings } from '../themeSettings.svelte';
 	import PostHeader from './PostHeader.svelte';
@@ -16,7 +16,7 @@
 	import PostButton from './PostButton.svelte';
 	import PostCard from './PostCard.svelte';
 	import RepostLabel from './RepostLabel.svelte';
-	import RepostsDialog from './RepostsDialog.svelte';
+	import RepostButton from './RepostButton.svelte';
 	import Rating from './Rating.svelte';
 	import Reactions from './Reactions.svelte';
 
@@ -24,6 +24,7 @@
 		post: source,
 		embed = false,
 		subscribe = !embed,
+		showRepost = true,
 		onoverlaychange,
 		onedit,
 		ondelete
@@ -33,6 +34,8 @@
 		embed?: boolean;
 		/** Кнопка «Подписаться» в шапке (в профиле не нужна) */
 		subscribe?: boolean;
+		/** Пометка «Репост» и вложенный оригинал: на странице репостов они не нужны */
+		showRepost?: boolean;
 		onoverlaychange?: (open: boolean) => void;
 		/** Для черновика: открыть в редакторе (кнопка «Редактировать») */
 		onedit?: (post: Post) => void;
@@ -57,7 +60,6 @@
 	let postPath = $derived(resolve(getPostPath(post) as any));
 	let commentsPath = $derived(resolve(getPostPath(post, 'comments') as any));
 	let onreact = $derived(post.sourceId === 'dtf' ? (id: number) => reactToPost(post, id) : undefined);
-	let showReposts = $state(false);
 	let headerOverlay = $state(false);
 	let pickerOpen = $state(false);
 	let embedOverlay = $state(false);
@@ -82,11 +84,11 @@
 </script>
 
 <article
-	class={['feed-item', { 'feed-item--embed': embed, 'feed-item--elevated': !embed && (headerOverlay || pickerOpen || embedOverlay || showReposts) }]}
+	class={['feed-item', { 'feed-item--embed': embed, 'feed-item--elevated': !embed && (headerOverlay || pickerOpen || embedOverlay) }]}
 	{@attach embed ? undefined : nearViewport((value) => (near = value))}
 >
 	<div class={['post-card', { 'post-card--embed': embed }]}>
-		{#if post.repost && !embed}
+		{#if post.repost && showRepost && !embed}
 			<RepostLabel />
 		{/if}
 
@@ -118,7 +120,7 @@
 			{/if}
 		</div>
 
-		{#if post.repost?.original && !embed}
+		{#if post.repost?.original && showRepost && !embed}
 			<div class="post-block post-repost">
 				<PostCard post={post.repost.original} embed onoverlaychange={(v) => (embedOverlay = v)} />
 			</div>
@@ -160,13 +162,7 @@
 						<PostButton kind="bookmark" title="В закладки" {iconSize} active={post.isFavorited} onclick={() => toggleFavoritePost(post)} />
 						<PostButton kind="share" title="Поделиться" {iconSize} onclick={() => sharePost(post)} />
 					{:else}
-						<PostButton
-							kind="repost"
-							title="Сделать репост"
-							value={post.repostsCount}
-							onclick={() => repostPost(post)}
-							onvalueclick={() => (showReposts = true)}
-						/>
+						<RepostButton {post} />
 						<PostButton kind="bookmark" title="В закладки" active={post.isFavorited} onclick={() => toggleFavoritePost(post)} />
 					{/if}
 				</div>
@@ -207,9 +203,6 @@
 		{/if}
 	</div>
 
-	{#if showReposts}
-		<RepostsDialog postId={post.id} onclose={() => (showReposts = false)} />
-	{/if}
 </article>
 
 <style>

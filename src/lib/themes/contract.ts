@@ -8,7 +8,7 @@ export type SearchTab = 'posts' | 'comments' | 'blogs' | 'topics';
  * Какие компоненты есть у темы и какие пропсы им передают.
  * Каждый лежит в корне папки темы: `<тема>/<Имя>.svelte`.
  *
- * Обязательные: Header, EditorialNews, FeedTabs, Post, Comments, Profile, Notifications, TagPage, SearchPage, DraftsPage, LoginModal, NetworkErrorModal, EditorScreen, Spinner, ReloadPrompt.
+ * Обязательные: Header, EditorialNews, FeedTabs, Post, Comments, Profile, Notifications, TagPage, RepostsPage, SearchPage, DraftsPage, LoginModal, NetworkErrorModal, EditorScreen, Spinner, ReloadPrompt.
  * Необязательные (если нет, ядро обходится без них): MainLayout.
  * Необязательные, которых без темы просто нет на экране: FeedNotice, Recommendations, AccountPage, ScreenBar, PagePeek.
  * Форк темы (`extends`) может не иметь ничего из этого и взять недостающее у основы.
@@ -33,7 +33,7 @@ export interface ThemeComponents {
 	 */
 	ScreenBar: {
 		/** Какой экран рисует панель */
-		screen: 'feed' | 'post' | 'profile' | 'tag' | 'search' | 'drafts' | 'notifications' | 'account' | 'messages';
+		screen: 'feed' | 'post' | 'profile' | 'tag' | 'reposts' | 'search' | 'drafts' | 'notifications' | 'account' | 'messages';
 		/** Заголовок экрана, если он уже известен */
 		title?: string;
 		/** Открытый пост: для «Поделиться» */
@@ -92,6 +92,10 @@ export interface ThemeComponents {
 	/** Записи с тегом `tag` (без `#`): одна страница без подгрузки */
 	TagPage: {
 		tag: string;
+		posts: Post[];
+	};
+	/** Репосты записи — записи-ответы на неё: одна страница без подгрузки */
+	RepostsPage: {
 		posts: Post[];
 	};
 	/** Результаты поиска: записи и комментарии (с подгрузкой), блоги или темы (только первая страница) */

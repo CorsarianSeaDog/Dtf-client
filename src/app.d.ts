@@ -17,6 +17,7 @@ declare global {
 			| { type: 'notifications' }
 			| { type: 'messages' }
 			| { type: 'tag'; data: { tag: string } }
+			| { type: 'reposts'; data: { postId: number } }
 			| { type: 'search'; data: { query: string } }
 			| { type: 'drafts' }
 			| { type: 'account' }

@@ -3,6 +3,7 @@
 	import PostOverlay from '$lib/components/PostOverlay.svelte';
 	import ProfileContent from '$lib/components/ProfileContent.svelte';
 	import SettingsOverlay from '$lib/components/SettingsOverlay.svelte';
+	import RepostsContent from '$lib/components/RepostsContent.svelte';
 	import TagContent from '$lib/components/TagContent.svelte';
 	import SearchContent from '$lib/components/SearchContent.svelte';
 	import DraftsContent from '$lib/components/DraftsContent.svelte';
@@ -465,6 +466,8 @@
 		<MessagesContent />
 	{:else if overlay.type === 'tag'}
 		<TagContent {...overlay.data} />
+	{:else if overlay.type === 'reposts'}
+		<RepostsContent {...overlay.data} />
 	{:else if overlay.type === 'search'}
 		<SearchContent {...overlay.data} />
 	{:else if overlay.type === 'drafts'}

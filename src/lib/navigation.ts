@@ -26,6 +26,7 @@ const PRESENTATION: Record<App.OverlayData['type'], App.OverlayState['presentati
 	notifications: 'page',
 	messages: 'page',
 	tag: 'page',
+	reposts: 'page',
 	search: 'page',
 	drafts: 'page',
 	account: 'page',
@@ -79,6 +80,10 @@ export function getTagPath(tag: string) {
 	return `/tag/${encodeURIComponent(tag)}`;
 }
 
+export function getRepostsPath(postId: number) {
+	return `/post/${postId}/reposts`;
+}
+
 export function getSearchPath(query: string) {
 	return `/search?q=${encodeURIComponent(query)}`;
 }
@@ -108,6 +113,8 @@ function overlayPath(overlay: Exclude<App.OverlayData, { type: 'lightbox' }>): s
 			return '/messages';
 		case 'tag':
 			return getTagPath(overlay.data.tag);
+		case 'reposts':
+			return getRepostsPath(overlay.data.postId);
 		case 'search':
 			return getSearchPath(overlay.data.query);
 		case 'drafts':

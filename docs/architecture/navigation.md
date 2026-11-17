@@ -13,6 +13,7 @@ type OverlayData =
 	| { type: 'settings'; data?: { page?: string; section?: string; solo?: boolean } }
 	| { type: 'notifications' }
 	| { type: 'tag'; data: { tag: string } }
+	| { type: 'reposts'; data: { postId: number } }
 	| { type: 'search'; data: { query: string } }
 	| { type: 'drafts' }
 	| { type: 'login' }
@@ -45,7 +46,7 @@ type OverlayState = OverlayData & { id: string; presentation: 'page' | 'modal' |
 | `openNotifications(e?)`, `openTag(tag, e?)`, `openSearch(query, e?)`, `openDrafts(e?)`, `openSettings(page?, solo?, e?)` | быстрые обработчики открытия соответствующих оверлеев |
 | `openDtfUrl(url)` | открыть ссылку на DTF или redtf.org внутри приложения (для deep links и переходов). Возвращает `true`, если цель поддержана |
 | `openDtfLink(e, href)` | обработчик клика по ссылке на dtf.ru или redtf.org: открывает поддерживаемые адреса оверлеями, остальное оставляет браузеру |
-| `getPostPath(post)`, `getProfilePath(id)`, `getTagPath(tag)`, `getSearchPath(query)`, `getSettingsPath(page?)` | адреса для `href` |
+| `getPostPath(post)`, `getProfilePath(id)`, `getTagPath(tag)`, `getRepostsPath(postId)`, `getSearchPath(query)`, `getSettingsPath(page?)` | адреса для `href` |
 | `pushSubstate(key, value)`, `popSubstate()` | управление промежуточными внутренними состояниями окон (навигация по подменю без смены URL) |
 
 Ссылки на посты и профили остаются обычными `<a href>`: `openPost`/`openProfile` перехватывают только обычный клик, а клик с Ctrl, Cmd, Shift и средней кнопкой браузер откроет в новой вкладке. Так же работают открытие по прямой ссылке и «копировать адрес».
@@ -77,6 +78,7 @@ type OverlayState = OverlayData & { id: string; presentation: 'page' | 'modal' |
 | `/settings` | сначала главная, затем открывается окно настроек |
 | `/notifications` | список уведомлений (компонент темы `Notifications`) |
 | `/tag/[name]` | записи с тегом (`TagContent`) |
+| `/post/[id]/reposts` | репосты записи (`RepostsContent`) |
 | `/search?q=…` | результаты поиска (`SearchContent`); новый поиск из открытого заменяет его, а не копится в истории |
 | `/drafts` | черновики вошедшего пользователя (`DraftsContent`) |
 | `/login` | вход |

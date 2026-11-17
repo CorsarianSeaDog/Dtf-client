@@ -12,12 +12,15 @@
 		title,
 		posts,
 		empty,
+		showRepost = true,
 		actions
 	}: {
 		title: string;
 		posts: Post[];
 		/** Что написать, когда записей нет */
 		empty: string;
+		/** Пометка «Репост» и вложенный оригинал в карточках */
+		showRepost?: boolean;
 		/** Справа от заголовка (меню «⋯») */
 		actions?: Snippet;
 	} = $props();
@@ -32,7 +35,7 @@
 	<!-- Отступ между заголовком и первой записью тот же, что между записями ленты -->
 	{#each posts as post (post.sourceId + '_' + post.id)}
 		{#if !isPostHidden(post)}
-			<PostCard {post} />
+			<PostCard {post} {showRepost} />
 		{/if}
 	{/each}
 
