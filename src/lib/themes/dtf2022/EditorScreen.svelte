@@ -259,6 +259,8 @@
 		flex-direction: column;
 		overflow-x: hidden;
 		overflow-y: auto;
+		/* Редактор лежит поверх страницы: без этого жест у края прокрутки (или в коротком тексте) листает страницу под ним */
+		overscroll-behavior: contain;
 		background-color: var(--bg-card);
 		color: var(--text-primary);
 	}
