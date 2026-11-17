@@ -95,9 +95,13 @@
 	// Строка с курсором не должна оказаться под панелью: прокручиваем тело записи ровно настолько
 	function revealCaret() {
 		if (!visible || linkOpen) return;
+		const field = document.activeElement;
 		const range = getSelection()?.rangeCount ? getSelection()!.getRangeAt(0) : null;
 		const node = range?.startContainer;
-		const rect = range && (range.getClientRects()[0] ?? (node instanceof Element ? node : node?.parentElement)?.getBoundingClientRect());
+		const rect =
+			field instanceof HTMLTextAreaElement
+				? field.getBoundingClientRect()
+				: range && (range.getClientRects()[0] ?? (node instanceof Element ? node : node?.parentElement)?.getBoundingClientRect());
 		if (!rect) return;
 		const vv = window.visualViewport;
 		const limit = (vv ? vv.offsetTop + vv.height : innerHeight) - gap - panelHeight - 12;
