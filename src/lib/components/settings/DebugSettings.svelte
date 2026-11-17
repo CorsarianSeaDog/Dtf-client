@@ -314,7 +314,7 @@
 			{#if shellUpdater.status === 'available'}
 				<SettingsRow title="Новая сборка" subtitle={`Сборка ${shellUpdater.availableBuild ?? ''}`}>
 					<SettingsButton variant="suggested" onclick={() => shellUpdater.downloadApk()}>
-						Скачать APK
+						Скачать
 					</SettingsButton>
 				</SettingsRow>
 			{/if}

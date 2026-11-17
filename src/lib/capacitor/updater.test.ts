@@ -208,6 +208,30 @@ b620dad35acc74f65f1fea74cfa4ad646c8b98ecf2381c108c969fa6617535c9  bundle.zip
 			expect(shellUpdater.hasUpdate).toBe(true);
 		});
 
+		it('плашка остаётся при скачивании и после него, а фоновая проверка их не сбивает', () => {
+			shellUpdater.availableApk = { url: 'https://example.com/redtf.apk', filename: 'redtf.apk', build: 2, version: '1.0' };
+			for (const status of ['downloading', 'ready'] as const) {
+				shellUpdater.status = status;
+				expect(shellUpdater.hasUpdate).toBe(true);
+				shellUpdater.processRelease({ assets: [] });
+				expect(shellUpdater.status).toBe(status);
+			}
+		});
+
+		it('при скачивании показывает размер и проценты, после него подсказывает следующий шаг', () => {
+			shellUpdater.status = 'downloading';
+			shellUpdater.loadedBytes = 12.4 * 1024 * 1024;
+			shellUpdater.totalBytes = 48 * 1024 * 1024;
+			shellUpdater.progress = 26;
+			expect(shellUpdater.statusSubtitle).toBe('12,4 МБ из 48,0 МБ · 26%');
+
+			shellUpdater.status = 'ready';
+			expect(shellUpdater.statusSubtitle).toContain('«Установить»');
+			shellUpdater.needsPermission = true;
+			expect(shellUpdater.statusSubtitle).toContain('Разрешите установку');
+			shellUpdater.needsPermission = false;
+		});
+
 		it('в состоянии up-to-date показывает заголовок "Приложение актуально"', () => {
 			shellUpdater.status = 'up-to-date';
 			expect(shellUpdater.statusTitle).toBe('Приложение актуально');

@@ -2,6 +2,7 @@ import { browser, version } from '$app/env';
 import { App } from '@capacitor/app';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { isNative, openExternalUrl } from '$lib/capacitor';
+import { formatMegabytes, installerAvailable, NativeInstaller, progressPercent } from './installer';
 import { pwa } from '$lib/pwa.svelte';
 import { settings } from '$lib/storage/settings.svelte';
 
@@ -437,11 +438,25 @@ class ShellUpdater {
 	availableBuild = $state<number | null>(null);
 	availableApk = $state<ApkReleaseInfo | null>(null);
 	errorMessage = $state<string | null>(null);
+	/** Прогресс загрузки APK, %. `null` — размер файла неизвестен */
+	progress = $state<number | null>(0);
+	loadedBytes = $state(0);
+	totalBytes = $state(0);
+	/** APK скачан, но Android не разрешает этому приложению ставить пакеты */
+	needsPermission = $state(false);
 
 	private initialized = false;
 
+	/** Скачивание идёт внутри приложения (есть плагин), а не через браузер или системный загрузчик */
+	private get inApp(): boolean {
+		return installerAvailable();
+	}
+
 	get hasUpdate(): boolean {
-		return this.status === 'available' && Boolean(this.availableApk);
+		return (
+			(this.status === 'available' || this.status === 'downloading' || this.status === 'ready') &&
+			Boolean(this.availableApk)
+		);
 	}
 
 	get statusTitle(): string {
@@ -451,11 +466,13 @@ class ShellUpdater {
 			case 'available':
 				return 'Доступно обновление приложения';
 			case 'downloading':
-				return 'Загрузка APK...';
+				return 'Загрузка обновления...';
+			case 'ready':
+				return 'Обновление скачано';
 			case 'up-to-date':
 				return 'Приложение актуально';
 			case 'error':
-				return 'Ошибка проверки';
+				return 'Ошибка обновления';
 			default:
 				return 'Приложение';
 		}
@@ -466,9 +483,15 @@ class ShellUpdater {
 			case 'checking':
 				return 'Связываемся с GitHub Releases...';
 			case 'available':
-				return `Сборка ${this.availableBuild ?? this.availableVersion ?? ''} (нажмите «Скачать APK»)`;
+				return this.errorMessage
+					? `${this.errorMessage}. Попробуйте ещё раз`
+					: `Сборка ${this.availableBuild ?? this.availableVersion ?? ''} (нажмите «Скачать»)`;
 			case 'downloading':
-				return 'Файл загружается через системный загрузчик';
+				return this.progressText || 'Файл загружается';
+			case 'ready':
+				return this.needsPermission
+					? 'Разрешите установку в настройках Android, и мы продолжим'
+					: 'Нажмите «Установить»: откроется системный установщик';
 			case 'up-to-date':
 				return `Версия ${this.currentVersion} (сборка ${this.currentBuild})`;
 			case 'error':
@@ -476,6 +499,14 @@ class ShellUpdater {
 			default:
 				return `Версия ${this.currentVersion} (сборка ${this.currentBuild})`;
 		}
+	}
+
+	/** «12,4 из 48,0 МБ · 26%» */
+	get progressText(): string {
+		if (!this.loadedBytes) return '';
+		const loaded = formatMegabytes(this.loadedBytes);
+		if (!this.totalBytes) return loaded;
+		return `${loaded} из ${formatMegabytes(this.totalBytes)} · ${this.progress ?? 0}%`;
 	}
 
 	async init(): Promise<void> {
@@ -491,9 +522,25 @@ class ShellUpdater {
 		} catch (e) {
 			console.warn('[ShellUpdater] init failed:', e);
 		}
+
+		if (!this.inApp) return;
+		// Скачанные раньше файлы больше не нужны: приложение запущено, значит, установка прошла или отменена
+		NativeInstaller.cleanup().catch(() => {});
+		NativeInstaller.addListener('progress', (e) => {
+			this.loadedBytes = e.loaded;
+			this.totalBytes = e.total;
+			this.progress = progressPercent(e);
+		}).catch(() => {});
+		// Из настроек Android человек вернулся в приложение: продолжаем установку без лишнего нажатия
+		App.addListener('resume', () => {
+			if (this.status === 'ready' && this.needsPermission) this.installApk().catch(() => {});
+		}).catch(() => {});
 	}
 
 	processRelease(release: any): void {
+		// Фоновая проверка не должна сбивать скачивание и готовую к установке сборку
+		if (this.status === 'downloading' || this.status === 'ready') return;
+
 		const info = parseApkReleaseInfo(release?.assets, release?.body);
 		if (!info) {
 			this.status = 'up-to-date';
@@ -520,10 +567,56 @@ class ShellUpdater {
 
 	async downloadApk(): Promise<void> {
 		if (!this.availableApk?.url) return;
-		this.status = 'downloading';
+		if (this.status === 'downloading') return;
 		const url = this.availableApk.url;
 		const filename = this.availableApk.filename || 'redtf.apk';
 
+		if (!this.inApp) {
+			await this.downloadExternally(url, filename);
+			return;
+		}
+
+		this.status = 'downloading';
+		this.progress = 0;
+		this.loadedBytes = 0;
+		this.totalBytes = 0;
+		this.errorMessage = null;
+		this.needsPermission = false;
+
+		try {
+			await NativeInstaller.download({ url, filename });
+		} catch (e: any) {
+			// Плашка остаётся с кнопкой «Скачать» и причиной сбоя: повторить можно сразу
+			this.status = 'available';
+			if (e?.message !== 'cancelled') this.errorMessage = e?.message || 'Не удалось скачать обновление';
+			return;
+		}
+		this.status = 'ready';
+		await this.installApk();
+	}
+
+	/** Открывает системный установщик; без разрешения Android ждёт, пока человек его выдаст */
+	async installApk(): Promise<void> {
+		const filename = this.availableApk?.filename || 'redtf.apk';
+		try {
+			const { needsPermission } = await NativeInstaller.install({ filename });
+			this.needsPermission = Boolean(needsPermission);
+		} catch (e: any) {
+			this.status = 'available';
+			this.errorMessage = e?.message || 'Не удалось открыть установщик';
+		}
+	}
+
+	async openInstallSettings(): Promise<void> {
+		await NativeInstaller.openInstallSettings().catch(() => {});
+	}
+
+	cancelDownload(): void {
+		NativeInstaller.cancel().catch(() => {});
+	}
+
+	/** Оболочки без плагина: системный загрузчик или браузер, дальше человек ставит файл сам */
+	private async downloadExternally(url: string, filename: string): Promise<void> {
 		if (typeof (window as any).AndroidBridge?.download === 'function') {
 			try {
 				const ok = (window as any).AndroidBridge.download(
@@ -541,6 +634,7 @@ class ShellUpdater {
 	}
 
 	dismiss(): void {
+		if (this.status === 'downloading') return;
 		this.availableApk = null;
 		this.status = 'idle';
 	}

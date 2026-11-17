@@ -11,9 +11,11 @@
 			openExternalUrl(url);
 		}
 	}
+
+	const shell = $derived(isNative() && shellUpdater.hasUpdate);
 </script>
 
-{#if pwa.needRefresh || (isNative() && shellUpdater.hasUpdate)}
+{#if pwa.needRefresh || shell}
 	<aside
 		class="pwa-prompt"
 		role="alert"
@@ -22,8 +24,8 @@
 	>
 		<div class="pwa-prompt__content">
 			<span class="pwa-prompt__title">
-				{#if isNative() && shellUpdater.hasUpdate}
-					Доступно обновление приложения
+				{#if shell}
+					{shellUpdater.statusTitle}
 				{:else if isNative()}
 					Доступно обновление интерфейса
 				{:else}
@@ -31,14 +33,26 @@
 				{/if}
 			</span>
 			<span class="pwa-prompt__version">
-				{#if isNative() && shellUpdater.hasUpdate}
-					Новая версия приложения: <strong class="pwa-prompt__badge">{shellUpdater.availableBuild ? `сборка ${shellUpdater.availableBuild}` : (shellUpdater.availableVersion ? `v${shellUpdater.availableVersion}` : '')}</strong>
+				{#if shell}
+					{#if shellUpdater.status === 'available' && !shellUpdater.errorMessage}
+						Новая версия приложения: <strong class="pwa-prompt__badge">{shellUpdater.availableBuild ? `сборка ${shellUpdater.availableBuild}` : (shellUpdater.availableVersion ? `v${shellUpdater.availableVersion}` : '')}</strong>
+					{:else}
+						{shellUpdater.statusSubtitle}
+					{/if}
 				{:else if pwa.newVersion && pwa.newVersion !== pwa.currentVersion}
 					Версия <strong class="pwa-prompt__badge">{pwa.newVersion}</strong> (текущая: {pwa.currentVersion})
 				{:else}
 					Новая сборка ({pwa.currentVersion})
 				{/if}
 			</span>
+			{#if shell && shellUpdater.status === 'downloading'}
+				<progress
+					class="pwa-prompt__progress"
+					max="100"
+					value={shellUpdater.progress ?? undefined}
+					aria-label="Загрузка обновления"
+				></progress>
+			{/if}
 			<a
 				href={TELEGRAM_URL}
 				target="_blank"
@@ -60,33 +74,51 @@
 		</div>
 
 		<div class="pwa-prompt__actions">
-			{#if isNative() && shellUpdater.hasUpdate}
+			{#if shell && shellUpdater.status === 'downloading'}
 				<button
 					type="button"
-					class="pwa-prompt__btn pwa-prompt__btn--primary"
-					onclick={() => shellUpdater.downloadApk()}
+					class="pwa-prompt__btn pwa-prompt__btn--secondary"
+					onclick={() => shellUpdater.cancelDownload()}
 				>
-					Скачать APK
+					Отменить
 				</button>
 			{:else}
+				{#if shell && shellUpdater.status === 'ready'}
+					<button
+						type="button"
+						class="pwa-prompt__btn pwa-prompt__btn--primary"
+						onclick={() => (shellUpdater.needsPermission ? shellUpdater.openInstallSettings() : shellUpdater.installApk())}
+					>
+						{shellUpdater.needsPermission ? 'Открыть настройки' : 'Установить'}
+					</button>
+				{:else if shell}
+					<button
+						type="button"
+						class="pwa-prompt__btn pwa-prompt__btn--primary"
+						onclick={() => shellUpdater.downloadApk()}
+					>
+						Скачать и установить
+					</button>
+				{:else}
+					<button
+						type="button"
+						class="pwa-prompt__btn pwa-prompt__btn--primary"
+						onclick={() => pwa.update()}
+					>
+						Обновить
+					</button>
+				{/if}
 				<button
 					type="button"
-					class="pwa-prompt__btn pwa-prompt__btn--primary"
-					onclick={() => pwa.update()}
+					class="pwa-prompt__btn pwa-prompt__btn--secondary"
+					onclick={() => {
+						if (isNative()) shellUpdater.dismiss();
+						pwa.dismiss();
+					}}
 				>
-					Обновить
+					Отложить
 				</button>
 			{/if}
-			<button
-				type="button"
-				class="pwa-prompt__btn pwa-prompt__btn--secondary"
-				onclick={() => {
-					if (isNative()) shellUpdater.dismiss();
-					pwa.dismiss();
-				}}
-			>
-				Отложить
-			</button>
 		</div>
 	</aside>
 {/if}
@@ -154,6 +186,13 @@
 
 	.pwa-prompt__link:hover {
 		text-decoration: underline;
+	}
+
+	.pwa-prompt__progress {
+		width: 100%;
+		height: 6px;
+		margin-top: 4px;
+		accent-color: var(--color-accent, #1693e5);
 	}
 
 	.pwa-prompt__actions {

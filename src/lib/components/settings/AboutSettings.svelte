@@ -157,16 +157,29 @@
 			{#if shellUpdater.status === 'available'}
 				<span class="action">
 					<SettingsButton variant="suggested" onclick={() => shellUpdater.downloadApk()}>
-						Скачать APK
+						Скачать
+					</SettingsButton>
+				</span>
+			{:else if shellUpdater.status === 'downloading'}
+				<span class="action">
+					<SettingsButton onclick={() => shellUpdater.cancelDownload()}>Отменить</SettingsButton>
+				</span>
+			{:else if shellUpdater.status === 'ready'}
+				<span class="action">
+					<SettingsButton
+						variant="suggested"
+						onclick={() => (shellUpdater.needsPermission ? shellUpdater.openInstallSettings() : shellUpdater.installApk())}
+					>
+						{shellUpdater.needsPermission ? 'Открыть настройки' : 'Установить'}
 					</SettingsButton>
 				</span>
 			{:else}
 				<span class="action">
 					<SettingsButton
-						disabled={shellUpdater.status === 'checking' || shellUpdater.status === 'downloading'}
+						disabled={shellUpdater.status === 'checking'}
 						onclick={() => shellUpdater.checkForUpdate(true)}
 					>
-						{shellUpdater.status === 'checking' ? 'Проверка...' : shellUpdater.status === 'downloading' ? 'Загрузка...' : 'Проверить'}
+						{shellUpdater.status === 'checking' ? 'Проверка...' : 'Проверить'}
 					</SettingsButton>
 				</span>
 			{/if}
