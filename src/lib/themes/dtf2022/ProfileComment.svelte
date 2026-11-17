@@ -5,6 +5,7 @@
 	import { lazyVideo } from '$lib/actions/lazyVideo';
 	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 	import { mediaHold } from '$lib/actions/mediaHold';
+	import { preloadIntent } from '$lib/actions/preloadIntent';
 	import { api } from '$lib/api/index.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import type { Comment } from '$lib/api/types';
@@ -98,7 +99,7 @@
 {:else}
 <article class={['profile-comment', { 'profile-comment--elevated': menuOpen }]}>
 	{#if comment.postTitle}
-		<a class="profile-comment__title" href={postPath} onclick={(e) => openPost(e, post)}>{comment.postTitle}</a>
+		<a class="profile-comment__title" href={postPath} onclick={(e) => openPost(e, post)} use:preloadIntent={post}>{comment.postTitle}</a>
 	{/if}
 
 	<div class="profile-comment__header">
@@ -130,7 +131,7 @@
 				<span>{clientBadge.label}</span>
 			</button>
 		{/if}
-		<a class="profile-comment__date" href={commentPath} onclick={(e) => openPost(e, post, { commentId: comment.id })}>
+		<a class="profile-comment__date" href={commentPath} onclick={(e) => openPost(e, post, { commentId: comment.id })} use:preloadIntent={post}>
 			<time datetime={comment.createdAt} title={formatFullDate(comment.createdAt)}>{formatTime(comment.createdAt)}</time>
 		</a>
 		{#if showDateBadge && clientBadge && 'icon' in clientBadge}
@@ -184,7 +185,7 @@
 	{/if}
 
 	<div class="profile-comment__footer">
-		<a class="profile-comment__reply" href={commentPath} onclick={(e) => openPost(e, post, { commentId: comment.id })}>Ответить</a>
+		<a class="profile-comment__reply" href={commentPath} onclick={(e) => openPost(e, post, { commentId: comment.id })} use:preloadIntent={post}>Ответить</a>
 
 		{#if comment.sourceId === 'dtf'}
 			<button
