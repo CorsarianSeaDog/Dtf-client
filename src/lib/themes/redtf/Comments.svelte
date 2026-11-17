@@ -50,6 +50,7 @@
 	let sortings = $derived([
 		{ value: 'hotness', label: 'Лучшие' },
 		{ value: 'date', label: 'Последние' },
+		{ value: 'dateAsc', label: 'Первые' },
 		...(reactionSettings.value.rank ? [{ value: 'worst', label: 'Худшие' }] : [])
 	]);
 

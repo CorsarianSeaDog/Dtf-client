@@ -476,7 +476,7 @@ export class CommentsLogic {
 			if (cached) {
 				this.cursor = cached.cursor;
 				this.flatComments = [...cached.flatComments];
-				const tree = buildTree(this.flatComments, this.sourceId);
+				const tree = buildTree(this.flatComments, this.sourceId, this.sorting);
 				this.comments = tree.roots;
 				this.allCommentsMap = tree.map;
 				this.hasMore = cached.hasMore;
@@ -508,7 +508,7 @@ export class CommentsLogic {
 			if (seq !== this.loadSeq) return;
 
 			this.flatComments = this.mergeFlatComments(this.flatComments, result.items);
-			const tree = buildTree(this.flatComments, this.sourceId);
+			const tree = buildTree(this.flatComments, this.sourceId, this.sorting);
 			this.comments = tree.roots;
 			this.allCommentsMap = tree.map;
 			this.syncKeyIndexesFromFlat();

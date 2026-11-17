@@ -183,7 +183,32 @@ describe('CommentsLogic ($state.raw)', () => {
 		expect(patchedRows).toEqual(['dtf_1']);
 	});
 
-	it('вставляет корневой комментарий наверх после закреплённых при date и вниз при hotness/worst', async () => {
+	it('«Первые» сортирует по времени корни и ответы, включая догрузку и восстановление кэша', async () => {
+		const early = makeComment(10, { createdAt: '2026-11-17T10:30:00.000Z' });
+		const late = makeComment(20, { createdAt: '2026-11-17T11:41:00.000Z' });
+		const pinned = makeComment(30, { createdAt: '2026-11-17T12:00:00.000Z', isPinned: true });
+		const earlyReply = makeComment(11, { replyTo: 10, createdAt: '2026-11-17T10:31:00.000Z' });
+		const lateReply = makeComment(12, { replyTo: 10, createdAt: '2026-11-17T11:42:00.000Z' });
+		logic.sorting = 'dateAsc';
+		getComments.mockResolvedValueOnce({
+			items: [late, pinned],
+			cursors: { dtf: { lastId: 20, lastSortingValue: 1 } }
+		});
+		await logic.loadComments(true);
+		getComments.mockResolvedValueOnce({ items: [early, lateReply, earlyReply] });
+		await logic.loadComments();
+		expect(logic.comments.map((c) => c.id)).toEqual([30, 10, 20]);
+		expect(logic.comments[1].children.map((c) => c.id)).toEqual([11, 12]);
+
+		vi.useFakeTimers();
+		peekComments.mockReturnValueOnce({ flatComments: [late, early, lateReply, earlyReply, pinned], cursor: undefined, hasMore: false });
+		await logic.loadComments(true);
+		expect(logic.comments.map((c) => c.id)).toEqual([30, 10, 20]);
+		expect(logic.comments[1].children.map((c) => c.id)).toEqual([11, 12]);
+		vi.clearAllTimers();
+	});
+
+	it('вставляет корневой комментарий наверх после закреплённых при date и вниз при worst/dateAsc', async () => {
 		getComments.mockResolvedValueOnce({
 			items: [makeComment(1, { isPinned: true }), makeComment(2)],
 			cursors: undefined
@@ -197,6 +222,9 @@ describe('CommentsLogic ($state.raw)', () => {
 		logic.sorting = 'worst';
 		logic.upsertComment(makeComment(31));
 		expect(logic.comments.map((c) => c.id)).toEqual([1, 30, 2, 31]);
+		logic.sorting = 'dateAsc';
+		logic.upsertComment(makeComment(32));
+		expect(logic.comments.map((c) => c.id)).toEqual([1, 30, 2, 31, 32]);
 	});
 
 	it('придерживает orphan-ответ до прихода родителя через досинхронизацию без дубля счётчика', async () => {

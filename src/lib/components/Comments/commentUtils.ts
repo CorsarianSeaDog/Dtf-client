@@ -14,7 +14,10 @@ export function formatDate(iso: string): string {
 	return new Date(iso).toLocaleDateString('ru-RU');
 }
 
-export function buildTree(flat: Comment[], primarySourceId: string = 'dtf'): { roots: CommentTreeItem[], map: Map<string, CommentTreeItem> } {
+export function buildTree(flat: Comment[], primarySourceId: string = 'dtf', sorting?: string): { roots: CommentTreeItem[], map: Map<string, CommentTreeItem> } {
+	if (sorting === 'dateAsc') {
+		flat = flat.toSorted((a, b) => Number(!!b.isPinned) - Number(!!a.isPinned) || Date.parse(a.createdAt) - Date.parse(b.createdAt));
+	}
 	const map = new Map<string, CommentTreeItem>();
 	const roots: CommentTreeItem[] = [];
 	const replacedMap = new Map<string, string>();
