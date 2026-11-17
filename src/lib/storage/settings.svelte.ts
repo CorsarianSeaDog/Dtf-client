@@ -85,6 +85,8 @@ export const DEFAULT_VALTOWN_PROXY_URL: string = (
 	''
 ).replace(/\/+$/, '');
 
+const yandexProxyUrl: string = (import.meta.env.VITE_YANDEX_PROXY_URL || '').replace(/\/+$/, '');
+
 /** Адрес CORS-прокси на Cloudflare Workers (задаётся при сборке VITE_CLOUDFLARE_PROXY_URL) */
 export const DEFAULT_CLOUDFLARE_PROXY_URL: string = (
 	import.meta.env.VITE_CLOUDFLARE_PROXY_URL ||
@@ -109,6 +111,16 @@ if (!isNative() && DEFAULT_VALTOWN_PROXY_URL) {
 			'Открытый публичный прокси. Исходный код открыт и доступен для проверки в любой момент.',
 		linkText: 'Код на Val Town',
 		linkUrl: 'https://www.val.town/x/donnertech/redtf-proxy',
+		isPreset: true
+	});
+}
+
+if (!isNative() && yandexProxyUrl) {
+	DEFAULT_PROXIES.push({
+		id: 'yandex',
+		name: 'Yandex Cloud',
+		url: yandexProxyUrl,
+		enabled: false,
 		isPreset: true
 	});
 }
@@ -158,6 +170,15 @@ export const settings = persistedState<AppSettings>(
 	},
 	SETTINGS_VERSION
 );
+
+// Сохранённый список целиком заменяет список по умолчанию при чтении настроек.
+const yandexProxy = DEFAULT_PROXIES.find((proxy) => proxy.id === 'yandex');
+if (yandexProxy && !settings.value.proxies?.some((proxy) => proxy.id === 'yandex')) {
+	const proxies = [...(settings.value.proxies || [])];
+	const cloudflareIndex = proxies.findIndex((proxy) => proxy.id === 'cloudflare');
+	proxies.splice(cloudflareIndex === -1 ? proxies.length : cloudflareIndex, 0, yandexProxy);
+	settings.patch({ proxies });
+}
 
 /** Список всех активных прокси с непустым URL */
 export function getEnabledProxies(): ProxyItem[] {

@@ -122,6 +122,9 @@
 		{#each proxies as proxy, i (proxy.id)}
 			{@const queueNum = getQueueNumber(proxy)}
 			{@const test = testResults[proxy.id]}
+			{@const description = proxy.id === 'yandex'
+				? 'Резервный шлюз на Яндексе. Выдерживает большие нагрузки, и 100% доступен в РФ, в случае блокировки других вариантов.'
+				: proxy.description}
 
 			<div class={['proxy-card', { 'proxy-card--disabled': !proxy.enabled || !proxy.url }]}>
 				<div class="proxy-card__top">
@@ -129,8 +132,8 @@
 						<span class="proxy-card__name">{proxy.name}</span>
 						{#if proxy.id === 'valtown'}
 							<span class="badge badge--open">Открытый</span>
-						{:else if proxy.id === 'cloudflare'}
-							<span class="badge badge--cf">Резервный</span>
+						{:else if proxy.isPreset}
+							<span class="badge badge--reserve">Резервный</span>
 						{:else}
 							<span class="badge badge--custom">Свой</span>
 						{/if}
@@ -203,10 +206,10 @@
 					{/if}
 				</div>
 
-				{#if proxy.description || (proxy.linkUrl && proxy.linkText)}
+				{#if description || (proxy.linkUrl && proxy.linkText)}
 					<p class="proxy-card__desc">
-						{#if proxy.description}
-							{proxy.description}{' '}
+						{#if description}
+							{description}{' '}
 						{/if}
 						{#if proxy.linkUrl && proxy.linkText}
 							<a
@@ -455,7 +458,7 @@
 		color: #1f8a3b;
 	}
 
-	.badge--cf {
+	.badge--reserve {
 		background: rgba(53, 132, 228, 0.12);
 		color: #1c71d8;
 	}

@@ -202,6 +202,37 @@ describe('settings & shouldVirtualizeComments', () => {
 			}
 		});
 
+		it('добавляет выключенный Yandex Cloud перед Cloudflare в сохранённый список', async () => {
+			const custom = addCustomProxy('https://custom.example.com', 'Мой прокси', true);
+			toggleProxy('cloudflare', true);
+			const [primary, val, cf] = settings.value.proxies;
+			vi.stubEnv('VITE_AUTH_PROXY_URL', val.url);
+			vi.stubEnv('VITE_YANDEX_PROXY_URL', 'https://yandex.example.com/');
+			vi.stubEnv('VITE_CLOUDFLARE_PROXY_URL', cf.url);
+			vi.resetModules();
+			try {
+				const loaded = await import('./settings.svelte');
+				const yandex = expect.objectContaining({
+					id: 'yandex',
+					url: 'https://yandex.example.com',
+					enabled: false,
+					isPreset: true
+				});
+				expect(loaded.DEFAULT_PROXIES.map((proxy) => proxy.id)).toEqual(['valtown', 'yandex', 'cloudflare']);
+				expect(loaded.settings.value.proxies).toEqual([primary, val, yandex, cf]);
+				expect(loaded.getEnabledProxies()).toEqual([custom, cf]);
+				loaded.toggleProxy('yandex', true);
+				vi.resetModules();
+				const reloaded = await import('./settings.svelte');
+				expect(reloaded.getEnabledProxies().map((proxy) => proxy.id)).toEqual([
+					custom.id, 'yandex', 'cloudflare'
+				]);
+			} finally {
+				vi.unstubAllEnvs();
+				vi.resetModules();
+			}
+		});
+
 		it('getEnabledProxies возвращает только активные прокси с непустым URL', () => {
 			const enabled = getEnabledProxies();
 			expect(enabled.length).toBe(1);
