@@ -7,6 +7,7 @@
 	import ThemeLoader, { hasThemeComponent } from '$lib/themes/ThemeLoader.svelte';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { markCommentsStart, trackPostClosed, trackPostLoaded } from '$lib/storage/stats.svelte';
+	import { trackFullRead, trackOpen } from '$lib/storage/seen.svelte';
 	import { nextPaint } from '$lib/ready';
 	import { appear } from '$lib/themes/appear';
 	import { scrollBehavior } from '$lib/motion';
@@ -167,13 +168,17 @@
 	});
 </script>
 
-<div class="post-screen">
+<div class="post-screen" {@attach (el) => post && trackOpen(el, post)}>
 	<ScreenBar screen="post" {post} />
 	<Reveal ready={post !== undefined || error !== undefined} anim="contentIn" onreveal={onReveal}>
 		{#snippet children()}
 			{#if post}
 				{@const loaded = post}
 				<ThemeLoader componentName="Post" post={loaded} preview={false} evictMedia={depth >= 3} />
+				{#if !loaded.isDraft}
+					<!-- Конец поста для журнала прочитанного -->
+					<div {@attach (el) => trackFullRead(el, loaded)}></div>
+				{/if}
 				{#if !loaded.isDraft && !loaded.commentsDisabled}
 					<!-- Граница поста и комментариев для статистики: сколько времени пользователь в комментариях -->
 					<div {@attach (el) => markCommentsStart(loaded, el)}></div>

@@ -15,6 +15,8 @@
 	import { appear } from '$lib/themes/appear';
 	import { markFeedLoaded } from '$lib/ready';
 	import { editorialNews } from '$lib/editorialNews.svelte';
+	import { seenSnapshot, trackInFeed, tracksFeed } from '$lib/storage/seen.svelte';
+	import { settings } from '$lib/storage/settings.svelte';
 
 	/*
 	 * Одна лента главной. Страница держит несколько таких сразу: неактивная скрыта, но сохраняет посты,
@@ -23,6 +25,16 @@
 	let { name, sorting, active }: { name: FeedName; sorting: FeedSorting; active: boolean } = $props();
 
 	const CHUNK_SIZE = 5;
+	// Сколько страниц подряд, целиком из прочитанного, пропускаем, пока ищем непрочитанные
+	const MAX_SKIPPED_PAGES = 10;
+
+	// Прочитанное на момент загрузки ленты: за сессию оно остаётся на месте, пока ленту не обновят
+	let seen = $state.raw(new Set<string>());
+	// «Показать прочитанные»: лента показывается целиком до смены сортировки
+	let showSeen = $state(false);
+	const unseen = (items: Post[]) => (settings.value.hideSeen && !showSeen ? items.filter((post) => !seen.has(postKey(post))) : items);
+	const withoutSeen = (result: PaginatedResult<Post>): PaginatedResult<Post> => ({ ...result, items: unseen(result.items) });
+	const hasMore = (result: PaginatedResult<Post>) => !!result.cursors && Object.keys(result.cursors).length > 0;
 
 	let feedResult = $state.raw<PaginatedResult<Post> | null>(null);
 	let renderedCount = $state(0);
@@ -62,12 +74,13 @@
 		const id = ++requestId;
 		const cached = isRefresh ? undefined : peekFeed(name, sorting);
 		const showNews = name === 'popular' && sorting === 'now';
+		seen = seenSnapshot();
 		error = null;
 		if (isRefresh) refreshing = true;
 		else {
 			chunks.stop();
-			feedResult = cached ?? null;
-			renderedCount = cached?.items.length ?? 0;
+			feedResult = cached ? withoutSeen(cached) : null;
+			renderedCount = feedResult?.items.length ?? 0;
 			loading = !cached || (showNews && !editorialNews.ready);
 			epoch++;
 		}
@@ -83,7 +96,7 @@
 			if (!active) await new Promise((done) => ('requestIdleCallback' in window ? requestIdleCallback(done, { timeout: 300 }) : setTimeout(done)));
 			if (id !== requestId) return;
 			if (!cached || (atTop() && !startsWith(cached, result))) {
-				feedResult = result;
+				feedResult = withoutSeen(result);
 				renderedCount = 0;
 				epoch++;
 				void chunks.run();
@@ -108,8 +121,9 @@
 		}
 		const id = requestId;
 		const result = await loadFeed(name, sorting).catch(() => undefined);
-		if (result && id === requestId && feedResult === shown && atTop() && !startsWith(shown, result)) {
-			feedResult = result;
+		const fresh = result && withoutSeen(result);
+		if (fresh && id === requestId && feedResult === shown && atTop() && !startsWith(shown, fresh)) {
+			feedResult = fresh;
 			renderedCount = 0;
 			epoch++;
 			void chunks.run();
@@ -119,16 +133,21 @@
 	function loadMore(): Promise<boolean> {
 		if (chunks.pending) return chunks.pending;
 		if (moreInFlight) return moreInFlight;
-		if (loading || loadingMore || error || !feedResult?.cursors || Object.keys(feedResult.cursors).length === 0) {
+		if (loading || loadingMore || error || !feedResult || !hasMore(feedResult)) {
 			return Promise.resolve(false);
 		}
 		const id = requestId;
 		const run = (async () => {
 			try {
 				loadingMore = true;
-				const next = await api.getPosts({ pageName: name, sorting: sortingOf(name, sorting), cursors: feedResult.cursors });
-				if (id !== requestId || !feedResult) return false;
-				feedResult = { items: appendUnique(feedResult.items, next.items, postKey), cursors: next.cursors };
+				// ponytail: страницы целиком из прочитанного пропускаем, но не больше MAX_SKIPPED_PAGES подряд; потом ждём прокрутки
+				for (let skipped = 0; ; skipped++) {
+					const next = await api.getPosts({ pageName: name, sorting: sortingOf(name, sorting), cursors: feedResult!.cursors });
+					if (id !== requestId || !feedResult) return false;
+					const items = unseen(next.items);
+					feedResult = { items: appendUnique(feedResult.items, items, postKey), cursors: next.cursors };
+					if (items.length || skipped >= MAX_SKIPPED_PAGES || !hasMore(next)) break;
+				}
 				const promise = chunks.run();
 				loadingMore = false;
 				return await promise;
@@ -148,7 +167,10 @@
 	// Лента появилась или у неё сменилась сортировка: загружаем с начала
 	$effect(() => {
 		void sorting;
-		untrack(() => loadInitial());
+		untrack(() => {
+			showSeen = false;
+			loadInitial();
+		});
 	});
 
 	// Вернулись на ленту: свежие посты, если она у верха
@@ -202,8 +224,15 @@
 							{sorting}
 							switchSorting={(next: FeedSorting) => openFeedTab(name, next)}
 						/>
-						{#if feedResult.items.length === 0}
-							<div class="empty">Нет постов</div>
+						{#if feedResult.items.length === 0 && !hasMore(feedResult)}
+							{#if seen.size > 0 && settings.value.hideSeen && !showSeen}
+								<div class="empty">
+									Всё прочитано
+									<button class="show-seen" onclick={() => { showSeen = true; loadInitial(); }}>Показать прочитанные</button>
+								</div>
+							{:else}
+								<div class="empty">Нет постов</div>
+							{/if}
 						{:else}
 							{#if name === 'popular' && sorting === 'now'}
 								<ThemeLoader componentName="EditorialNews" />
@@ -212,10 +241,17 @@
 								{#if i === NOTICE_AFTER_POST && showNotice}
 									<ThemeLoader componentName="FeedNotice" onlater={feedNotice.later} onnever={feedNotice.never} />
 								{/if}
-								<ThemeLoader componentName="Post" {post} />
+								<!-- Обёртка с наблюдателем нужна, только когда показ в ленте считается прочтением -->
+								{#if tracksFeed()}
+									<div {@attach (el) => (active ? trackInFeed(el, post) : undefined)}>
+										<ThemeLoader componentName="Post" {post} />
+									</div>
+								{:else}
+									<ThemeLoader componentName="Post" {post} />
+								{/if}
 							{/each}
 
-							{#if feedResult.cursors && Object.keys(feedResult.cursors).length > 0}
+							{#if hasMore(feedResult)}
 								<div bind:this={loaderNode} class="infinite-loader">
 									{#if loadingMore}
 										<ThemeLoader componentName="Spinner" inline={true} />
@@ -271,6 +307,17 @@
 		padding: 40px;
 		color: var(--text-muted, #666);
 		font-size: 1.1em;
+	}
+	.show-seen {
+		display: block;
+		margin: 16px auto 0;
+		padding: 0;
+		border: 0;
+		background: none;
+		font: inherit;
+		color: var(--text-primary, inherit);
+		text-decoration: underline;
+		cursor: pointer;
 	}
 	.infinite-loader {
 		padding: 20px;

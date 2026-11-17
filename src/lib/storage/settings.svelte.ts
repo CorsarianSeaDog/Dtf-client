@@ -38,6 +38,14 @@ export interface AppSettings {
 	recommendations: RecommendationsMode;
 	/** Вести локальную статистику (см. stats.svelte.ts) */
 	collectStats: boolean;
+	/** Скрывать в лентах главной прочитанные посты (см. seen.svelte.ts) */
+	hideSeen: boolean;
+	/** Пост прочитан, если открыт столько секунд; 0 — открытие не считается */
+	seenOpenSeconds: number;
+	/** Пост прочитан, если пользователь долистал до его конца */
+	seenFullRead: boolean;
+	/** Пост прочитан, если карточка столько секунд была в центре экрана ленты; 0 — показ в ленте не считается */
+	seenFeedSeconds: number;
 	/** Тактильный виброотклик (для поддерживаемых устройств) */
 	haptics: boolean;
 	/** Анимация системного жеста «Назад» (Android) */
@@ -148,6 +156,10 @@ export const settings = persistedState<AppSettings>(
 		commentVirtualization: 'auto',
 		recommendations: 'auto',
 		collectStats: true,
+		hideSeen: false,
+		seenOpenSeconds: 5,
+		seenFullRead: true,
+		seenFeedSeconds: 0,
 		haptics: true,
 		predictiveBack: false,
 		useSharePreview: true,

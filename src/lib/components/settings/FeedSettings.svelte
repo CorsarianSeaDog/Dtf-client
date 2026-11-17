@@ -8,13 +8,16 @@
 	import { api } from '$lib/api/index.svelte';
 	import { nsfwBlur } from '$lib/nsfwBlur.svelte';
 	import { reactionSettings } from '$lib/storage/reactions.svelte';
+	import { clearSeen } from '$lib/storage/seen.svelte';
+	import { settings } from '$lib/storage/settings.svelte';
 	import type { AccountSettings } from '$lib/api/types';
 	import type { SettingValue } from '$lib/themes/types';
 
 	/*
 	 * Страница «Моя лента»: сортировка по рейтингу реакций,
-	 * настройки ленты аккаунта DTF (лента по умолчанию, сортировка «Моей ленты»,
-	 * размытие NSFW, скрытие прочитанного) и ссылка на оформление ленты.
+	 * локальное скрытие прочитанных постов, настройки ленты аккаунта DTF (лента по умолчанию,
+	 * сортировка «Моей ленты», размытие NSFW) и ссылка на оформление ленты.
+	 * `hideViewedPostsFromFeeds` у DTF не работает, поэтому экрана у него нет, но API принимает все четыре поля группы сразу.
 	 */
 	let { onopencontent }: { onopencontent?: () => void } = $props();
 
@@ -28,6 +31,10 @@
 		{ value: 'new', title: 'Свежее' },
 		{ value: 'popular', title: 'Популярное' }
 	];
+
+	const seconds = (values: number[]) => values.map((value) => ({ value, title: value ? `${value} с` : 'Не считать' }));
+	const OPEN_OPTIONS = seconds([0, 1, 3, 5, 10, 30]);
+	const FEED_SEEN_OPTIONS = seconds([0, 1, 2, 3, 5]);
 
 	let feed = $state<AccountSettings>();
 	let feedError = $state<string>();
@@ -67,6 +74,49 @@
 	</SettingsRow>
 </SettingsGroup>
 
+<SettingsGroup
+	title="Прочитанные посты"
+	description="Список хранится только на этом устройстве. Скрытие срабатывает при следующей загрузке ленты: только что прочитанный пост остаётся на месте, пока ленту не обновят."
+>
+	<SettingsRow tag="label" title="Скрывать прочитанные посты" subtitle="В лентах главной. Пока выключено, прочитанное не запоминается.">
+		<SettingsSwitch
+			checked={settings.value.hideSeen}
+			label="Скрывать прочитанные посты"
+			onchange={(checked) => settings.patch({ hideSeen: checked })}
+		/>
+	</SettingsRow>
+	{#if settings.value.hideSeen}
+		<SettingsRow title="Открытие поста" subtitle="Прочитан, если пост был открыт столько секунд.">
+			<SettingsSelect
+				id="seen-open"
+				options={OPEN_OPTIONS}
+				value={settings.value.seenOpenSeconds}
+				label="Открытие поста"
+				onchange={(value) => settings.patch({ seenOpenSeconds: value })}
+			/>
+		</SettingsRow>
+		<SettingsRow tag="label" title="Дочитан до конца" subtitle="Прочитан, если вы долистали пост до конца.">
+			<SettingsSwitch
+				checked={settings.value.seenFullRead}
+				label="Дочитан до конца"
+				onchange={(checked) => settings.patch({ seenFullRead: checked })}
+			/>
+		</SettingsRow>
+		<SettingsRow title="Показ в ленте" subtitle="Прочитан, если карточка была в центре экрана ленты столько секунд.">
+			<SettingsSelect
+				id="seen-feed"
+				options={FEED_SEEN_OPTIONS}
+				value={settings.value.seenFeedSeconds}
+				label="Показ в ленте"
+				onchange={(value) => settings.patch({ seenFeedSeconds: value })}
+			/>
+		</SettingsRow>
+		<SettingsRow title="Забыть прочитанное" subtitle="Все посты снова появятся в лентах после обновления.">
+			<SettingsButton onclick={clearSeen}>Очистить</SettingsButton>
+		</SettingsRow>
+	{/if}
+</SettingsGroup>
+
 <AccountGate>
 	<SettingsGroup
 		title="Настройки с DTF"
@@ -96,13 +146,6 @@
 					checked={feed.isBlurNsfw}
 					label="Размывать NSFW"
 					onchange={(checked) => setFeed('isBlurNsfw', checked)}
-				/>
-			</SettingsRow>
-			<SettingsRow tag="label" title="Скрывать просмотренные посты" subtitle="Прочитанные посты автоматически скрываются из лент.">
-				<SettingsSwitch
-					checked={feed.hideViewedPostsFromFeeds}
-					label="Скрывать просмотренные посты"
-					onchange={(checked) => setFeed('hideViewedPostsFromFeeds', checked)}
 				/>
 			</SettingsRow>
 		{:else if !feedError}
