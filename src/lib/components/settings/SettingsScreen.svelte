@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { settle, swipe } from '$lib/swipe';
+	import { EASE, glide, settle, swipe, translate } from '$lib/swipe';
+	import { reducedMotion } from '$lib/motion';
 	import AboutSettings from './AboutSettings.svelte';
 	import AccountSettings from './AccountSettings.svelte';
 	import AppIconSettings from './AppIconSettings.svelte';
@@ -122,6 +123,7 @@
 	// То же для подменю: 0 — главная, 1 — подменю (слайд работает и на десктопе)
 	let folderSlide = $state<number>();
 	let dragging = $state(false);
+	let windowEl = $state<HTMLElement>();
 	let gestures = $derived(activeTheme.gestures && currentDevice === 'mobile');
 
 	let scroller = $state<HTMLElement>();
@@ -288,17 +290,50 @@
 		else handleBackToRoot();
 	}
 
+	// С корня настроек свайп вправо закрывает их целиком: окно уезжает за палец, как страница-оверлей
+	const atRoot = () => !opened && activeFolderId === null;
+
+	/** Довести уход окна с сдвига `x` до закрытия или возврата. Возвращает функцию, которая завершает доезд сразу */
+	function finishExit(x: number, back: boolean, v: number) {
+		const el = windowEl;
+		if (!el) return;
+		const end = back ? innerWidth : 0;
+		let settled = false;
+		let anim: Animation | undefined;
+		const done = () => {
+			if (settled) return;
+			settled = true;
+			anim?.cancel();
+			if (back) {
+				// Окно за краем: прячем его, чтобы анимация закрытия модалки не вернула его на экран
+				el.style.visibility = 'hidden';
+				onclose();
+			} else {
+				el.style.transform = '';
+			}
+		};
+		if (reducedMotion() || Math.abs(end - x) < 1) return done();
+		anim = el.animate([{ transform: translate(x) }, { transform: translate(end) }], { duration: glide(end - x, v), easing: EASE, fill: 'forwards' });
+		anim.finished.then(done, () => {});
+		return done;
+	}
+
 	const backSwipe = swipe({
-		start: (e) => gestures && (opened || activeFolderId !== null) && !(e.target as Element).closest('input, textarea, select, [contenteditable]'),
+		start: (e) => gestures && !(e.target as Element).closest('input, textarea, select, [contenteditable]'),
 		begin: (dx) => dx > 0,
 		move(x) {
-			if (!follows()) return;
 			dragging = true;
+			if (atRoot()) {
+				if (windowEl) windowEl.style.transform = translate(Math.max(0, x));
+				return;
+			}
+			if (!follows()) return;
 			setSlide(1 - Math.min(1, x / innerWidth));
 		},
 		end(x, v) {
 			dragging = false;
 			const back = v !== null && settle(x, v, innerWidth) === -1;
+			if (atRoot()) return finishExit(Math.max(0, x), back, v ?? 0);
 			if (follows()) setSlide(back ? 0 : undefined);
 			if (back) goBack();
 		}
@@ -335,6 +370,7 @@
 	data-dragging={dragging || undefined}
 	style:--slide={slide ?? (opened ? 1 : 0)}
 	style:--folder={folderSlide ?? (activeFolderId !== null ? 1 : 0)}
+	bind:this={windowEl}
 	{@attach gestures ? backSwipe : undefined}
 >
 	<div class="panes">
