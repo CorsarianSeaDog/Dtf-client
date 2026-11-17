@@ -322,17 +322,8 @@ export function playClipped(el: HTMLElement, anim?: Anim, fill: FillMode = 'none
  */
 export function playChildren(parent: Element, anim?: Anim, fill: FillMode = 'none') {
 	if (!anim || reducedMotion()) return;
-	const isContents = (el: Element) =>
-		typeof getComputedStyle === 'function' && getComputedStyle(el).display === 'contents';
-
 	for (const child of parent.children) {
-		const targets = isContents(child) ? Array.from(child.children) : [child];
-		for (const el of targets) {
-			if (isContents(el)) {
-				playChildren(el, anim, fill);
-			} else {
-				play(el, anim, fill);
-			}
-		}
+		if (typeof getComputedStyle === 'function' && getComputedStyle(child).display === 'contents') playChildren(child, anim, fill);
+		else play(child, anim, fill);
 	}
 }

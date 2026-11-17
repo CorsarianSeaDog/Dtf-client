@@ -84,7 +84,7 @@
 		const headerBottom = headerBottomOf();
 		const top = Math.max(from.top, headerBottom);
 		Object.assign(screen.style, { position: 'fixed', top: `${top}px`, left: `${from.left}px`, width: `${from.width}px`, height: `${innerHeight - top}px`, overflow: 'hidden', margin: '0', zIndex: '90', pointerEvents: 'none' });
-		screen.scrollTop = top - from.top;
+		if (top !== from.top) screen.scrollTop = top - from.top;
 		// Тема может оформить уходящий экран (например, сделать непрозрачным): он уничтожается вместе с атрибутом
 		screen.setAttribute('data-leaving', '');
 		screen.animate(anim.keyframes, { duration: anim.duration, easing: anim.easing, fill: 'forwards' });

@@ -138,7 +138,8 @@ export function freeze(screen: HTMLElement, rect: DOMRect, headerBottom: number)
 		pointerEvents: 'none',
 		willChange: 'transform, opacity'
 	});
-	screen.scrollTop = top - rect.top;
+	// Запись scrollTop заставляет браузер сразу пересчитать раскладку всей страницы: без сдвига её не трогаем
+	if (top !== rect.top) screen.scrollTop = top - rect.top;
 
 	return () => {
 		Object.assign(screen.style, prev);

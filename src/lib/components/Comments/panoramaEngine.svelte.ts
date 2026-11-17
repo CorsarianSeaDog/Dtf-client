@@ -25,8 +25,12 @@ export class PanoramaEngine {
 
 	mount(viewport: HTMLElement) {
 		this.viewportElement = viewport;
-		const gap = parseFloat(getComputedStyle(viewport).getPropertyValue('--gap-branch'));
-		if (gap) this.cachedIndentPx = gap;
+		// Чтение вычисленного стиля прямо при монтировании заставляло браузер пересчитать стили всей страницы посреди сборки комментариев: читаем после первого кадра
+		requestAnimationFrame(() => {
+			if (this.viewportElement !== viewport) return;
+			const gap = parseFloat(getComputedStyle(viewport).getPropertyValue('--gap-branch'));
+			if (gap) this.cachedIndentPx = gap;
+		});
 
 		this.panObserver = new IntersectionObserver((entries) => {
 			for (const entry of entries) {
