@@ -20,11 +20,16 @@ export function pushDrawer(panel: HTMLElement, items: HTMLElement) {
 	// Что сдвигается вместе с панелью. Узлы берутся на старте: страницы и строка под ними пересоздаются
 	let content: HTMLElement | null = null;
 	let bar: HTMLElement | null = null;
+	// Размеры не меняются, пока идёт жест или доезд: читаются один раз на старте, иначе каждый кадр заставлял бы браузер пересчитывать раскладку
+	let width = 0;
+	let barShift = 0;
 
 	function render(next: number) {
 		if (!p && next) {
 			content = document.getElementById('content');
 			bar = document.querySelector<HTMLElement>('.mobile-bar-container');
+			width = panel.offsetWidth;
+			barShift = (bar?.offsetHeight ?? 0) + 24;
 			panel.style.visibility = 'visible';
 			// Лента ложится поверх панели своим фоном, без тени: граница — только разница фонов
 			if (content) Object.assign(content.style, { position: 'relative', zIndex: '2', background: 'var(--bg-main)', willChange: 'transform' });
@@ -32,9 +37,8 @@ export function pushDrawer(panel: HTMLElement, items: HTMLElement) {
 		}
 		p = next;
 		if (!p) return clear();
-		const width = panel.offsetWidth;
 		if (content) content.style.transform = `translate3d(${p * width}px, 0, 0)`;
-		if (bar) bar.style.transform = `translate3d(0, ${p * (bar.offsetHeight + 24)}px, 0)`;
+		if (bar) bar.style.transform = `translate3d(0, ${p * barShift}px, 0)`;
 		items.style.transform = `translate3d(${-(1 - p) * LAG * 100}%, 0, 0) scale(${DEPTH + (1 - DEPTH) * p})`;
 		items.style.opacity = `${Math.max(0, p * 1.5 - 0.5)}`;
 	}
