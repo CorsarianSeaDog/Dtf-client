@@ -42,6 +42,10 @@ class PwaManager {
 		return `${repo}/commits/dev`;
 	}
 
+	/** Обновление применяется: кнопки показывают это сразу, чтобы тап не казался потерянным */
+	updating = $state(false);
+
+	private registration: ServiceWorkerRegistration | null = null;
 	private waitingWorker: ServiceWorker | null = null;
 	private refreshing = false;
 	private initialized = false;
@@ -84,6 +88,7 @@ class PwaManager {
 
 		navigator.serviceWorker.ready
 			.then((registration) => {
+				this.registration = registration;
 				// If a worker is already waiting when the page loads
 				if (registration.waiting) {
 					this.handleWaiting(registration.waiting);
@@ -175,11 +180,21 @@ class PwaManager {
 			await this.onUpdateAction(true);
 			return;
 		}
-		if (this.waitingWorker) {
-			this.waitingWorker.postMessage({ type: 'SKIP_WAITING' });
-		} else {
+		// Повторный тап, пока обновление идёт, ничего не делает
+		if (this.updating) return;
+		this.updating = true;
+
+		// Сохранённый воркер мог устареть (его заменила более новая сборка): берём тот, что ждёт сейчас
+		const waiting = this.registration?.waiting ?? this.waitingWorker;
+		if (!waiting || waiting.state === 'redundant') {
 			window.location.reload();
+			return;
 		}
+		waiting.postMessage({ type: 'SKIP_WAITING' });
+		// Активация воркера может не дойти до controllerchange (сообщение потерялось, воркер усыплён): не зависаем
+		setTimeout(() => {
+			if (!this.refreshing) window.location.reload();
+		}, 4000);
 	}
 
 	async dismiss() {

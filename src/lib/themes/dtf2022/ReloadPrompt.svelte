@@ -103,9 +103,10 @@
 					<button
 						type="button"
 						class="pwa-prompt__btn pwa-prompt__btn--primary"
+						disabled={pwa.updating}
 						onclick={() => pwa.update()}
 					>
-						Обновить
+						{pwa.updating ? 'Обновляем…' : 'Обновить'}
 					</button>
 				{/if}
 				<button
@@ -214,6 +215,11 @@
 
 	.pwa-prompt__btn:hover {
 		opacity: 0.9;
+	}
+
+	.pwa-prompt__btn:disabled {
+		opacity: 0.6;
+		cursor: default;
 	}
 
 	.pwa-prompt__btn--primary {
