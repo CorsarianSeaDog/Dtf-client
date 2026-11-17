@@ -12,6 +12,7 @@
 	import { notify } from '../dtf2022/ui/notify.svelte';
 	import EditorToolbar from './EditorToolbar.svelte';
 	import PostPreview from './PostPreview.svelte';
+	import EditorCounter from './EditorCounter.svelte';
 
 	let { session }: { session: any } = $props();
 
@@ -115,6 +116,10 @@
 			<PostPreview title={session.title} blocks={previewBlocks} repost={session.repostOf} />
 		{/if}
 		<EditorToolbar {session} />
+		<!-- На телефоне счётчик в шторке публикации: внизу экрана место занято панелью над клавиатурой -->
+		{#if !mobile.current}
+			<EditorCounter {session} sticky />
+		{/if}
 	{/snippet}
 </BaseEditorScreen>
 

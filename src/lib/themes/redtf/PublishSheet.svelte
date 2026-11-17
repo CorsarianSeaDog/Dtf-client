@@ -4,6 +4,7 @@
 	import { Button } from '../dtf2022/ui';
 	import Popup from '../dtf2022/ui/Popup.svelte';
 	import EditorSettings from '../dtf2022/EditorSettings.svelte';
+	import EditorCounter from './EditorCounter.svelte';
 
 	/*
 	 * Шторка публикации на телефоне: те же настройки записи, что у строки над заголовком, и кнопки.
@@ -32,6 +33,7 @@
 <Popup title="Публикация" onclose={close}>
 	<div class="publish-sheet">
 		<EditorSettings {session} />
+		<EditorCounter {session} />
 	</div>
 	{#snippet footer()}
 		<!-- Подвал Popup на телефоне идёт колонкой снизу вверх: главная кнопка оказывается сверху -->
@@ -53,6 +55,10 @@
 	.publish-sheet :global(.writing__comments.writing__comments) {
 		flex: none;
 		min-width: 0;
+	}
+
+	.publish-sheet :global(.editor-counter) {
+		margin-top: 12px;
 	}
 
 	.publish-sheet :global(.writing__adult) {

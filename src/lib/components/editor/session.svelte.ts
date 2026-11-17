@@ -51,7 +51,7 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 	let changes = 0;
 	let savedChanges = 0;
 	/** Последнее содержимое редактора: к закрытию экрана сам редактор уже уничтожен и save() не вызвать */
-	let snapshot: OutputData | undefined;
+	let snapshot = $state.raw<OutputData | undefined>();
 	/** Сохранения идут по очереди: иначе у новой записи два запроса подряд создали бы два черновика */
 	let saveQueue: Promise<unknown> = Promise.resolve();
 	let deleted = false;
@@ -315,6 +315,9 @@ export function createEditorSession(initialPostId: number | null = null, repostI
 		get showHistory() { return showHistory; },
 		get historyVersions() { return historyVersions; },
 		get loadingHistory() { return loadingHistory; },
+
+		/** Последнее содержимое редактора (реактивно, обновляется при правках): по нему считаются слова */
+		get content() { return snapshot; },
 
 		get editorInstance() { return editorInstance; },
 		set editorInstance(v) { editorInstance = v; },
