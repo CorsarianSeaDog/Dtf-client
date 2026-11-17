@@ -358,7 +358,7 @@ const nestingField: ChoiceField = {
 	default: 'flatten',
 	options: [
 		{ value: 'flatten', title: 'Сглаживание (рекомендуется)', description: 'Глубокие ветки сглаживаются с навигацией к родителю' },
-		{ value: 'autopan', title: 'Авто-панорама', description: 'Без лимита вложенности, камера следит за глубиной' }
+		{ value: 'autopan', title: 'Авто-панорама', note: EXPERIMENTAL, description: 'Без лимита вложенности, камера следит за глубиной' }
 	]
 };
 
