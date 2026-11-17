@@ -16,6 +16,8 @@
 	import AudioBlock from './AudioBlock.svelte';
 	import PersonBlock from './PersonBlock.svelte';
 	import QuizBlock from './QuizBlock.svelte';
+	import SpotifyBlock from './SpotifyBlock.svelte';
+	import { spotifyEmbedSrc } from './spotify';
 	import { FEED_MEDIA_MAX_HEIGHT, isWideMedia, mediaMaxWidth, mediaPreviewUrl } from '../media';
 	import { themeSettings } from '../themeSettings.svelte';
 
@@ -291,6 +293,10 @@
 			<div class="post-block post-block--quiz"><QuizBlock data={block.data} {postId} {sourceId} /></div>
 		{:else if block.type === 'person'}
 			<div class="post-block post-block--person"><PersonBlock data={block.data} /></div>
+		{:else if block.type === 'spotify' && spotifyEmbedSrc(block.data.spotify?.data?.box_data)}
+			<div class="post-block post-block--spotify" id={anchorId}>
+				<SpotifyBlock src={spotifyEmbedSrc(block.data.spotify.data.box_data)!} />
+			</div>
 		{:else if variant === 'page'}
 			<div class="post-block" id={anchorId}>
 				<UnknownBlock type={block.type} {postId} {sourceId} />
@@ -623,9 +629,20 @@
 
 	/* Плеер и опрос интерактивны: поднимаем над ссылкой на пост в карточке, иначе клик открывает пост */
 	.post-block--audio,
-	.post-block--quiz {
+	.post-block--quiz,
+	.post-block--spotify {
 		position: relative;
 		z-index: 2;
+	}
+
+	/* figure у DTF: на странице отступ 24px, в карточке 12px; в карточке плеер с боковыми полями, как текст */
+	.post-blocks--page > .post-block--spotify {
+		margin-block: 24px;
+	}
+
+	.post-blocks--card > .post-block--spotify,
+	.post-blocks--embed > .post-block--spotify {
+		margin-top: 12px;
 	}
 
 	.post-blocks--card > .post-block--audio :global(.audio-block),
