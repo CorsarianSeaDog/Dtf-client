@@ -138,6 +138,8 @@
 	.screen-bar {
 		display: none;
 		align-self: stretch;
+		/* Переход и «заморозка» ограничивают высоту экрана: длинное содержимое сжало бы панель (и полоску безопасной зоны) до нуля */
+		flex-shrink: 0;
 		position: sticky;
 		top: 0;
 		z-index: 100;
