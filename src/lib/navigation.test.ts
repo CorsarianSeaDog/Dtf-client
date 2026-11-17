@@ -69,6 +69,8 @@ describe('navigation', () => {
 		const content = fs.readFileSync(filePath, 'utf-8');
 
 		expect(content).toContain('?page=about');
+		expect(content).toContain('https://github.com/re-dtf/client/releases/latest');
+		expect(content).toContain('Скачать приложение');
 		expect(content).toContain("resolve('/support')");
 		expect(content).toContain('?page=about&section=documents');
 		expect(content).toContain("openSettings(e, 'about')");
@@ -81,6 +83,8 @@ describe('navigation', () => {
 		const content = fs.readFileSync(filePath, 'utf-8');
 
 		expect(content).toContain('?page=about');
+		expect(content).toContain('https://github.com/re-dtf/client/releases/latest');
+		expect(content).toContain('Скачать приложение');
 		expect(content).toContain("resolve('/support')");
 		expect(content).toContain('?page=about&section=documents');
 		expect(content).toContain("openSettings(e, 'about')");
