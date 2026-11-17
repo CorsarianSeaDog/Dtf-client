@@ -24,6 +24,8 @@
 	import { settings } from '$lib/storage/settings.svelte';
 	import { getCommentBadge } from '$lib/clientBadge';
 	import BadgeInfoModal from './BadgeInfoModal.svelte';
+	import { themeSettings } from './themeSettings.svelte';
+	import BookmarkGhost from './ui/BookmarkGhost.svelte';
 
 	/** Карточка комментария на вкладке «Комментарии» профиля, как profile_comment_favorite у DTF */
 	let { comment }: { comment: Comment } = $props();
@@ -40,6 +42,16 @@
 	let postPath = $derived(resolve(getPostPath(post) as any));
 	let commentPath = $derived(resolve(getPostPath(post, comment.id) as any));
 	let commentUrl = $derived(getPostShareUrl(post, `comment-${comment.sourceId}_${comment.id}`));
+
+	// Закладка как chunk.bookmark.vue: подсветка гаснет после клика до ухода мыши, при добавлении вспыхивает «призрак»
+	let bookmarkPressed = $state(false);
+	let bookmarkGhost = $state(0);
+	function toggleBookmark() {
+		const was = !!comment.isFavorited;
+		toggleCommentFavorite(comment, undefined, true);
+		bookmarkPressed = true;
+		if (!was && comment.isFavorited) bookmarkGhost++;
+	}
 
 	let menuOpen = $state(false);
 	let complaining = $state(false);
@@ -177,13 +189,25 @@
 		{#if comment.sourceId === 'dtf'}
 			<button
 				type="button"
-				class={['profile-comment__bookmark', { 'profile-comment__bookmark--active': comment.isFavorited }]}
-				title={comment.isFavorited ? 'Убрать из закладок' : 'Добавить в закладки'}
-				onclick={() => toggleCommentFavorite(comment)}
+				class={[
+					'profile-comment__bookmark',
+					{
+						'profile-comment__bookmark--active': comment.isFavorited,
+						'profile-comment__bookmark--pressed': bookmarkPressed,
+						'profile-comment__bookmark--flat': themeSettings.votes === 'rating'
+					}
+				]}
+				title={comment.isFavorited ? 'В закладках' : 'В закладки'}
+				aria-pressed={!!comment.isFavorited}
+				onclick={toggleBookmark}
+				onmouseleave={() => (bookmarkPressed = false)}
 			>
 				<svg class="icon" width="16" height="16" aria-hidden="true">
 					<use href="#{comment.isFavorited ? 'v_bookmark_solid' : 'v_bookmark'}"></use>
 				</svg>
+				{#key bookmarkGhost}
+					{#if bookmarkGhost}<BookmarkGhost size={16} onend={() => (bookmarkGhost = 0)} />{/if}
+				{/key}
 			</button>
 		{/if}
 
@@ -490,6 +514,11 @@
 		color: var(--color-blue);
 	}
 
+	/* Осенью 2022 у закладки не было круга, а наведение было синим, как активная */
+	.profile-comment__bookmark--flat::before {
+		content: none;
+	}
+
 	/* Как .etc_control у DTF: серая, при наведении чёрная; зона клика больше иконки 14×7 */
 	.profile-comment__etc {
 		position: relative;
@@ -525,11 +554,15 @@
 			color: var(--text-link);
 		}
 
-		.profile-comment__bookmark:hover {
+		.profile-comment__bookmark:hover:not(.profile-comment__bookmark--pressed) {
 			color: var(--color-comments-hover);
 		}
 
-		.profile-comment__bookmark:hover::before {
+		.profile-comment__bookmark--flat:hover:not(.profile-comment__bookmark--pressed) {
+			color: var(--color-blue);
+		}
+
+		.profile-comment__bookmark:hover:not(.profile-comment__bookmark--pressed)::before {
 			opacity: 0.12;
 		}
 

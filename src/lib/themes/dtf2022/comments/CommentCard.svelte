@@ -26,6 +26,7 @@
 	import Rating from '../post/Rating.svelte';
 	import Reactions from '../post/Reactions.svelte';
 	import { themeSettings } from '../themeSettings.svelte';
+	import BookmarkGhost from '../ui/BookmarkGhost.svelte';
 	import { notify } from '../ui/notify.svelte';
 	import PlusBadge from '../ui/PlusBadge.svelte';
 	import Popover from '../ui/Popover.svelte';
@@ -48,6 +49,16 @@
 	let showBadgeModal = $state(false);
 
 	let votes = $derived(themeSettings.votes);
+
+	// Закладка как chunk.bookmark.vue: подсветка гаснет после клика до ухода мыши, при добавлении вспыхивает «призрак»
+	let bookmarkPressed = $state(false);
+	let bookmarkGhost = $state(0);
+	function toggleBookmark() {
+		const was = !!item.isFavorited;
+		toggleCommentFavorite(item, onpatch, true);
+		bookmarkPressed = true;
+		if (!was && item.isFavorited) bookmarkGhost++;
+	}
 	let arrowsLeft = $derived(votes === 'rating' && themeSettings.arrowsSide === 'left');
 	let post = $derived({ id: item.postId, sourceId: item.sourceId });
 	let postPath = $derived(resolve(getPostPath(post) as any));
@@ -241,14 +252,25 @@
 			{#if item.sourceId === 'dtf'}
 				<button
 					type="button"
-					class={['comment-card__bookmark', { 'comment-card__bookmark--active': item.isFavorited }]}
-					title={item.isFavorited ? 'Убрать из закладок' : 'Добавить в закладки'}
+					class={[
+						'comment-card__bookmark',
+						{
+							'comment-card__bookmark--active': item.isFavorited,
+							'comment-card__bookmark--pressed': bookmarkPressed,
+							'comment-card__bookmark--flat': votes === 'rating'
+						}
+					]}
+					title={item.isFavorited ? 'В закладках' : 'В закладки'}
 					aria-pressed={!!item.isFavorited}
-					onclick={() => toggleCommentFavorite(item, onpatch)}
+					onclick={toggleBookmark}
+					onmouseleave={() => (bookmarkPressed = false)}
 				>
 					<svg class="icon" width="16" height="16" aria-hidden="true">
 						<use href="#{item.isFavorited ? 'v_bookmark_solid' : 'v_bookmark'}"></use>
 					</svg>
+					{#key bookmarkGhost}
+						{#if bookmarkGhost}<BookmarkGhost size={16} onend={() => (bookmarkGhost = 0)} />{/if}
+					{/key}
 				</button>
 			{/if}
 
@@ -599,6 +621,11 @@
 		color: var(--color-blue);
 	}
 
+	/* Осенью 2022 у закладки не было круга, а наведение было синим, как активная */
+	.comment-card__bookmark--flat::before {
+		content: none;
+	}
+
 	.comment-card__etc {
 		position: relative;
 		display: flex;
@@ -636,11 +663,15 @@
 			opacity: 0.9;
 		}
 
-		.comment-card__bookmark:hover {
+		.comment-card__bookmark:hover:not(.comment-card__bookmark--pressed) {
 			color: var(--color-comments-hover);
 		}
 
-		.comment-card__bookmark:hover::before {
+		.comment-card__bookmark--flat:hover:not(.comment-card__bookmark--pressed) {
+			color: var(--color-blue);
+		}
+
+		.comment-card__bookmark:hover:not(.comment-card__bookmark--pressed)::before {
 			opacity: 0.12;
 		}
 

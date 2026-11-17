@@ -38,6 +38,8 @@
 	import ReactionPopup from './ReactionPopup.svelte';
 	import { formatNumber } from '../format';
 	import { lottie, preloadLottie } from './lottie';
+	import BookmarkGhost from '../ui/BookmarkGhost.svelte';
+	import { themeSettings } from '../themeSettings.svelte';
 
 	/*
 	 * Снаружи настраивается CSS-переменными: --post-button-size (круг подсветки),
@@ -76,7 +78,7 @@
 
 	let custom = $derived(kind === 'like' ? customVoteIconOf(reactions, 1) : kind === 'dislike' ? customVoteIconOf(reactions, -1) : undefined);
 	let isVoteActive = $derived(active || !!custom);
-	let resolvedTitle = $derived(custom?.name ?? title);
+	let resolvedTitle = $derived(custom?.name ?? (kind === 'bookmark' && active ? 'В закладках' : title));
 
 	// В активном состоянии у лайка, дизлайка и закладки свои иконки
 	let iconName = $derived(isVoteActive ? (ACTIVE_ICONS[kind] ?? ICONS[kind]) : ICONS[kind]);
@@ -88,10 +90,22 @@
 	let animation = $state<LottieLoader>();
 	let animating = $derived(!!animation);
 
+	// Закладка как chunk.bookmark.vue: после клика подсветка не горит, пока мышь не уйдёт (.bookmark--just_clicked),
+	// при добавлении вспыхивает «призрак» иконки. Осенью 2022 у неё не было круга, а наведение было синим, как активная
+	let pressed = $state(false);
+	let ghost = $state(0);
+	let flat = $derived(kind === 'bookmark' && themeSettings.votes === 'rating');
+
 	let className = $derived([
 		'post-button',
 		`post-button--${kind}`,
-		{ 'post-button--active': isVoteActive, 'post-button--right': right, 'post-button--lottie-animated': animating }
+		{
+			'post-button--active': isVoteActive,
+			'post-button--right': right,
+			'post-button--lottie-animated': animating,
+			'post-button--pressed': pressed,
+			'post-button--flat': flat
+		}
 	]);
 	let ariaLabel = $derived(value === undefined ? resolvedTitle : `${resolvedTitle}: ${value}`);
 
@@ -101,7 +115,11 @@
 		if (onclick && !isVoteActive && !animating && (kind === 'like' || kind === 'dislike')) {
 			animation = kind === 'like' && Math.random() < RARE_LIKE_CHANCE ? LOTTIE.likeRare : LOTTIE[kind];
 		}
+		const was = isVoteActive;
 		onclick?.(e);
+		if (kind !== 'bookmark') return;
+		pressed = true;
+		if (!was && active) ghost++;
 	}
 </script>
 
@@ -114,6 +132,9 @@
 				<use href="#{iconName}"></use>
 			</svg>
 		{/if}
+		{#key ghost}
+			{#if ghost}<BookmarkGhost size={iconSize} onend={() => (ghost = 0)} />{/if}
+		{/key}
 	</span>
 	{#if value !== undefined}
 		<span class="post-button__value">{formatNumber(value)}</span>
@@ -127,7 +148,14 @@
 	{#if href}
 		<a {href} class={className} title={resolvedTitle} aria-label={ariaLabel} {onclick}>{@render content()}</a>
 	{:else}
-		<button class={className} title={resolvedTitle} aria-label={ariaLabel} aria-pressed={TOGGLES.has(kind) ? isVoteActive : undefined} onclick={handleClick}>
+		<button
+			class={className}
+			title={resolvedTitle}
+			aria-label={ariaLabel}
+			aria-pressed={TOGGLES.has(kind) ? isVoteActive : undefined}
+			onclick={handleClick}
+			onmouseleave={() => (pressed = false)}
+		>
 			{@render content()}
 		</button>
 	{/if}
@@ -233,6 +261,14 @@
 		--text-active: var(--color-blue);
 	}
 
+	.post-button--flat {
+		--text-hover: var(--color-blue);
+	}
+
+	.post-button--flat .post-button__icon::before {
+		content: none;
+	}
+
 	.post-button--like .icon,
 	.post-button--dislike .icon {
 		stroke: currentColor;
@@ -262,11 +298,11 @@
 	}
 
 	@media (hover: hover) {
-		.post-button:hover {
+		.post-button:hover:not(.post-button--pressed) {
 			color: var(--text-hover);
 		}
 
-		.post-button:hover .post-button__icon::before {
+		.post-button:hover:not(.post-button--pressed) .post-button__icon::before {
 			opacity: 0.12;
 		}
 	}

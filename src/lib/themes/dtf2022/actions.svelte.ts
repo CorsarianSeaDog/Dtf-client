@@ -67,6 +67,7 @@ export function reactToPost(post: Post, reactionId: number): boolean {
 export const votePost = (post: Post, sign: 1 | -1) =>
 	reactToPost(post, nextVoteReactionId(withActions(post).reactions, sign));
 
+/** Кнопка закладки поста. Как у DTF, ошибку не показывает: закладка просто возвращается в прежнее состояние */
 export function toggleFavoritePost(post: Post) {
 	if (post.sourceId !== 'dtf' || !ensureLogin()) return;
 
@@ -77,10 +78,7 @@ export function toggleFavoritePost(post: Post) {
 
 	api.setFavorite(post.id, 'post', !isFavorited)
 		.then((count) => change(post, { favoritesCount: count }))
-		.catch((e) => {
-			change(post, { isFavorited, favoritesCount });
-			notify.error(e.message);
-		});
+		.catch(() => change(post, { isFavorited, favoritesCount }));
 }
 
 /*

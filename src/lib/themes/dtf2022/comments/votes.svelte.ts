@@ -40,7 +40,11 @@ export function toggleCommentReaction(
 export const voteComment = (comment: Comment, sign: 1 | -1, onpatch?: (update: CommentUpdate) => void) =>
 	toggleCommentReaction(comment, nextVoteReactionId(comment.reactions, sign), onpatch);
 
-export async function toggleCommentFavorite(comment: Comment, onpatch?: (patch: Partial<Comment>) => void) {
+/**
+ * Закладка комментария. Пункт меню «⋯» у DTF сообщал о результате тостом, кнопка закладки (`quiet`) — нет:
+ * при ошибке она молча возвращается в прежнее состояние
+ */
+export async function toggleCommentFavorite(comment: Comment, onpatch?: (patch: Partial<Comment>) => void, quiet = false) {
 	if (!ensureLogin()) return;
 
 	const was = !!comment.isFavorited;
@@ -51,10 +55,10 @@ export async function toggleCommentFavorite(comment: Comment, onpatch?: (patch: 
 
 	try {
 		await api.setFavorite(comment.id, 'comment', !was);
-		notify.success(was ? 'Комментарий удалён из закладок' : 'Комментарий добавлен в закладки');
+		if (!quiet) notify.success(was ? 'Комментарий удалён из закладок' : 'Комментарий добавлен в закладки');
 	} catch {
 		if (onpatch) onpatch({ isFavorited: was });
 		else comment.isFavorited = was;
-		notify.error(was ? 'Не удалось удалить из закладок' : 'Не удалось добавить в закладки');
+		if (!quiet) notify.error(was ? 'Не удалось удалить из закладок' : 'Не удалось добавить в закладки');
 	}
 }
