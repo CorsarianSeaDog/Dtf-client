@@ -97,7 +97,6 @@ const BASE_ROOT_NAVIGATION: RootNavSection[] = [
 			{ id: 'theme-select', type: 'page', title: 'Выбор темы', icon: 'theme-select' },
 			{ id: 'interface', type: 'folder', title: 'Интерфейс', icon: 'interface' },
 			{ id: 'pinned', type: 'page', title: 'Закреплённые', icon: 'pinned' },
-			{ id: 'animations', type: 'page', title: 'Анимации', icon: 'animations' },
 			{ id: 'reactions', type: 'page', title: 'Реестр реакций', icon: 'reactions' },
 			{ id: 'app', type: 'page', title: 'Приложение', icon: 'app' }
 		]
@@ -128,7 +127,8 @@ export const INTERFACE_SUBNAV: SubNavGroup[] = [
 			{ id: 'interface-content', title: 'Лента и контент', icon: 'content' },
 			{ id: 'interface-votes', title: 'Оценки', icon: 'votes' },
 			{ id: 'interface-comments', title: 'Комментарии', icon: 'comments' },
-			{ id: 'interface-editor', title: 'Редактор', icon: 'editor' }
+			{ id: 'interface-editor', title: 'Редактор', icon: 'editor' },
+			{ id: 'animations', title: 'Анимации', icon: 'animations' }
 		]
 	}
 ];
@@ -168,8 +168,8 @@ const PAGE_ALIASES: Record<string, { folderId: string | null; pageId: string; se
 	reactions: { folderId: null, pageId: 'reactions' },
 	'behavior-reactions': { folderId: null, pageId: 'reactions' },
 	app: { folderId: null, pageId: 'app' },
-	animations: { folderId: null, pageId: 'animations' },
-	motion: { folderId: null, pageId: 'animations' },
+	animations: { folderId: 'interface', pageId: 'animations' },
+	motion: { folderId: 'interface', pageId: 'animations' },
 	'app-icon': { folderId: null, pageId: 'app-icon' },
 	icons: { folderId: null, pageId: 'app-icon' },
 	'appearance-icons': { folderId: null, pageId: 'app-icon' },
@@ -555,10 +555,10 @@ export function buildDeclarativePages(
 		},
 		{
 			pageId: 'animations',
+			folderId: 'interface',
 			icon: 'animations',
-			searchPath: 'Персонализация › Анимации',
+			searchPath: 'Интерфейс › Анимации',
 			cardsLayout: true,
-			emptyHint: 'У выбранной темы здесь нет настроек. Переходы между страницами настраиваются на телефоне.',
 			entries: themeEntries(visible(THEME_GROUP_KEYS.motion), themeValues)
 		},
 		{

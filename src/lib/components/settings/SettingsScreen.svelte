@@ -103,20 +103,23 @@
 	let declarativePages = $derived(
 		buildDeclarativePages(themeFields, themeValues, currentDevice, settings.value.clientBadges, currentTouch)
 	);
+	// Страницы подменю, на которых для текущей темы и устройства нечего показать, из меню и поиска убираем
+	let emptyPageIds = $derived(new Set(declarativePages.filter((p) => !p.entries.length && !p.soloLink).map((p) => p.pageId)));
 
 	const initial = untrack(() => resolveInitialNav(page, section, isDevVisible));
 
 	let activeFolderId = $state<string | null>(initial.folderId);
 	let selectedPageId = $state<string | null>(initial.pageId);
 	let activeSection = $state<string | undefined>(initial.section);
+	let animationsUnavailable = $derived(selectedPageId === 'animations' && emptyPageIds.has(selectedPageId));
 
 	let soloByUser = $state<boolean>();
-	let isSolo = $derived(soloByUser ?? solo);
+	let isSolo = $derived(!animationsUnavailable && (soloByUser ?? solo));
 	let soloBackTarget = $state<SoloBackTarget | null>(null);
 
 	// На узком экране: false — список разделов, true — открытая страница
 	let openedByUser = $state<boolean>();
-	let opened = $derived(openedByUser ?? (selectedPageId !== null && (!!page || isSolo)));
+	let opened = $derived(!animationsUnavailable && (openedByUser ?? (selectedPageId !== null && (!!page || isSolo))));
 
 	// Слайд страницы на узком экране: 0 — виден список, 1 — страница. Пока палец ведёт страницу, значение задаёт жест
 	let slide = $state<number>();
@@ -134,9 +137,6 @@
 	let hasSearch = $derived(searchQuery.trim().length > 0);
 	let showSearchResults = $derived(activeFolderId === null && !isSolo && hasSearch);
 	let cancelPendingHighlight: (() => void) | undefined;
-
-	// Страницы подменю, на которых для текущей темы и устройства нечего показать, из меню и поиска убираем
-	let emptyPageIds = $derived(new Set(declarativePages.filter((p) => !p.entries.length && !p.soloLink).map((p) => p.pageId)));
 
 	let activeDeclarativePage = $derived(
 		selectedPageId ? declarativePages.find((p) => p.pageId === selectedPageId) : undefined
@@ -559,7 +559,7 @@
 			</header>
 
 			<div class="scroller" bind:this={scroller}>
-				{#if selectedPageId}
+				{#if selectedPageId && !animationsUnavailable}
 					<div class="page">
 						<h2 class="page__title">{pageTitle}</h2>
 

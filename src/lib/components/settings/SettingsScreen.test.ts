@@ -230,6 +230,28 @@ describe('SettingsScreen', () => {
 		}
 	});
 
+	it('показывает «Анимации» в подменю интерфейса только при наличии настроек', () => {
+		const props = { onclose: () => {}, page: 'animations' };
+		const previousTheme = activeTheme.id;
+		try {
+			activeTheme.set('redtf');
+			const mobile = render(SettingsScreen, { props: { ...props, device: 'mobile' } }).body;
+			const [, rootMenu, interfaceMenu] = mobile.split(/class="nav-layer[^"]*"/);
+			expect(rootMenu).not.toContain('Анимации');
+			expect(interfaceMenu).toMatch(/class="nav__title[^"]*">Анимации<\/span>/);
+			expect(mobile).toContain('Переходы между страницами');
+			const desktop = render(SettingsScreen, { props: { ...props, device: 'desktop' } }).body;
+			expect(desktop).not.toContain('Анимации');
+			activeTheme.set('dtf2022');
+			const noFields = render(SettingsScreen, { props: { ...props, device: 'mobile', solo: true } }).body;
+			expect(noFields).not.toContain('Анимации');
+			expect(noFields).toContain('data-view="list"');
+			expect(noFields).toContain('data-solo="false"');
+		} finally {
+			activeTheme.set(previousTheme);
+		}
+	});
+
 	it('меняет местами блоки в выборе темы: сначала тема, затем цветовая схема', () => {
 		const { body } = render(SettingsScreen, {
 			props: {
