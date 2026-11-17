@@ -100,7 +100,7 @@
 	}
 
 	/* Название тега и его меню уже в панели: большой блок страницы тега не нужен */
-	:root[data-theme~="redtf"][data-mobile-top-bar] .tag-head {
+	:root[data-theme~="redtf"][data-mobile-top-bar] .page-head {
 		display: none;
 	}
 

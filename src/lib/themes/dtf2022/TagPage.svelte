@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { Post } from '$lib/api/types';
-	import PostCard from './post/PostCard.svelte';
-	import { isPostHidden, tagMenuItems, tagTitle, toggleIgnoredTag } from './actions.svelte';
+	import { tagMenuItems, tagTitle, toggleIgnoredTag } from './actions.svelte';
 	import Popover from './ui/Popover.svelte';
+	import PostsPage from './ui/PostsPage.svelte';
 
 	/*
 	 * Страница тега: заголовок с названием (первая буква заглавная, как у DTF) и записи.
@@ -16,9 +16,8 @@
 	let menuOpen = $state(false);
 </script>
 
-<div class="tag-page">
-	<div class="tag-head">
-		<h1 class="tag-head__title">#{title}</h1>
+<PostsPage title="#{title}" {posts} empty="Записей с таким тегом нет">
+	{#snippet actions()}
 		<Popover
 			bind:open={menuOpen}
 			items={tagMenuItems(tag)}
@@ -26,59 +25,18 @@
 			width="max-content"
 			label="Действия с тегом"
 		>
-			<button type="button" class="tag-head__etc" title="Больше" aria-expanded={menuOpen} onclick={() => (menuOpen = !menuOpen)}>
+			<button type="button" class="tag-etc" title="Больше" aria-expanded={menuOpen} onclick={() => (menuOpen = !menuOpen)}>
 				<svg class="icon" width="16" height="20" aria-hidden="true">
 					<use href="#v_etc"></use>
 				</svg>
 			</button>
 		</Popover>
-	</div>
-
-	<!-- Отступ между заголовком и первой записью тот же, что между записями ленты -->
-	{#each posts as post (post.sourceId + '_' + post.id)}
-		{#if !isPostHidden(post)}
-			<PostCard {post} />
-		{/if}
-	{/each}
-
-	{#if posts.length === 0}
-		<p class="tag-empty">Записей с таким тегом нет</p>
-	{/if}
-</div>
+	{/snippet}
+</PostsPage>
 
 <style>
-	.tag-page {
-		width: 100%;
-		max-width: var(--content-width);
-		/* Отступ страницы у DTF: 16px сверху на широком экране, снизу под последним постом */
-		padding: 16px 0;
-	}
-
-	.tag-head {
-		display: flex;
-		align-items: center;
-		box-sizing: border-box;
-		padding: 20px;
-		border-radius: 8px;
-		background: var(--bg-card);
-		color: var(--text-primary);
-	}
-
-	/* Строка выше шрифта: у overflow обрезаются выносные элементы букв («р», «у», «д») */
-	.tag-head__title {
-		flex: 1;
-		min-width: 0;
-		overflow: hidden;
-		margin: 0;
-		font-size: 30px;
-		font-weight: 600;
-		line-height: 38px;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
 	/* Как .etc_control у DTF: серая, при открытом меню чёрная */
-	.tag-head__etc {
+	.tag-etc {
 		position: relative;
 		display: flex;
 		align-items: center;
@@ -87,7 +45,7 @@
 		cursor: pointer;
 	}
 
-	.tag-head__etc::after {
+	.tag-etc::after {
 		content: '';
 		position: absolute;
 		top: 50%;
@@ -98,41 +56,13 @@
 	}
 
 	@media (pointer: coarse), (max-width: 859px) {
-		.tag-head__etc::after {
+		.tag-etc::after {
 			width: 44px;
 			height: 44px;
 		}
 	}
 
-	.tag-head__etc[aria-expanded='true'] {
+	.tag-etc[aria-expanded='true'] {
 		color: var(--text-primary);
-	}
-
-	.tag-empty {
-		margin-top: 28px;
-		padding: 40px 20px;
-		color: var(--text-muted);
-		text-align: center;
-	}
-
-	@media (max-width: 859px) {
-		.tag-page {
-			padding: 0 0 16px;
-		}
-
-		/* На узком экране записи ленты во всю ширину и без скруглений, заголовок так же */
-		.tag-head {
-			border-radius: 0;
-		}
-
-		.tag-empty {
-			margin-top: 20px;
-		}
-	}
-
-	@media (max-width: 639px) {
-		.tag-head {
-			padding: 18px 16px;
-		}
 	}
 </style>
