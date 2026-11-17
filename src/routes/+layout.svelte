@@ -2,8 +2,8 @@
 	import ThemeLoader, { preloadThemeComponent } from '$lib/themes/ThemeLoader.svelte';
 	import PostOverlay from '$lib/components/PostOverlay.svelte';
 	import ProfileContent from '$lib/components/ProfileContent.svelte';
-	import SettingsOverlay from '$lib/components/SettingsOverlay.svelte';
 	import RepostsContent from '$lib/components/RepostsContent.svelte';
+	import { loadSettingsOverlay } from '$lib/components/settings/load';
 	import TagContent from '$lib/components/TagContent.svelte';
 	import SearchContent from '$lib/components/SearchContent.svelte';
 	import DraftsContent from '$lib/components/DraftsContent.svelte';
@@ -48,6 +48,8 @@
 	let { children } = $props();
 	let showWelcome = $state(false);
 	let WelcomeComp = $state<typeof import('$lib/components/Welcome.svelte').default>();
+	let SettingsComp = $state<typeof import('$lib/components/SettingsOverlay.svelte').default>();
+	const loadSettings = () => loadSettingsOverlay().then((m) => void (SettingsComp = m.default));
 
 	// Компонент темы, который окно должно загрузить до показа (иначе оно мелькает спиннером)
 	const MODAL_COMPONENT: Partial<Record<App.OverlayData['type'], keyof ThemeComponents>> = {
@@ -440,6 +442,7 @@
 		const idle = (window.requestIdleCallback ?? setTimeout)(() => {
 			for (const name of ['Post', 'Comments', 'Profile', 'Notifications', 'AccountPage', 'PagePeek'] as const) preloadThemeComponent(activeTheme.chain, name);
 			preloadLightbox();
+			loadSettings();
 		});
 
 		return () => {
@@ -459,7 +462,9 @@
 	{:else if overlay.type === 'profile'}
 		<ProfileContent {...overlay.data} />
 	{:else if overlay.type === 'settings'}
-		<SettingsOverlay {...overlay.data} />
+		{#if SettingsComp}
+			<SettingsComp {...overlay.data} />
+		{/if}
 	{:else if overlay.type === 'notifications'}
 		<NotificationsContent active={depth === 0} />
 	{:else if overlay.type === 'messages'}
@@ -524,7 +529,7 @@
 
 	{#each overlays as overlay, index (overlay.id)}
 		{#if overlay.presentation === 'modal'}
-			<ModalShell {index} preload={MODAL_COMPONENT[overlay.type]}>
+			<ModalShell {index} preload={MODAL_COMPONENT[overlay.type]} load={overlay.type === 'settings' ? loadSettings : undefined}>
 				{@render overlayContent(overlay, 0)}
 			</ModalShell>
 		{:else if overlay.presentation === 'fullscreen'}

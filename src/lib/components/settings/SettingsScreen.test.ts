@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { render } from 'svelte/server';
 import SettingsScreen from './SettingsScreen.svelte';
+import SupportersSettings from './SupportersSettings.svelte';
+import DebugSettings from './DebugSettings.svelte';
 import { authStorage } from '$lib/storage/auth.svelte';
 import { activeTheme } from '$lib/themes/index.svelte';
 import { resolveInitialNav } from './settingsConfig';
@@ -108,16 +110,13 @@ describe('SettingsScreen', () => {
 		expect(body).toContain('Поддержать проект');
 	});
 
+	// Страницы-«тяжеловесы» грузятся по требованию, на сервере их нет: содержимое проверяем у самих страниц
 	it('рендерит страницу «Поддержавшие проект» при передаче page: supporters', () => {
-		const { body } = render(SettingsScreen, {
-			props: {
-				onclose: () => {},
-				page: 'supporters'
-			}
-		});
+		const screen = render(SettingsScreen, { props: { onclose: () => {}, page: 'supporters' } }).body;
+		expect(screen).toContain('Поддержавшие проект');
+		expect(screen).toContain('nav__item--active');
 
-		expect(body).toContain('Поддержавшие проект');
-		expect(body).toContain('Загрузка списка спонсоров...');
+		expect(render(SupportersSettings).body).toContain('Загрузка списка спонсоров...');
 	});
 
 	it('открывает «О приложении» при передаче page: legal', () => {
@@ -133,13 +132,9 @@ describe('SettingsScreen', () => {
 	});
 
 	it('рендерит страницу «Дебаг» при передаче page: debug', () => {
-		const { body } = render(SettingsScreen, {
-			props: {
-				onclose: () => {},
-				page: 'debug'
-			}
-		});
+		expect(render(SettingsScreen, { props: { onclose: () => {}, page: 'debug' } }).body).toContain('nav__item--active');
 
+		const { body } = render(DebugSettings, { props: { ondisable: () => {} } });
 		expect(body).toContain('Подсветка Safe Area и панелей');
 		expect(body).toContain('Плавающий HUD метрик');
 		expect(body).toContain('Безопасная область (Safe Area)');

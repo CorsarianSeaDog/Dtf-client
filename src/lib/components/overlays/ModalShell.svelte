@@ -10,10 +10,11 @@
 	/*
 	 * Подложка и окно модального оверлея. Подложка появляется сразу, а окно показывается
 	 * целиком: сначала грузится компонент темы (preload), потом картинки и шрифты окна.
+	 * `load` — ленивый код самого окна, он тоже нужен до показа.
 	 * Если окно не готово за SPINNER_DELAY, на подложке появляется спиннер.
 	 * Анимации окна берутся из motion активной темы (см. docs/architecture/motion.md).
 	 */
-	let { index, preload, children }: { index: number; preload?: keyof ThemeComponents; children: Snippet } = $props();
+	let { index, preload, load, children }: { index: number; preload?: keyof ThemeComponents; load?: () => Promise<unknown>; children: Snippet } = $props();
 
 	const SPINNER_DELAY = 300;
 
@@ -25,7 +26,7 @@
 	onMount(() => {
 		const timer = setTimeout(() => (slow = true), SPINNER_DELAY);
 		(async () => {
-			if (preload) await preloadThemeComponent(activeTheme.chain, preload).catch(() => {});
+			await Promise.all([preload && preloadThemeComponent(activeTheme.chain, preload), load?.()]).catch(() => {});
 			mounted = true;
 			await tick();
 			if (body) await assetsReady(body);

@@ -11,6 +11,7 @@
 	import { clickOnKey } from '../dtf2022/a11y';
 	import { sidebar } from '../dtf2022/sidebar.svelte';
 	import { Button } from '../dtf2022/ui';
+	import { loadSettingsOverlay } from '$lib/components/settings/load';
 	import { pushDrawer } from './pushDrawer';
 	import { themeSettings } from './themeSettings.svelte';
 
@@ -58,6 +59,8 @@
 	$effect(() => {
 		const open = sidebar.open;
 		if (push && pushes()) push.animate(open, reducedMotion() ? 0 : undefined);
+		// Из панели чаще всего идут в настройки: их код подтягиваем заранее
+		if (open) loadSettingsOverlay();
 	});
 
 	const closeSwipe = drawerSwipe(() => sidebar.open);

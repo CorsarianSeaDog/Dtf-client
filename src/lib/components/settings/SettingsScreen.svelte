@@ -4,24 +4,16 @@
 	import { reducedMotion } from '$lib/motion';
 	import AboutSettings from './AboutSettings.svelte';
 	import AccountSettings from './AccountSettings.svelte';
-	import AppIconSettings from './AppIconSettings.svelte';
-	import DebugSettings from './DebugSettings.svelte';
 	import FeedSettings from './FeedSettings.svelte';
 	import FieldControl from './FieldControl.svelte';
 	import HelpSettings from './HelpSettings.svelte';
-	import IgnoredSettings from './IgnoredSettings.svelte';
 	import NotificationSettings from './NotificationSettings.svelte';
 	import PinnedSubsiteSettings from './PinnedSubsiteSettings.svelte';
-	import ProxySettings from './ProxySettings.svelte';
-	import ReactionsSettings from './ReactionsSettings.svelte';
 	import SettingsButton from './SettingsButton.svelte';
 	import SettingsEmptyState from './SettingsEmptyState.svelte';
 	import SettingsGroup from './SettingsGroup.svelte';
 	import SettingsIcon from './SettingsIcon.svelte';
 	import SettingsRow from './SettingsRow.svelte';
-	import StatsSettings from './StatsSettings.svelte';
-	import SupportersSettings from './SupportersSettings.svelte';
-	import SourcesSettings from '$lib/components/sources/SourcesSettings.svelte';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { themeSettingsSchema } from '$lib/themes/registry';
 	import { activeThemeSettings } from '$lib/themes/settings.svelte';
@@ -109,6 +101,13 @@
 	const initial = untrack(() => resolveInitialNav(page, section, isDevVisible));
 
 	let activeFolderId = $state<string | null>(initial.folderId);
+	// Слой подменю «Интерфейс» строится при первом заходе в папку, а не вместе с окном
+	let folderSeen = $state(initial.folderId !== null);
+
+	function setFolder(id: string | null) {
+		activeFolderId = id;
+		if (id !== null) folderSeen = true;
+	}
 	let selectedPageId = $state<string | null>(initial.pageId);
 	let activeSection = $state<string | undefined>(initial.section);
 	let animationsUnavailable = $derived(selectedPageId === 'animations' && emptyPageIds.has(selectedPageId));
@@ -183,7 +182,7 @@
 		cancelPendingHighlight?.();
 		activeSection = undefined;
 		resetSolo();
-		activeFolderId = targetFolderId;
+		setFolder(targetFolderId);
 		selectedPageId = targetPageId;
 		openedByUser = true;
 		scroller?.scrollTo({ top: 0 });
@@ -197,7 +196,7 @@
 			cancelPendingHighlight?.();
 			activeSection = undefined;
 			resetSolo();
-			activeFolderId = item.id;
+			setFolder(item.id);
 			selectedPageId = null;
 			openedByUser = false;
 			pushSubstate(performBackToRoot);
@@ -215,7 +214,7 @@
 		searchQuery = '';
 		activeSection = undefined;
 		resetSolo();
-		activeFolderId = item.folderId ?? null;
+		setFolder(item.folderId ?? null);
 		selectedPageId = item.pageId;
 		openedByUser = true;
 		if (currentDevice === 'mobile') {
@@ -257,7 +256,7 @@
 		soloBackTarget = backTarget;
 		soloByUser = true;
 		selectedPageId = targetPageId;
-		activeFolderId = targetFolderId;
+		setFolder(targetFolderId);
 		openedByUser = true;
 		scroller?.scrollTo({ top: 0 });
 		pushSubstate(performReturnFromSolo);
@@ -265,7 +264,7 @@
 
 	function performReturnFromSolo() {
 		if (soloBackTarget) {
-			activeFolderId = soloBackTarget.folderId;
+			setFolder(soloBackTarget.folderId);
 			selectedPageId = soloBackTarget.pageId;
 			openedByUser = true;
 			soloBackTarget = null;
@@ -496,6 +495,7 @@
 					class="nav-layer"
 					inert={activeFolderId === null}
 				>
+					{#if folderSeen}
 					<div class="nav">
 						{#each INTERFACE_SUBNAV as group (group.title)}
 							<section class="nav__section">
@@ -518,6 +518,7 @@
 							</section>
 						{/each}
 					</div>
+					{/if}
 				</div>
 			</div>
 		</nav>
@@ -568,7 +569,9 @@
 						{:else if selectedPageId === 'notifications'}
 							<NotificationSettings />
 						{:else if selectedPageId === 'ignored'}
-							<IgnoredSettings />
+							{#await import('./IgnoredSettings.svelte') then { default: Page }}
+								<Page />
+							{/await}
 						{:else if selectedPageId === 'pinned'}
 							<PinnedSubsiteSettings />
 						{:else if selectedPageId === 'feed'}
@@ -581,23 +584,37 @@
 									)}
 							/>
 						{:else if selectedPageId === 'sources'}
-							<SourcesSettings />
+							{#await import('$lib/components/sources/SourcesSettings.svelte') then { default: Page }}
+								<Page />
+							{/await}
 						{:else if selectedPageId === 'network'}
-							<ProxySettings />
+							{#await import('./ProxySettings.svelte') then { default: Page }}
+								<Page />
+							{/await}
 						{:else if selectedPageId === 'stats'}
-							<StatsSettings />
+							{#await import('./StatsSettings.svelte') then { default: Page }}
+								<Page />
+							{/await}
 						{:else if selectedPageId === 'help'}
 							<HelpSettings onopensupporters={() => { selectedPageId = 'supporters'; scroller?.scrollTo({ top: 0 }); }} />
 						{:else if selectedPageId === 'supporters'}
-							<SupportersSettings />
+							{#await import('./SupportersSettings.svelte') then { default: Page }}
+								<Page />
+							{/await}
 						{:else if selectedPageId === 'about'}
 							<AboutSettings section={activeSection} />
 						{:else if selectedPageId === 'debug' && isDevVisible}
-							<DebugSettings ondisable={() => { selectedPageId = null; handleMobileBack(); }} />
+							{#await import('./DebugSettings.svelte') then { default: Page }}
+								<Page ondisable={() => { selectedPageId = null; handleMobileBack(); }} />
+							{/await}
 						{:else if selectedPageId === 'reactions'}
-							<ReactionsSettings touch={currentTouch} />
+							{#await import('./ReactionsSettings.svelte') then { default: Page }}
+								<Page touch={currentTouch} />
+							{/await}
 						{:else if selectedPageId === 'app-icon'}
-							<AppIconSettings />
+							{#await import('./AppIconSettings.svelte') then { default: Page }}
+								<Page />
+							{/await}
 						{:else if activeDeclarativePage}
 							{#if activeDeclarativePage.entries.length > 0}
 								{#if activeDeclarativePage.cardsLayout}
