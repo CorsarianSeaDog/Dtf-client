@@ -407,85 +407,87 @@
 								<h1 class="hero__title">Настройки</h1>
 							</div>
 
-							<div class="search-box">
-								<svg class="search-box__icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-									<circle cx="7" cy="7" r="4.5" />
-									<path d="M10.5 10.5L13.5 13.5" />
-								</svg>
-								<input
-									bind:this={searchInputEl}
-									class="search-box__input"
-									type="search"
-									aria-label="Поиск по настройкам"
-									placeholder="Поиск по настройкам"
-									bind:value={searchQuery}
-									onkeydown={handleSearchKeydown}
-								/>
-								{#if searchQuery}
-									<button
-										class="search-box__clear"
-										type="button"
-										aria-label="Очистить поиск"
-										onclick={() => {
-											searchQuery = '';
-											searchInputEl?.focus();
-										}}
-									>
-										<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
-											<path d="M4 4l8 8M12 4l-8 8" />
-										</svg>
-									</button>
-								{/if}
-							</div>
+							<div class="nav__body">
+								<div class="search-box">
+									<svg class="search-box__icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+										<circle cx="7" cy="7" r="4.5" />
+										<path d="M10.5 10.5L13.5 13.5" />
+									</svg>
+									<input
+										bind:this={searchInputEl}
+										class="search-box__input"
+										type="search"
+										aria-label="Поиск по настройкам"
+										placeholder="Поиск по настройкам"
+										bind:value={searchQuery}
+										onkeydown={handleSearchKeydown}
+									/>
+									{#if searchQuery}
+										<button
+											class="search-box__clear"
+											type="button"
+											aria-label="Очистить поиск"
+											onclick={() => {
+												searchQuery = '';
+												searchInputEl?.focus();
+											}}
+										>
+											<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+												<path d="M4 4l8 8M12 4l-8 8" />
+											</svg>
+										</button>
+									{/if}
+								</div>
 
-							{#if showSearchResults}
-								<!-- Результаты поиска в стиле Android (пункт / найденный сеттинг) -->
-								{#if searchResults.length > 0}
-									<div class="nav__list">
-										{#each searchResults as match (match.item.id)}
-											<button
-												class="search-result"
-												type="button"
-												onclick={() => handleSearchResultClick(match.item)}
-											>
-												<SettingsIcon name={match.item.icon} />
-												<span class="search-result__body">
-													<span class="search-result__path">
-														{match.item.path}{#if match.matchedOption} · {match.matchedOption}{/if}
-													</span>
-													<span class="search-result__title">{match.item.title}</span>
-												</span>
-											</button>
-										{/each}
-									</div>
-								{:else}
-									<p class="search-empty">Ничего не найдено</p>
-								{/if}
-							{:else}
-								{#each rootNavigation as group (group.title)}
-									<section class="nav__section">
-										<h3 class="nav__group">{group.title}</h3>
+								{#if showSearchResults}
+									<!-- Результаты поиска в стиле Android (пункт / найденный сеттинг) -->
+									{#if searchResults.length > 0}
 										<div class="nav__list">
-											{#each group.items as item (item.id)}
+											{#each searchResults as match (match.item.id)}
 												<button
-													class={['nav__item', { 'nav__item--active': item.id === selectedPageId && activeFolderId === null }]}
+													class="search-result"
 													type="button"
-													aria-current={item.id === selectedPageId && activeFolderId === null ? 'page' : undefined}
-													onclick={() => handleRootItemClick(item)}
+													onclick={() => handleSearchResultClick(match.item)}
 												>
-													<SettingsIcon name={item.icon} />
-													<span class="nav__title">{item.title}</span>
-													{#if item.type === 'folder'}
-														<svg class="nav__arrow nav__arrow--folder" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-															<path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-														</svg>
-													{/if}
+													<SettingsIcon name={match.item.icon} />
+													<span class="search-result__body">
+														<span class="search-result__path">
+															{match.item.path}{#if match.matchedOption} · {match.matchedOption}{/if}
+														</span>
+														<span class="search-result__title">{match.item.title}</span>
+													</span>
 												</button>
 											{/each}
 										</div>
-									</section>
-								{/each}
-							{/if}
+									{:else}
+										<p class="search-empty">Ничего не найдено</p>
+									{/if}
+								{:else}
+									{#each rootNavigation as group (group.title)}
+										<section class="nav__section">
+											<h3 class="nav__group">{group.title}</h3>
+											<div class="nav__list">
+												{#each group.items as item (item.id)}
+													<button
+														class={['nav__item', { 'nav__item--active': item.id === selectedPageId && activeFolderId === null }]}
+														type="button"
+														aria-current={item.id === selectedPageId && activeFolderId === null ? 'page' : undefined}
+														onclick={() => handleRootItemClick(item)}
+													>
+														<SettingsIcon name={item.icon} />
+														<span class="nav__title">{item.title}</span>
+														{#if item.type === 'folder'}
+															<svg class="nav__arrow nav__arrow--folder" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+																<path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+															</svg>
+														{/if}
+													</button>
+												{/each}
+											</div>
+										</section>
+									{/each}
+								{/if}
+							</div>
 						</div>
 					</div>
 
@@ -993,6 +995,10 @@
 		padding: 0 6px 14px;
 	}
 
+	.nav__body {
+		display: contents;
+	}
+
 	/* Подписи категорий: спокойные, приглушенные, без капса */
 	.nav__group {
 		margin: 0;
@@ -1325,13 +1331,28 @@
 		}
 
 		.hero {
+			position: sticky;
+			top: 0;
+			z-index: 0;
 			display: flex;
 			flex-direction: column;
 			align-items: center;
 			justify-content: center;
 			gap: 18px;
 			min-height: 30dvh;
+			margin-top: -12px;
 			text-align: center;
+		}
+
+		.nav__body {
+			position: relative;
+			z-index: 1;
+			display: flex;
+			flex-direction: column;
+			gap: 20px;
+			margin: -20px -16px 0;
+			padding: 20px 16px 0;
+			background: var(--st-bg);
 		}
 
 		.side-title--root {
