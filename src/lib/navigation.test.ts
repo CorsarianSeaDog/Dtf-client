@@ -18,7 +18,7 @@ vi.mock('$app/navigation', () => ({
 
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
-import { getPostPath, getPostShareUrl, getSettingsPath, getSidebarActive, pushSubstate, popSubstate, closeOverlay, resetSubstates, clearSubstates, openOverlay, openPost, openSearch, openDtfUrl, openDtfLink, openLightbox, takeLightboxOrigin, overlayReuser } from './navigation';
+import { getPostPath, getPostShareUrl, getSettingsPath, getSidebarActive, pushSubstate, popSubstate, closeOverlay, resetSubstates, clearSubstates, openOverlay, openPost, openSearch, openDtfUrl, openDtfLink, openLightbox, takeLightboxOrigin, overlayReuser, isOnTop } from './navigation';
 import { settings } from './storage/settings.svelte';
 import { embedToPost } from './api/embed';
 import { clearPostCache, peekPost } from './postCache';
@@ -346,6 +346,16 @@ describe('navigation', () => {
 				(page.route as { id: string | null }).id = prevRouteId;
 			}
 		}
+	});
+
+	it('isOnTop(feed): лента сверху, пока над ней нет страниц (окна её не закрывают)', () => {
+		mockPageState.overlays = [];
+		expect(isOnTop('feed')).toBe(true);
+		mockPageState.overlays = [{ id: 'm1', type: 'settings', presentation: 'modal', data: {} }];
+		expect(isOnTop('feed')).toBe(true);
+		mockPageState.overlays = [{ id: 'n1', type: 'notifications', presentation: 'page' }];
+		expect(isOnTop('feed')).toBe(false);
+		mockPageState.overlays = [];
 	});
 
 	it('getSidebarActive определяет ленту, подсайт, их сохранение под постом и сброс на других экранах', () => {

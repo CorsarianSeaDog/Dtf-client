@@ -14,6 +14,7 @@
 
 	// Тема со страницей аккаунта ведёт на неё (гостю она сама предлагает войти), остальные — в настройки или во вход
 	let hasAccountPage = $derived(hasThemeComponent(activeTheme.chain, 'AccountPage'));
+	let feedOpen = $derived(isOnTop('feed'));
 	let notificationsOpen = $derived(isOnTop('notifications'));
 	let messagesOpen = $derived(isOnTop('messages'));
 	let accountOpen = $derived(isOnTop('account'));
@@ -66,7 +67,7 @@
 <nav class="mobile-bar-container" aria-label="Навигация">
 	<div class="mobile-bar">
 		<div class="mobile-bar__link-wrapper">
-			<a href={resolve('/')} class="mobile-bar__link" aria-label="Главная" onclick={handleFeed}>
+			<a href={resolve('/')} class={['mobile-bar__link', { 'mobile-bar__link--is-active': feedOpen }]} aria-label="Главная" onclick={handleFeed}>
 				<svg height="28" width="28" class="icon" aria-hidden="true">
 					<use href="#v_home"></use>
 				</svg>
@@ -82,7 +83,7 @@
 		</div>
 		<div class="mobile-bar__link-wrapper">
 			<!-- На мобильном вместо попапа — страница уведомлений -->
-			<a href={resolve('/notifications')} class="mobile-bar__link mobile-bar__notifications" aria-label="Уведомления" onclick={handleNotifications}>
+			<a href={resolve('/notifications')} class={['mobile-bar__link mobile-bar__notifications', { 'mobile-bar__link--is-active': notificationsOpen }]} aria-label="Уведомления" onclick={handleNotifications}>
 				<svg height="28" width="28" class="icon" aria-hidden="true">
 					<use href="#v_bell"></use>
 				</svg>

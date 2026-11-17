@@ -143,8 +143,12 @@ function findActivePostIndex(postId: number, sourceId: string, overlays: App.Ove
 	return -1;
 }
 
-/** Экран сверху: верхним оверлеем или, без оверлеев, по прямой ссылке */
-export function isOnTop(type: 'notifications' | 'account' | 'messages'): boolean {
+/**
+ * Экран сверху: верхним оверлеем или, без оверлеев, по прямой ссылке.
+ * `feed` — лента без страниц поверх (окна над ней её не закрывают)
+ */
+export function isOnTop(type: 'feed' | 'notifications' | 'account' | 'messages'): boolean {
+	if (type === 'feed') return page.route?.id === '/' && !page.state.overlays?.some((o) => o.presentation === 'page');
 	const top = page.state.overlays?.at(-1);
 	return top ? top.type === type : page.route?.id === `/${type}`;
 }
