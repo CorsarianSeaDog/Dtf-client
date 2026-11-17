@@ -761,3 +761,30 @@
 		animation: none;
 	}
 }
+
+/* Предпросмотр записи (PostPreview): режим экрана редактора. Тело с EditorJS прячется, но остаётся в DOM,
+   поэтому текст и выделение целы. Кнопка в шапке — как «окно / весь экран», но видна и на телефоне (у новой записи нет «⋯») */
+:root[data-theme~="redtf"] .writing[data-preview] .writing__body {
+	display: none;
+}
+
+:root[data-theme~="redtf"] .writing__preview {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	border-radius: 8px;
+	color: var(--text-primary);
+	opacity: 0.5;
+	cursor: pointer;
+}
+
+:root[data-theme~="redtf"] .writing__preview:hover,
+:root[data-theme~="redtf"] .writing__preview[aria-pressed="true"] {
+	opacity: 1;
+}
+
+:root[data-theme~="redtf"] .writing__preview[aria-pressed="true"] {
+	color: var(--color-accent);
+}

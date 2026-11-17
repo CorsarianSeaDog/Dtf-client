@@ -5,18 +5,21 @@
 	/*
 	 * Меню «⋯» в шапке редактора на телефоне: «История версий» и «Удалить запись» вместо двух кнопок.
 	 * Это два вложенных Popover под одной кнопкой: «История версий» закрывает меню и открывает список версий.
+	 * «Предпросмотр» — режим экрана, его переключает экран.
 	 */
-	let { actions }: { actions: EditorBarActions } = $props();
+	let { actions, previewing, onpreview }: { actions: EditorBarActions; previewing: boolean; onpreview: () => void } = $props();
 
 	let menuOpen = $state(false);
 	let versionsOpen = $state(false);
 
-	const items = [
+	const items = $derived([
+		{ value: 'preview', label: previewing ? 'Вернуться к редактору' : 'Предпросмотр', icon: 'v_eye' },
 		{ value: 'history', label: 'История версий', icon: 'v_history' },
 		{ value: 'delete', label: 'Удалить запись', icon: 'v_delete' }
-	];
+	]);
 
 	function select(value: string) {
+		if (value === 'preview') return onpreview();
 		if (value === 'delete') return actions.requestDelete();
 		actions.toggleHistory();
 		// Список открываем после текущего клика: его слушатель «клик снаружи» иначе сразу закрыл бы только что открытый список
