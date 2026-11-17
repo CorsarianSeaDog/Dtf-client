@@ -2,7 +2,7 @@
 	import ScreenBar from './ScreenBar.svelte';
 </script>
 
-<div class="messages-screen">
+<div class="messages-screen under-mobile-bar">
 	<ScreenBar screen="messages" />
 	<div class="messages-page">
 		<header class="messages__header">
@@ -72,11 +72,6 @@
 	}
 
 	@media (max-width: 719px) {
-		/* Компенсируем отступ .page-content на корне экрана, чтобы playClipped не обрезал низ при переходе */
-		.messages-screen {
-			margin-bottom: calc(-1 * var(--mobile-bar-height));
-		}
-
 		.messages-page {
 			padding-bottom: var(--mobile-bar-height);
 		}

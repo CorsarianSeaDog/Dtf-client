@@ -133,3 +133,11 @@ button, nav, .header, .tabs, .mobile-bar, .icon {
 		scroll-behavior: auto !important;
 	}
 }
+
+/* Экран страницы с нижней панелью: фон уходит под панель. Отступ .page-content под панелью компенсируется, а тот же отступ
+   внутри экрана (padding-bottom) ставит сам экран. Иначе под размытой панелью видно то, что лежит под страницей, пока идёт переход */
+@media (max-width: 719px) {
+	.under-mobile-bar {
+		margin-bottom: calc(-1 * var(--mobile-bar-height));
+	}
+}

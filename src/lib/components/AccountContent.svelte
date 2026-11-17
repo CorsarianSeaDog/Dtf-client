@@ -25,7 +25,7 @@
 	});
 </script>
 
-<div class="account-screen" {@attach pull}>
+<div class="account-screen under-mobile-bar" {@attach pull}>
 	<ScreenBar screen="account" />
 	<Reveal ready={shown} anim="contentIn">
 		<ThemeLoader componentName="AccountPage">
@@ -49,6 +49,12 @@
 	.account-screen > :global(.reveal) {
 		width: 100%;
 		max-width: var(--content-width);
+	}
+
+	@media (max-width: 719px) {
+		.account-screen {
+			padding-bottom: var(--mobile-bar-height);
+		}
 	}
 
 	.account-fallback {

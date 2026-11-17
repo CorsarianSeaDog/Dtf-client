@@ -24,7 +24,7 @@
 	});
 </script>
 
-<div class="notifications-screen" {@attach pull}>
+<div class="notifications-screen under-mobile-bar" {@attach pull}>
 	<ScreenBar screen="notifications" />
 	<Reveal ready={shown} anim="contentIn">
 		<ThemeLoader componentName="Notifications" {active} />
@@ -50,12 +50,5 @@
 
 	.notifications-screen > :global(.reveal > .stage) {
 		flex-grow: 1;
-	}
-
-	@media (max-width: 719px) {
-		/* Компенсируем отступ .page-content на корне экрана, чтобы фон уходил под нижнюю панель и не обрезался при переходе */
-		.notifications-screen {
-			margin-bottom: calc(-1 * var(--mobile-bar-height));
-		}
 	}
 </style>
