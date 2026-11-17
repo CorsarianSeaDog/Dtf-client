@@ -12,6 +12,7 @@
 	// Где фокус: в тексте, в заголовке или нигде (тогда панели нет)
 	let where = $state<'editor' | 'title' | null>(null);
 	let offset = $state(0);
+	let viewHeight = $state(0);
 	let panelHeight = $state(0);
 	const visible = $derived(mobile.current && where !== null);
 
@@ -27,6 +28,7 @@
 		const vv = window.visualViewport;
 		const update = () => {
 			offset = vv ? keyboardOffset(innerHeight, vv.height, vv.offsetTop) : 0;
+			viewHeight = vv ? vv.height : innerHeight;
 			revealCaret();
 		};
 		update();
@@ -37,6 +39,19 @@
 			vv?.removeEventListener('scroll', update);
 			CSS.highlights?.delete('redtf-link');
 		};
+	});
+
+	// Нижние шторки меню блоков (theme.css) встают над клавиатурой и над панелью, а высоту берут из видимой области
+	$effect(() => {
+		const style = document.documentElement.style;
+		const above = visible ? panelHeight : 0;
+		const bottom = offset + above;
+		style.setProperty('--redtf-sheet-bottom', `${bottom}px`);
+		// Сколько места над панелью в видимой области: выше шторка не растёт
+		style.setProperty('--redtf-sheet-room', `${viewHeight - above}px`);
+		// Системная полоса снизу нужна, только если под шторкой нет ни клавиатуры, ни панели
+		style.setProperty('--redtf-sheet-safe', bottom > 0 ? '0px' : 'env(safe-area-inset-bottom, 0px)');
+		return () => ['bottom', 'room', 'safe'].forEach((name) => style.removeProperty(`--redtf-sheet-${name}`));
 	});
 
 	function focusin(e: FocusEvent) {
@@ -87,6 +102,12 @@
 		if (!(e.target as Element).closest('input')) e.preventDefault();
 	}
 
+	// То же для меню блока и меню блоков EditorJS: пункт без фокуса отнимал бы его у текста, панель исчезала, раскладка
+	// сдвигалась между нажатием и отпусканием, и первый тап по пункту не срабатывал (поле поиска в меню остаётся нормальным)
+	function keepFocusInMenu(e: Event) {
+		if ((e.target as Element).closest('.ce-popover')) keepFocus(e);
+	}
+
 	// Блоки, которые EditorJS умеет преобразовывать друг в друга
 	const TEXT_BLOCKS = ['paragraph', 'header', 'list', 'quote'];
 
@@ -118,7 +139,7 @@
 		}
 	}
 
-	// Штатное меню блоков EditorJS (шторкой его делает B4)
+	// Штатное меню блоков EditorJS; шторкой его делает theme.css
 	function addBlock() {
 		if (where === 'editor') session.editorInstance?.toolbar.toggleToolbox(true);
 	}
@@ -207,7 +228,7 @@
 	}
 </script>
 
-<svelte:document onfocusin={focusin} onfocusout={focusout} onselectionchange={selectionchange} />
+<svelte:document onfocusin={focusin} onfocusout={focusout} onselectionchange={selectionchange} onpointerdown={keepFocusInMenu} onmousedown={keepFocusInMenu} />
 
 {#if visible}
 	<div class="kbar-space" bind:this={space} style:height="{panelHeight + offset}px"></div>
@@ -218,7 +239,7 @@
 		role="group"
 		aria-label="Инструменты записи"
 		bind:this={panel}
-		bind:clientHeight={panelHeight}
+		bind:offsetHeight={panelHeight}
 		style:bottom="{offset}px"
 		onpointerdown={keepFocus}
 		onmousedown={keepFocus}
