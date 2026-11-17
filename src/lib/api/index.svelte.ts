@@ -377,6 +377,12 @@ export const api = {
 	},
 	searchComments: dtfApiProvider.searchComments,
 	getDrafts: dtfApiProvider.getDrafts,
+	async getBookmarkedPosts(offset = 0) {
+		const items = await dtfApiProvider.getBookmarkedPosts(offset);
+		cachePosts(items);
+		return items;
+	},
+	getBookmarkedComments: dtfApiProvider.getBookmarkedComments,
 
 	// --- Редактор (только DTF) ---
 

@@ -388,6 +388,26 @@ export const dtfApiProvider = {
 		return entriesOf((await resultOf(response, 'Не удалось получить черновики')).items).map(mapEntryToPost);
 	},
 
+	/** Записи в закладках вошедшего пользователя, новые сверху; постранично по `offset` (на странице 20) */
+	async getBookmarkedPosts(offset = 0): Promise<Post[]> {
+		requireAuth();
+		const response = await fetchWithAuth(`${apiV('2.10')}/bookmarks?markdown=false&type=posts&count=20&offset=${offset}`);
+		return entriesOf((await resultOf(response, 'Не удалось получить закладки')).items).map(mapEntryToPost);
+	},
+
+	/** Комментарии в закладках: по 10, следующая страница — от даты последнего (`lastSortingValue`) */
+	async getBookmarkedComments(lastSortingValue?: number): Promise<PaginatedResult<Comment>> {
+		requireAuth();
+		const from = lastSortingValue ? `&last_sorting_value=${lastSortingValue}` : '';
+		const response = await fetchWithAuth(`${apiV('2.8')}/bookmarks?type=comments&count=10${from}`);
+		const result = await resultOf(response, 'Не удалось получить закладки');
+		const raw: any[] = (Array.isArray(result) ? result : result?.items || []).map((item: any) => item.data || item).filter((c: any) => c?.id !== undefined);
+		return {
+			items: raw.map((c) => mapComment(c, c.entry?.id ?? 0)),
+			lastSortingValue: raw.length < 10 ? undefined : raw[raw.length - 1].date
+		};
+	},
+
 	/** Доступные действия над постом текущего пользователя (правка, закреп, удаление) */
 	async getContentControls(postId: number): Promise<ContentControls> {
 		requireAuth();

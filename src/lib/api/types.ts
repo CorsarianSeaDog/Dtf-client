@@ -585,6 +585,8 @@ export interface ApiProvider {
 	searchSubsites?(query: string, communities: boolean): Promise<{ items: SearchSubsite[]; total: number }>;
 	searchComments?(options?: SearchCommentsOptions): Promise<SearchCommentsResult>;
 	getDrafts?(offset?: number): Promise<Post[]>;
+	getBookmarkedPosts?(offset?: number): Promise<Post[]>;
+	getBookmarkedComments?(lastSortingValue?: number): Promise<PaginatedResult<Comment>>;
 
 	// Редактор
 	getEditorEntry?(postId: number): Promise<DtfEditorEntry>;

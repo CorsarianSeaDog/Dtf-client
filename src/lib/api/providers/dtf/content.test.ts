@@ -98,3 +98,32 @@ describe('searchMentions', () => {
 		expect(fetchWithAuth).toHaveBeenCalledWith('https://api.dtf.ru/v2.9/users/mentions', { signal: undefined });
 	});
 });
+
+describe('getBookmarkedComments', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		authStorage.session = session;
+	});
+
+	afterEach(() => {
+		authStorage.session = null;
+	});
+
+	const comment = (id: number, date: number) => ({ type: 'comment', data: { id, date, text: '', author: { id: 1, name: 'A' }, entry: { id: 77 } } });
+
+	it('полная страница отдаёт дату последнего как курсор, неполная — конец списка', async () => {
+		const full = Array.from({ length: 10 }, (_, i) => comment(i + 1, 1700000000 - i));
+		vi.mocked(fetchWithAuth).mockResolvedValueOnce(Response.json({ message: '', result: full }));
+
+		const first = await dtfApiProvider.getBookmarkedComments();
+		expect(fetchWithAuth).toHaveBeenCalledWith('https://api.dtf.ru/v2.8/bookmarks?type=comments&count=10');
+		expect(first.items).toHaveLength(10);
+		expect(first.items[0].postId).toBe(77);
+		expect(first.lastSortingValue).toBe(1700000000 - 9);
+
+		vi.mocked(fetchWithAuth).mockResolvedValueOnce(Response.json({ message: '', result: [comment(11, 1690000000)] }));
+		const last = await dtfApiProvider.getBookmarkedComments(first.lastSortingValue);
+		expect(fetchWithAuth).toHaveBeenLastCalledWith(`https://api.dtf.ru/v2.8/bookmarks?type=comments&count=10&last_sorting_value=${1700000000 - 9}`);
+		expect(last.lastSortingValue).toBeUndefined();
+	});
+});
