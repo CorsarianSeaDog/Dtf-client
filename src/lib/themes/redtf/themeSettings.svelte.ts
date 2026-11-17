@@ -65,5 +65,9 @@ export const themeSettings = {
 	/** Ширина медиа на странице поста: 'full' (на всю ширину) или 'content' (на ширину контента) */
 	get postMediaWidth(): 'full' | 'content' {
 		return activeThemeSettings().value.postMediaWidth === 'content' ? 'content' : 'full';
+	},
+	/** Отладка: поднять панель редактора над клавиатурой на поправку (костыль для Chrome на Android, см. EditorToolbar) */
+	get keyboardBarGap(): boolean {
+		return activeThemeSettings().value.keyboardBarGap === true;
 	}
 };

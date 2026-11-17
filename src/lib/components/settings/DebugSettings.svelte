@@ -163,6 +163,17 @@
 			/>
 		</SettingsRow>
 		<SettingsRow
+			title="Поднять панель редактора над клавиатурой"
+			subtitle="Тема redtf, Android: Chrome занижает высоту клавиатуры, и панель инструментов оказывается наполовину под ней. Поднимает её на 26px"
+			tag="label"
+		>
+			<SettingsSwitch
+				checked={themeValues.value.keyboardBarGap === true}
+				onchange={(checked) => themeValues.patch({ keyboardBarGap: checked })}
+				label="Поднять панель редактора над клавиатурой"
+			/>
+		</SettingsRow>
+		<SettingsRow
 			title="Плавающий HUD метрик"
 			subtitle="Компактный индикатор в углу экрана со значениями отступов и размеров в реальном времени"
 			tag="label"

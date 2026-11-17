@@ -3,6 +3,7 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { notify } from '../dtf2022/ui/notify.svelte';
 	import { keyboardOffset } from './keyboardOffset';
+	import { themeSettings } from './themeSettings.svelte';
 
 	let { session }: { session: any } = $props();
 
@@ -13,6 +14,11 @@
 	let where = $state<'editor' | 'title' | null>(null);
 	let offset = $state(0);
 	let viewHeight = $state(0);
+	// Отладочная настройка «Поднять панель над клавиатурой»: Chrome на части Android-телефонов занижает высоту клавиатуры
+	// (visualViewport и VirtualKeyboard API врут одинаково, safe-area-inset-bottom там 0), и панель наполовину под ней.
+	// Высоту ошибки из страницы не узнать, поэтому это ручной костыль; по умолчанию выключен
+	const keyboardGap = $derived(themeSettings.keyboardBarGap ? 26 : 0);
+	let gap = $state(0);
 	let panelHeight = $state(0);
 	const visible = $derived(mobile.current && where !== null);
 
@@ -27,8 +33,9 @@
 	onMount(() => {
 		const vv = window.visualViewport;
 		const update = () => {
-			offset = vv ? keyboardOffset(innerHeight, vv.height, vv.offsetTop) : 0;
-			viewHeight = vv ? vv.height : innerHeight;
+			offset = vv ? keyboardOffset(innerHeight, vv.height, vv.offsetTop, keyboardGap) : 0;
+			gap = offset > 0 ? keyboardGap : 0;
+			viewHeight = (vv ? vv.height : innerHeight) - gap;
 			revealCaret();
 		};
 		update();
@@ -93,7 +100,7 @@
 		const rect = range && (range.getClientRects()[0] ?? (node instanceof Element ? node : node?.parentElement)?.getBoundingClientRect());
 		if (!rect) return;
 		const vv = window.visualViewport;
-		const limit = (vv ? vv.offsetTop + vv.height : innerHeight) - panelHeight - 12;
+		const limit = (vv ? vv.offsetTop + vv.height : innerHeight) - gap - panelHeight - 12;
 		if (rect.bottom > limit) space?.closest('.writing')?.scrollBy({ top: rect.bottom - limit });
 	}
 

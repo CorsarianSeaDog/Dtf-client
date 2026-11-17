@@ -436,6 +436,15 @@ export default defineTheme({
 			device: 'mobile',
 			hidden: true
 		},
+		// Только в отладке (DebugSettings): костыль для Chrome на Android, где панель редактора оказывается под клавиатурой
+		{
+			key: 'keyboardBarGap',
+			type: 'toggle',
+			title: 'Поднять панель редактора над клавиатурой',
+			default: false,
+			device: 'mobile',
+			hidden: true
+		},
 		{
 			key: 'postTitleInBar',
 			type: 'toggle',
