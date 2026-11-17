@@ -4,6 +4,8 @@
 	import { smartTypography } from '$lib/smartTypography';
 	import './editor.css';
 	import { getEditorConfig } from './config';
+	import { editorMessages } from './i18n';
+	import { parseShortcut } from './shortcuts';
 
 	let { 
 		initialData = undefined, 
@@ -34,6 +36,7 @@
 			instance = new EditorJS({
 				holder: editorElement,
 				placeholder,
+				i18n: { messages: editorMessages },
 				tunes: config.tunes,
 				tools: config.tools,
 				data: untrack(() => initialData),
@@ -45,7 +48,52 @@
 			editorInstance = instance;
 		})();
 
+		// «## » + пробел в пустом абзаце превращает его в заголовок, список или цитату. beforeinput, а не keydown:
+		// на телефонах keydown пробела приходит без кода. У EditorJS своей отмены нет, а родная не видит замены блока:
+		// Ctrl+Z сразу после превращения возвращает набранное сам (любое следующее нажатие это отменяет)
+		let undo: { id: string; text: string } | null = null;
+		const onKeyDown = (e: KeyboardEvent) => {
+			const pending = undo;
+			if (['Control', 'Meta', 'Shift', 'Alt'].includes(e.key)) return;
+			undo = null;
+			if (!instance || !pending || !(e.ctrlKey || e.metaKey) || e.shiftKey || e.code !== 'KeyZ') return;
+			e.preventDefault();
+			const index = instance.blocks.getBlockIndex(pending.id);
+			if (index < 0) return;
+			const restored = instance.blocks.insert('paragraph', { text: pending.text }, undefined, index, true, true);
+			instance.caret.setToBlock(restored.id, 'end');
+		};
+		const onBeforeInput = (e: InputEvent) => {
+			if (!instance || e.inputType !== 'insertText' || e.data !== ' ') return;
+			const paragraph = (e.target as HTMLElement).closest?.('.ce-paragraph');
+			const text = paragraph?.textContent ?? '';
+			const shortcut = parseShortcut(text + ' ');
+			// Каретка должна стоять после сокращения: пробел, набранный перед ним, не повод преобразовывать
+			if (!shortcut || getSelection()?.anchorOffset !== text.length) return;
+			e.preventDefault();
+			const block = instance.blocks.getBlockByIndex(instance.blocks.getCurrentBlockIndex());
+			paragraph!.textContent = '';
+			instance.blocks.convert(block.id, shortcut.tool, shortcut.data).then((converted: any) => {
+				instance.caret.setToBlock(converted.id, 'end');
+				undo = { id: converted.id, text: text + '&nbsp;' };
+			});
+		};
+		editorElement.addEventListener('beforeinput', onBeforeInput);
+		editorElement.addEventListener('keydown', onKeyDown, true);
+
+		// Файл, брошенный мимо редактора (на поля, заголовок), браузер открыл бы вместо страницы: уход с экрана терял бы правки.
+		// Window слушает после редактора, так что его собственный drop отрабатывает раньше
+		const holdFiles = (e: DragEvent) => {
+			if (e.dataTransfer?.types.includes('Files')) e.preventDefault();
+		};
+		window.addEventListener('dragover', holdFiles);
+		window.addEventListener('drop', holdFiles);
+
 		return () => {
+			window.removeEventListener('dragover', holdFiles);
+			window.removeEventListener('drop', holdFiles);
+			editorElement.removeEventListener('beforeinput', onBeforeInput);
+			editorElement.removeEventListener('keydown', onKeyDown, true);
 			isDestroyed = true;
 			if (instance && typeof instance.destroy === 'function') {
 				try {

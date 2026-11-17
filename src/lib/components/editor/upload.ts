@@ -68,3 +68,31 @@ export function waitMediaReady(el: HTMLImageElement | HTMLVideoElement, timeoutM
 		el.addEventListener('error', finish, { once: true });
 	});
 }
+
+/** Типы файлов, которые блок картинки берёт при вставке и перетаскивании (то же, что в выборе файла, см. `config.ts`) */
+export const MEDIA_MIME_TYPES = ['image/*', 'video/mp4', 'video/webm', 'video/quicktime'];
+
+/**
+ * Адрес картинки отдельной строкой. EditorJS сверяет с шаблоном всю вставленную строку целиком,
+ * поэтому пробелы по краям и параметры запроса (`?w=640&h=480`) учтены здесь.
+ */
+export const IMAGE_URL_PATTERN = /^\s*https?:\/\/\S+\.(gif|jpe?g|png|webp|avif)(\?\S*)?(#\S*)?\s*$/i;
+
+/**
+ * Скачивает картинку или видео по адресу и отдаёт файлом, который уходит в обычную загрузку.
+ * DTF принимает только файлы (`uploader/upload`), поэтому скачивает браузер: чужие сайты без CORS откажут.
+ */
+export async function mediaFromUrl(url: string, load: typeof fetch = fetch): Promise<File> {
+	let blob: Blob;
+	try {
+		const response = await load(url);
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		blob = await response.blob();
+	} catch {
+		throw new Error('Не удалось скачать файл по адресу: сайт не разрешает загрузку. Сохраните файл и перетащите его в редактор');
+	}
+	if (!/^(image|video)\//.test(blob.type)) throw new Error('По этому адресу не картинка и не видео');
+
+	const name = decodeURIComponent(new URL(url, 'https://x.invalid').pathname.split('/').pop() || '') || 'image';
+	return new File([blob], name, { type: blob.type });
+}

@@ -5,6 +5,7 @@ export default class SpoilerTune {
 
 	private api: any;
 	private data: { hidden: boolean };
+	private block?: HTMLElement;
 
 	constructor({ api, data }: { api: any; data: any }) {
 		this.api = api;
@@ -26,12 +27,7 @@ export default class SpoilerTune {
 			this.data.hidden = !this.data.hidden;
 			wrapper.classList.toggle('dtf-spoiler-tune-btn--active', this.data.hidden);
 			
-			// Optional visual update
-			const blockIndex = this.api.blocks.getCurrentBlockIndex();
-			const block = this.api.blocks.getBlockByIndex(blockIndex);
-			if (block && block.holder) {
-				block.holder.classList.toggle('editor-block-is-spoiler', this.data.hidden);
-			}
+			this.block?.classList.toggle('editor-block-is-spoiler', this.data.hidden);
 		});
 
 		return wrapper;
@@ -43,14 +39,11 @@ export default class SpoilerTune {
 		};
 	}
 
+	// Помечаем элемент блока-владельца настройки: у каждого блока свой экземпляр настройки и свой wrap
 	wrap(blockContent: HTMLElement) {
-		setTimeout(() => {
-			const blockIndex = this.api.blocks.getCurrentBlockIndex();
-			const block = this.api.blocks.getBlockByIndex(blockIndex);
-			if (block && block.holder && this.data.hidden) {
-				block.holder.classList.add('editor-block-is-spoiler');
-			}
-		}, 0);
-		return blockContent;
+		this.block = document.createElement('div');
+		this.block.classList.toggle('editor-block-is-spoiler', this.data.hidden);
+		this.block.append(blockContent);
+		return this.block;
 	}
 }

@@ -54,6 +54,8 @@ type FakeEl = {
 	placeholder: string;
 	ariaLabel: string;
 	title: string;
+	disabled: boolean;
+	focus: () => void;
 	innerHTML: string;
 	style: Record<string, string>;
 	files?: File[];
@@ -94,6 +96,8 @@ function makeEl(tagName: string): FakeEl {
 		placeholder: '',
 		ariaLabel: '',
 		title: '',
+		disabled: false,
+		focus: () => {},
 		innerHTML: '',
 		style: {},
 		listeners,
@@ -206,5 +210,28 @@ describe('GalleryTool', () => {
 		expect(add.hidden).toBe(true);
 		expect(count.textContent).toBe('Пусто');
 		expect(dispatchChange).toHaveBeenCalled();
+	});
+
+	it('меняет порядок кадров кнопками «раньше» и «позже» и сообщает об изменении', () => {
+		const item = (n: number) => ({ file: { url: `https://leonardo.osnova.io/${n}`, uuid: String(n), isVideo: false }, caption: `к${n}` });
+		const dispatchChange = vi.fn();
+		const tool = new GalleryTool({ data: { items: [item(1), item(2), item(3)] } as never, block: { dispatchChange } });
+		const root = tool.render() as unknown as FakeEl;
+		const buttons = () => root.findAll('dtf-gallery-tool-move').map((m) => m.children);
+		const captions = () => tool.save().items.map((i) => i.caption);
+
+		// На краях кнопка в сторону края отключена
+		expect(buttons()[0][0].disabled).toBe(true);
+		expect(buttons()[2][1].disabled).toBe(true);
+
+		buttons()[0][1].trigger('click');
+		expect(captions()).toEqual(['к2', 'к1', 'к3']);
+		expect(dispatchChange).toHaveBeenCalledTimes(1);
+		// DOM идёт в том же порядке, что и данные
+		expect(root.findAll('dtf-gallery-tool-caption').map((c) => c.value)).toEqual(['к2', 'к1', 'к3']);
+
+		buttons()[2][0].trigger('click');
+		expect(captions()).toEqual(['к2', 'к3', 'к1']);
+		expect(buttons()[2][1].disabled).toBe(true);
 	});
 });

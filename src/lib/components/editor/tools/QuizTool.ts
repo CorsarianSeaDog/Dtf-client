@@ -8,6 +8,12 @@ export default class QuizTool {
 		};
 	}
 
+	// Все поля опроса — обычный текст из input. Без своего правила EditorJS применяет к полям правила по умолчанию
+	// (теги a, b, i, p…), а они сверяются с ключами данных: вариант с ключом `a` или `b` ломал сохранение всей записи
+	static get sanitize() {
+		return { hash: false, title: false, items: false };
+	}
+
 	private data: { hash: string; title: string; items: Record<string, string> };
 	private wrapper: HTMLElement;
 	private itemsContainer: HTMLElement;

@@ -211,6 +211,27 @@
 	}
 }
 
+/* Шапка редактора на телефоне: закрыть, индикатор сохранения, «⋯», «Опубликовать» в одну строку.
+   Самая длинная подпись («Не удалось сохранить») помещается на 375px, на более узких переносится на вторую строку */
+@media (max-width: 719px) {
+	:root[data-theme~="redtf"] .writing__bar {
+		gap: 4px;
+		padding-left: calc(12px + env(safe-area-inset-left, 0px));
+		padding-right: calc(12px + env(safe-area-inset-right, 0px));
+	}
+
+	:root[data-theme~="redtf"] .writing__publish {
+		--btn-offset: 10px;
+		--btn-font-size: 15px;
+	}
+
+	:root[data-theme~="redtf"] .writing__status {
+		font-size: 12px;
+		line-height: 14px;
+		white-space: normal;
+	}
+}
+
 /* Раскладка. --page-gutter — поля области контента, --text-gap — минимальное поле у колонки текста внутри белых блоков
    поста и комментариев. На узком экране блоки идут от края до края, как у DTF (на ≤639px поле текста задают сами блоки) */
 :root[data-theme~="redtf"] {
@@ -598,4 +619,172 @@
 	--theme-st-card: #101012;
 	--theme-st-side-border: var(--border-subtle);
 	--theme-st-track: #303034;
+}
+
+/* Панель инструментов над клавиатурой (EditorToolbar) заменяет на телефоне плавающий «+» и строчный тулбар EditorJS.
+   Кнопка настроек блока остаётся: через неё спойлер, якорь, перемещение и удаление */
+@media (max-width: 719px) {
+	:root[data-theme~="redtf"] .writing .ce-toolbar__plus,
+	:root[data-theme~="redtf"] .writing .ce-inline-toolbar {
+		display: none !important;
+	}
+}
+
+/* Выделение, пока адрес ссылки вводят в поле панели и фокус ушёл из текста */
+:root[data-theme~="redtf"] ::highlight(redtf-link) {
+	background-color: var(--bg-editor-dragover, rgba(70, 131, 217, 0.3));
+}
+
+/* Меню блоков и меню настроек блока на телефоне — нижняя шторка.
+   У EditorJS мобильный вид уже есть, но включается он только до 650px; до 719px подключаем его здесь тем же способом
+   (внутренние решения EditorJS о «мобильности» — подложка и вложенные меню — до 650px остаются штатными).
+   Положение задаёт EditorToolbar через переменные: над клавиатурой и над панелью инструментов, с запасом под системную полосу */
+@media (max-width: 719px) {
+	:root[data-theme~="redtf"] .writing .ce-popover {
+		--padding: 8px;
+		--max-height: max(160px, min(420px, calc(var(--redtf-sheet-room, 100dvh) - 56px)));
+	}
+
+	:root[data-theme~="redtf"] .writing .ce-popover__overlay {
+		position: fixed;
+		top: 0;
+		right: 0;
+		bottom: var(--redtf-sheet-bottom, 0px);
+		left: 0;
+		z-index: 3;
+		background: var(--modal-backdrop, rgba(0, 0, 0, 0.5));
+		opacity: 1;
+	}
+
+	:root[data-theme~="redtf"] .writing .ce-popover .ce-popover__container {
+		position: fixed;
+		top: auto;
+		right: 0;
+		bottom: var(--redtf-sheet-bottom, 0px);
+		left: 0;
+		width: auto;
+		min-width: 0;
+		max-width: none;
+		border-width: 1px 0 0 !important;
+		border-radius: 16px 16px 0 0;
+		box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2) !important;
+	}
+
+	:root[data-theme~="redtf"] .writing .ce-popover--opened > .ce-popover__container {
+		padding-bottom: calc(var(--padding) + var(--redtf-sheet-safe, env(safe-area-inset-bottom, 0px)));
+		animation: redtf-sheet-in var(--duration-base, 150ms) ease-out;
+	}
+
+	/* Строки не ниже 48px: под палец */
+	:root[data-theme~="redtf"] .writing .ce-popover-item {
+		min-height: 48px;
+		padding: 6px 8px;
+		border-radius: 10px;
+	}
+
+	:root[data-theme~="redtf"] .writing .ce-popover-item:active {
+		background: var(--bg-card-active, rgba(0, 0, 0, 0.08));
+	}
+
+	:root[data-theme~="redtf"] .writing .ce-popover-item__icon {
+		width: 36px;
+		height: 36px;
+		border-radius: 8px;
+	}
+
+	:root[data-theme~="redtf"] .writing .ce-popover-item__icon svg {
+		width: 28px;
+		height: 28px;
+	}
+
+	:root[data-theme~="redtf"] .writing .ce-popover-item__title {
+		font-size: 16px;
+	}
+
+	:root[data-theme~="redtf"] .writing .ce-popover-item__secondary-title {
+		display: none;
+	}
+
+	:root[data-theme~="redtf"] .writing .ce-popover-header__back-button {
+		width: 44px;
+		height: 44px;
+	}
+
+	/* 16px: меньше iOS при фокусе увеличивает страницу */
+	:root[data-theme~="redtf"] .writing .cdx-search-field__input {
+		min-height: 36px;
+		font-size: 16px;
+	}
+
+	/* Свои настройки блока в том же меню: спойлер и якорь */
+	:root[data-theme~="redtf"] .writing .dtf-spoiler-tune-btn {
+		min-height: 48px;
+		font-size: 16px;
+	}
+
+	:root[data-theme~="redtf"] .writing .dtf-anchor-tune-label {
+		font-size: 14px;
+	}
+
+	:root[data-theme~="redtf"] .writing .dtf-anchor-tune-input {
+		min-height: 44px;
+		padding: 0 12px;
+		font-size: 16px;
+	}
+}
+
+/* От 651 до 719px EditorJS ещё считает экран настольным: подложки у меню нет, рисуем её сами.
+   Она не ловит нажатия, поэтому тап мимо закрывает меню штатным способом */
+@media (min-width: 651px) and (max-width: 719px) {
+	:root[data-theme~="redtf"] .writing .ce-popover--opened:not(.ce-popover--nested)::before {
+		content: "";
+		position: fixed;
+		top: 0;
+		right: 0;
+		bottom: var(--redtf-sheet-bottom, 0px);
+		left: 0;
+		z-index: 3;
+		background: var(--modal-backdrop, rgba(0, 0, 0, 0.5));
+		pointer-events: none;
+	}
+}
+
+@keyframes redtf-sheet-in {
+	from {
+		transform: translateY(24px);
+		opacity: 0;
+	}
+}
+
+@media (max-width: 719px) and (prefers-reduced-motion: reduce) {
+	:root[data-theme~="redtf"] .writing .ce-popover--opened > .ce-popover__container {
+		animation: none;
+	}
+}
+
+/* Предпросмотр записи (PostPreview): режим экрана редактора. Тело с EditorJS прячется, но остаётся в DOM,
+   поэтому текст и выделение целы. Кнопка в шапке — как «окно / весь экран», но видна и на телефоне (у новой записи нет «⋯») */
+:root[data-theme~="redtf"] .writing[data-preview] .writing__body {
+	display: none;
+}
+
+:root[data-theme~="redtf"] .writing__preview {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	border-radius: 8px;
+	color: var(--text-primary);
+	opacity: 0.5;
+	cursor: pointer;
+}
+
+:root[data-theme~="redtf"] .writing__preview:hover,
+:root[data-theme~="redtf"] .writing__preview[aria-pressed="true"] {
+	opacity: 1;
+}
+
+:root[data-theme~="redtf"] .writing__preview[aria-pressed="true"] {
+	color: var(--color-accent);
 }

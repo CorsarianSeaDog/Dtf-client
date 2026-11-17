@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { createRawSnippet } from 'svelte';
 import { render } from 'svelte/server';
 import fs from 'fs';
 import path from 'path';
@@ -18,14 +19,16 @@ function createMockSession() {
 		subsites: [{ value: 1, label: 'Игры' }],
 		historyVersions: [],
 		loadingHistory: false,
-		saveMessage: 'Сохранено',
+		saveState: 'saved',
+		savedAt: null,
+		flush: vi.fn(),
+		canPublish: true,
 		commentPermission: 'everyone',
 		isAdult: false,
 		title: '',
 		ready: false,
 		repostOf: null,
 		postId: null,
-		isSaving: false,
 		selectedSubsiteId: 1
 	};
 }
@@ -67,6 +70,26 @@ describe('EditorScreen', () => {
 		expect(withId.body).toContain('#v_delete');
 	});
 
+	it('показывает состояние сохранения постоянным текстом', () => {
+		const status = (patch: object) => render(EditorScreen, { props: { session: { ...createMockSession(), ...patch } } }).body;
+
+		expect(status({ saveState: 'idle' })).not.toMatch(/Сохран|Не сохранено/);
+		expect(status({ saveState: 'dirty' })).toContain('Не сохранено');
+		expect(status({ saveState: 'saving' })).toContain('Сохранение…');
+		expect(status({ saveState: 'error', error: 'Сеть недоступна' })).toContain('Не удалось сохранить');
+		// полный текст ошибки уходит тостом, а не в шапку
+		expect(status({ saveState: 'error', error: 'Сеть недоступна' })).not.toContain('Сеть недоступна');
+		expect(status({ saveState: 'saved', savedAt: new Date(2026, 10, 17, 14, 32).getTime() })).toContain('Сохранено в 14:32');
+	});
+
+	it('отключает «Опубликовать», пока canPublish ложно', () => {
+		const enabled = render(EditorScreen, { props: { session: createMockSession() } }).body;
+		const disabled = render(EditorScreen, { props: { session: { ...createMockSession(), canPublish: false } } }).body;
+
+		const count = (html: string) => html.split('disabled').length - 1;
+		expect(count(disabled)).toBeGreaterThan(count(enabled));
+	});
+
 	it('содержит стили safe area insets для полноэкранного режима', () => {
 		const filePath = path.join(__dirname, 'EditorScreen.svelte');
 		const content = fs.readFileSync(filePath, 'utf-8');
@@ -76,5 +99,55 @@ describe('EditorScreen', () => {
 		expect(content).toContain('env(safe-area-inset-left, 0px)');
 		expect(content).toContain('env(safe-area-inset-right, 0px)');
 		expect(content).toContain('.writing--window .writing__bar');
+	});
+});
+
+describe('EditorScreen: точки расширения', () => {
+	const marker = (text: string) => createRawSnippet(() => ({ render: () => `<i data-marker="${text}"></i>` }));
+	const withId = () => ({ ...createMockSession(), postId: 5388155 });
+
+	it('без пропсов рисует строку настроек, историю и удаление', () => {
+		const { body } = render(EditorScreen, { props: { session: withId() } });
+
+		expect(body).toContain('writing__settings');
+		expect(body).toContain('Комментарии: всем');
+		expect(body).toContain('writing__adult');
+		expect(body).toContain('История изменений');
+		expect(body).toContain('Удалить запись');
+	});
+
+	it('settings подменяет строку настроек', () => {
+		const { body } = render(EditorScreen, { props: { session: createMockSession(), settings: marker('settings') } });
+
+		expect(body).toContain('data-marker="settings"');
+		expect(body).not.toContain('writing__settings');
+		expect(body).not.toContain('writing__adult');
+	});
+
+	it('barActions подменяет историю и удаление и получает версии', () => {
+		const session = { ...withId(), historyVersions: [{ id: 7, dateCreated: 1700000000 }] };
+		const barActions = createRawSnippet((ctx: () => { historyItems: { value: number }[]; requestDelete: () => void }) => ({
+			render: () => `<i data-marker="actions" data-items="${ctx().historyItems.map((i) => i.value)}" data-delete="${typeof ctx().requestDelete}"></i>`
+		}));
+		const { body } = render(EditorScreen, { props: { session, barActions } });
+
+		expect(body).toContain('data-marker="actions"');
+		expect(body).toContain('data-items="7"');
+		expect(body).toContain('data-delete="function"');
+		expect(body).not.toContain('История изменений');
+		expect(body).not.toContain('Удалить запись');
+	});
+
+	it('barActions не рисуется у записи без id', () => {
+		const { body } = render(EditorScreen, { props: { session: createMockSession(), barActions: marker('actions') } });
+
+		expect(body).not.toContain('data-marker="actions"');
+	});
+
+	it('footer стоит после тела редактора', () => {
+		const { body } = render(EditorScreen, { props: { session: createMockSession(), footer: marker('footer') } });
+
+		expect(body.indexOf('data-marker="footer"')).toBeGreaterThan(body.indexOf('writing__body'));
+		expect(render(EditorScreen, { props: { session: createMockSession() } }).body).not.toContain('data-marker');
 	});
 });

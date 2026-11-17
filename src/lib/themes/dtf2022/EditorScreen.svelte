@@ -1,16 +1,45 @@
+<script module lang="ts">
+	// Что получает сниппет barActions: всё нужное для «истории» и «удаления», без доступа к сессии
+	export type EditorBarActions = {
+		/** Версии для выбора; значение 0 — заглушка («Загрузка…», «Нет версий»), её выбирать нельзя */
+		historyItems: { value: number; label: string }[];
+		historyOpen: boolean;
+		/** Открывает или закрывает историю; при открытии сессия загружает версии */
+		toggleHistory: () => void;
+		restoreVersion: (id: string | number) => void;
+		/** Спрашивает подтверждение и удаляет запись */
+		requestDelete: () => void;
+	};
+</script>
+
 <script lang="ts">
-	import { onMount, onDestroy, type Snippet } from 'svelte';
+	import { onMount, onDestroy, untrack, type Snippet } from 'svelte';
 	import Editor from '$lib/components/editor/Editor.svelte';
 	import { smartTypography } from '$lib/smartTypography';
 	import { Button, Popover } from './ui';
 	import ConfirmPopup from './ui/ConfirmPopup.svelte';
 	import { notify } from './ui/notify.svelte';
-	import Select from './ui/Select.svelte';
+	import EditorSettings from './EditorSettings.svelte';
 	import PostCard from './post/PostCard.svelte';
 	import { markPostDeleted } from './actions.svelte';
 
-	// windowed и barExtra — точки расширения для форков: класс на корне и место в панели рядом с кнопкой закрытия
-	let { session, windowed = false, barExtra }: { session: any; windowed?: boolean; barExtra?: Snippet } = $props();
+	let {
+		session,
+		windowed = false,
+		barExtra,
+		barActions,
+		settings,
+		onpublish,
+		footer
+	}: {
+		session: any;
+		windowed?: boolean;
+		barExtra?: Snippet;
+		barActions?: Snippet<[EditorBarActions]>;
+		settings?: Snippet;
+		onpublish?: (publish: () => void) => void;
+		footer?: Snippet;
+	} = $props();
 
 	onMount(() => {
 		session.init();
@@ -19,15 +48,6 @@
 	onDestroy(() => {
 		session.destroy();
 	});
-
-	const commentOptions = [
-		{ value: 'everyone', label: 'Комментарии: всем' },
-		{ value: 'only_subscribers', label: 'Комментарии: подписчикам' },
-		{ value: 'only_plus', label: 'Комментарии: с плюсом' },
-		{ value: 'nobody', label: 'Комментарии: отключены' }
-	];
-
-	const subsiteOptions = $derived(session.subsites.map((s: any) => ({ value: s.value, label: s.label })));
 
 	// 0 — заглушка «Загрузка…» / «Нет версий»: выбирать её нельзя
 	const historyItems = $derived(
@@ -53,7 +73,94 @@
 		session.editorInstance?.caret.setToFirstBlock('start');
 	}
 
+	const timeFormat = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+	// Подробный текст ошибки уходит тостом, в шапке остаётся короткая подпись
+	const statusText = $derived.by(() => {
+		switch (session.saveState as 'idle' | 'dirty' | 'saving' | 'saved' | 'error') {
+			case 'dirty':
+				return 'Не сохранено';
+			case 'saving':
+				return 'Сохранение…';
+			case 'saved':
+				return session.savedAt ? `Сохранено в ${timeFormat.format(session.savedAt)}` : 'Сохранено';
+			case 'error':
+				return 'Не удалось сохранить';
+			default:
+				return '';
+		}
+	});
+
+	async function act(run: () => Promise<unknown>, success?: string) {
+		try {
+			await run();
+			if (success) notify.success(success);
+		} catch (e: any) {
+			notify.error(e.message);
+		}
+	}
+
+	// Ошибки сохранения (в том числе фонового и при публикации) показываем целиком тостом: в шапке им нет места
+	$effect(() => {
+		// notify читает и пишет список тостов: без untrack эффект подписался бы на него и зациклился
+		if (session.saveState === 'error' && session.error) untrack(() => notify.error(session.error));
+	});
+
+	// Версию можно вернуть назад из самого тоста, пока не было новых правок
+	async function restoreVersion(id: string | number) {
+		try {
+			await session.loadVersion(Number(id));
+		} catch (e: any) {
+			notify.error(e.message);
+			return;
+		}
+		notify.success('Версия восстановлена', {
+			label: 'Отменить',
+			onclick: () => session.canUndoLoad && act(session.undoLoadVersion, 'Изменения отменены')
+		});
+	}
+
+	// Свернули вкладку или приложение: правки сохраняем сразу, потом может не представиться случая
+	function onvisibilitychange() {
+		if (document.visibilityState === 'hidden') session.flush();
+	}
+
+	// Ошибку публикации уже показал эффект выше
+	function publish() {
+		session.publish().then(() => notify.success('Запись опубликована'), () => {});
+	}
+
+	// Форк может сначала показать своё подтверждение: публикацию (с тостами) он запускает переданной функцией
+	function requestPublish() {
+		if (onpublish) onpublish(publish);
+		else publish();
+	}
+
 	let confirmingDelete = $state(false);
+
+	// Ctrl/Cmd+S сохраняет сразу, Ctrl/Cmd+Enter публикует так же, как кнопка. По коду клавиши: в русской раскладке key другой
+	function onkeydown(e: KeyboardEvent) {
+		if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.defaultPrevented || confirmingDelete) return;
+		if (e.code === 'KeyS') {
+			e.preventDefault();
+			session.flush();
+		} else if (e.key === 'Enter') {
+			e.preventDefault();
+			if (!e.repeat && session.canPublish) requestPublish();
+		}
+	}
+
+	const barActionsContext: EditorBarActions = {
+		get historyItems() {
+			return historyItems;
+		},
+		get historyOpen() {
+			return session.showHistory;
+		},
+		toggleHistory: () => session.toggleHistory(),
+		restoreVersion,
+		requestDelete: () => (confirmingDelete = true)
+	};
 
 	async function deleteEntry() {
 		const id = session.postId;
@@ -63,6 +170,8 @@
 		session.goBack();
 	}
 </script>
+
+<svelte:document {onvisibilitychange} {onkeydown} />
 
 <div class={['writing', { 'writing--window': windowed }]}>
 	<div class="writing__bar">
@@ -74,60 +183,44 @@
 
 		{@render barExtra?.()}
 
-		<span class="writing__status" aria-live="polite">{session.saveMessage}</span>
+		<span class="writing__status" aria-live="polite">{statusText}</span>
 
 		{#if session.postId}
-			<Popover
-				bind:open={() => session.showHistory, (open) => !open && session.showHistory && session.toggleHistory()}
-				items={historyItems}
-				onselect={(id) => id && session.loadVersion(id)}
-				width={220}
-				label="История черновика"
-			>
-				<button type="button" class="writing__icon-button" aria-label="История изменений" onclick={session.toggleHistory}>
+			{#if barActions}
+				{@render barActions(barActionsContext)}
+			{:else}
+				<Popover
+					bind:open={() => session.showHistory, (open) => !open && session.showHistory && session.toggleHistory()}
+					items={historyItems}
+					onselect={(id) => id && restoreVersion(id)}
+					width={220}
+					label="История черновика"
+				>
+					<button type="button" class="writing__icon-button" aria-label="История изменений" onclick={session.toggleHistory}>
+						<svg class="icon" width="24" height="24" aria-hidden="true">
+							<use href="#v_history"></use>
+						</svg>
+					</button>
+				</Popover>
+
+				<button type="button" class="writing__icon-button" aria-label="Удалить запись" title="Удалить запись" onclick={barActionsContext.requestDelete}>
 					<svg class="icon" width="24" height="24" aria-hidden="true">
-						<use href="#v_history"></use>
+						<use href="#v_delete"></use>
 					</svg>
 				</button>
-			</Popover>
-
-			<button type="button" class="writing__icon-button" aria-label="Удалить запись" title="Удалить запись" onclick={() => (confirmingDelete = true)}>
-				<svg class="icon" width="24" height="24" aria-hidden="true">
-					<use href="#v_delete"></use>
-				</svg>
-			</button>
+			{/if}
 		{/if}
 
 		<div class="writing__publish">
-			<Button variant="blue" label="Опубликовать" disabled={session.isSaving} onclick={session.publish} />
+			<Button variant="blue" label="Опубликовать" disabled={!session.canPublish} onclick={requestPublish} />
 		</div>
 	</div>
 
-	<div class="writing__settings">
-		{#if subsiteOptions.length > 0}
-			<div class="writing__subsite">
-				<Select bind:value={session.selectedSubsiteId} options={subsiteOptions} placeholder="Выберите подсайт" searchable />
-			</div>
-		{/if}
-
-		<div class="writing__comments">
-			<!-- Сессия читает право из события выбора, поэтому значение отдаём в том же виде -->
-			<Select
-				bind:value={
-					() => session.commentPermission,
-					(value) => session.updateCommentPermission({ target: { value } } as unknown as Event)
-				}
-				options={commentOptions}
-				placeholder="Кто может комментировать"
-			/>
-		</div>
-
-		<label class="writing__adult">
-			<input type="checkbox" bind:checked={session.isAdult} />
-			<span class={['ui-checkbox', { 'ui-checkbox--checked': session.isAdult }]}></span>
-			18+
-		</label>
-	</div>
+	{#if settings}
+		{@render settings()}
+	{:else}
+		<EditorSettings {session} />
+	{/if}
 
 	<div class="writing__body">
 		<textarea class="writing__title" rows="1" placeholder="Заголовок" bind:value={session.title} onkeydown={titleKeydown} {@attach smartTypography}></textarea>
@@ -142,6 +235,8 @@
 			</div>
 		{/if}
 	</div>
+
+	{@render footer?.()}
 </div>
 
 {#if confirmingDelete}
@@ -164,6 +259,8 @@
 		flex-direction: column;
 		overflow-x: hidden;
 		overflow-y: auto;
+		/* Редактор лежит поверх страницы: без этого жест у края прокрутки (или в коротком тексте) листает страницу под ним */
+		overscroll-behavior: contain;
 		background-color: var(--bg-card);
 		color: var(--text-primary);
 	}
@@ -222,82 +319,6 @@
 		--btn-offset: 20px;
 	}
 
-	.writing__settings {
-		display: flex;
-		align-items: center;
-		flex-wrap: wrap;
-		gap: 12px 20px;
-		width: 100%;
-		max-width: var(--content-width);
-		margin: 0 auto;
-		padding: 16px calc(16px + env(safe-area-inset-right, 0px)) 0 calc(16px + env(safe-area-inset-left, 0px));
-		box-sizing: border-box;
-	}
-
-	.writing--window .writing__settings {
-		padding: 16px 16px 0;
-	}
-
-	/* Два селектора и «18+» должны помещаться в колонку 608px (640 минус поля) в одну строку */
-	.writing__subsite {
-		flex: 0 1 220px;
-		min-width: 160px;
-	}
-
-	.writing__comments {
-		flex: 0 1 280px;
-		min-width: 200px;
-	}
-
-	.writing__adult {
-		position: relative;
-		display: flex;
-		align-items: center;
-		font-size: 16px;
-		cursor: pointer;
-	}
-
-	/* Настоящий input остаётся для клавиатуры и экранных читалок, рисуется .ui-checkbox */
-	.writing__adult input {
-		position: absolute;
-		opacity: 0;
-	}
-
-	/* ui-checkbox из CSS DTF: 17px + рамка, галочка двумя границами */
-	.ui-checkbox {
-		position: relative;
-		box-sizing: content-box;
-		display: inline-block;
-		width: 17px;
-		height: 17px;
-		margin-right: 0.4em;
-		border: 1px solid var(--border-checkbox);
-		border-top-color: var(--border-checkbox-top);
-		border-radius: 4px;
-		vertical-align: text-bottom;
-	}
-
-	.ui-checkbox:hover {
-		border-color: var(--border-checkbox-hover);
-	}
-
-	.ui-checkbox--checked::before {
-		content: '';
-		position: absolute;
-		top: 24%;
-		left: 20%;
-		width: 8px;
-		height: 4px;
-		border-bottom: 2px solid var(--text-primary);
-		border-left: 2px solid var(--text-primary);
-		transform: rotate(-45deg);
-	}
-
-	.writing__adult input:focus-visible + .ui-checkbox {
-		outline: 2px solid var(--color-blue);
-		outline-offset: 2px;
-	}
-
 	.writing__body {
 		width: 100%;
 		max-width: var(--content-width);
@@ -335,6 +356,17 @@
 
 	.writing__title::placeholder {
 		color: var(--text-placeholder);
+	}
+
+	/* На телефоне «Не удалось сохранить» должно помещаться между кнопками без обрезки */
+	@media (max-width: 719px) {
+		.writing__bar {
+			gap: 8px;
+		}
+
+		.writing__status {
+			font-size: 13px;
+		}
 	}
 
 	@media (max-width: 859px) {
