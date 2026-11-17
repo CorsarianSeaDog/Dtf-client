@@ -11,12 +11,13 @@
 	import { smartTypography } from '$lib/smartTypography';
 	import { keepInView } from '$lib/keepInView';
 	import UploadProgress from '$lib/components/UploadProgress.svelte';
+	import { MEDIA_MIME_TYPES } from '$lib/components/editor/upload';
 	import Button from '../ui/Button.svelte';
 	import { notify } from '../ui/notify.svelte';
 	import DonateAttacher from './DonateAttacher.svelte';
 	import { formatDonation } from './donation';
 	import GifPicker from './GifPicker.svelte';
-	import { extractImageFiles } from './clipboard';
+	import { extractMediaFiles, isVideoFile } from './clipboard';
 	import { findMentionQuery, mentionDisplayText, mergeMentionCandidates, parseCommentEditorParts, serializeEditorElement } from './mentions';
 
 	let {
@@ -37,7 +38,6 @@
 	}: {
 		/** Черновик живёт у родителя — переживает переезд редактора между комментариями */
 		text?: string;
-		/** Вложения: картинки и гифки */
 		media?: CommentMedia[];
 		/** Сумма доната, ₽; больше нуля — комментарий появится после оплаты */
 		donation?: number;
@@ -256,8 +256,11 @@
 
 	/** Вложение из ответа загрузчика: те же поля, что у media комментария */
 	function mediaOf(upload: UploadResult): CommentMedia {
-		const { uuid, width = 0, height = 0, size = 0, type = '', color } = upload;
-		return { type: type === 'movie' ? 'movie' : 'image', data: { uuid, width, height, size, type, color } };
+		const { uuid, width = 0, height = 0, size = 0, type = '', color, isVideo, duration, has_audio } = upload;
+		return {
+			type: type === 'movie' ? 'movie' : 'image',
+			data: { uuid, width, height, size, type, color, isVideo, duration, has_audio }
+		};
 	}
 
 	interface PendingUpload {
@@ -357,7 +360,7 @@
 			id: ++nextUploadId,
 			file,
 			previewUrl: URL.createObjectURL(file),
-			isVideo: file.type.startsWith('video/'),
+			isVideo: isVideoFile(file),
 			progress: 0,
 			processing: false,
 			queued: true,
@@ -408,10 +411,10 @@
 	}
 
 	function handlePaste(e: ClipboardEvent) {
-		const files = extractImageFiles(e.clipboardData);
+		const files = extractMediaFiles(e.clipboardData);
 		if (files.length === 0) return;
 
-		// Чистую картинку (скриншот, скопированный файл) в текст не пускаем; если есть подпись — оставляем
+		// Если вместе с файлом скопирована подпись, сохраняем её в тексте.
 		if (!e.clipboardData?.getData('text/plain')) {
 			e.preventDefault();
 		}
@@ -586,8 +589,8 @@
 
 				<div class="comment-editor-box__footer">
 						<div class="comment-editor-box__attaches">
-						<input bind:this={fileInput} type="file" accept="image/*" multiple hidden onchange={upload} />
-						<button type="button" class="comment-editor-box__attach-btn comment-editor-box__attach-btn--image" aria-label="Прикрепить картинку" onclick={() => fileInput?.click()}>
+						<input bind:this={fileInput} type="file" accept={MEDIA_MIME_TYPES.join(',')} multiple hidden onchange={upload} />
+						<button type="button" class="comment-editor-box__attach-btn comment-editor-box__attach-btn--image" aria-label="Прикрепить изображение или видео" onclick={() => fileInput?.click()}>
 							<svg class="icon" width="20" height="20" aria-hidden="true">
 								<use href="#v_image"></use>
 							</svg>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractImageFiles, isImageFile } from './clipboard';
+import { extractMediaFiles, isImageFile } from './clipboard';
 
 describe('clipboard', () => {
 	it('определяет картинку по типу или расширению', () => {
@@ -8,36 +8,36 @@ describe('clipboard', () => {
 		expect(isImageFile(new File([], 'doc.pdf', { type: 'application/pdf' }))).toBe(false);
 	});
 
-	it('извлекает файлы картинок из files', () => {
+	it('извлекает картинки и видео из files', () => {
 		const img = new File([], 'screenshot.png', { type: 'image/png' });
+		const video = new File([], 'blob', { type: 'video/mp4' });
 		const doc = new File([], 'doc.txt', { type: 'text/plain' });
 		const data = {
-			files: [img, doc]
+			files: [img, doc, video]
 		} as unknown as DataTransfer;
 
-		const result = extractImageFiles(data);
-		expect(result).toHaveLength(1);
-		expect(result[0]).toBe(img);
+		expect(extractMediaFiles(data)).toEqual([img, video]);
 	});
 
 	it('извлекает файлы из items, если files пуст', () => {
 		const img = new File([], 'blob.png', { type: 'image/png' });
+		const video = new File([], 'clip.MOV');
 		const data = {
 			files: [],
 			items: [
 				{ kind: 'string', type: 'text/plain' },
-				{ kind: 'file', type: 'image/png', getAsFile: () => img }
+				{ kind: 'file', type: 'image/png', getAsFile: () => img },
+				{ kind: 'file', type: '', getAsFile: () => video },
+				{ kind: 'file', type: 'video/mp4', getAsFile: () => null }
 			]
 		} as unknown as DataTransfer;
 
-		const result = extractImageFiles(data);
-		expect(result).toHaveLength(1);
-		expect(result[0]).toBe(img);
+		expect(extractMediaFiles(data)).toEqual([img, video]);
 	});
 
 	it('возвращает пустой массив для пустого или невалидного буфера', () => {
-		expect(extractImageFiles(null)).toEqual([]);
-		expect(extractImageFiles(undefined)).toEqual([]);
-		expect(extractImageFiles({ files: [] } as unknown as DataTransfer)).toEqual([]);
+		expect(extractMediaFiles(null)).toEqual([]);
+		expect(extractMediaFiles(undefined)).toEqual([]);
+		expect(extractMediaFiles({ files: [] } as unknown as DataTransfer)).toEqual([]);
 	});
 });

@@ -3,15 +3,23 @@ export function isImageFile(file: File): boolean {
 	return file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i.test(file.name);
 }
 
-/** Извлекает изображения из буфера обмена (через files или DataTransferItemList) */
-export function extractImageFiles(data: DataTransfer | null | undefined): File[] {
+export function isVideoFile(file: File): boolean {
+	return file.type.startsWith('video/') || /\.(mp4|webm|mov)$/i.test(file.name);
+}
+
+function isMediaFile(file: File | null): file is File {
+	return file !== null && (isImageFile(file) || isVideoFile(file));
+}
+
+/** Извлекает изображения и видео из буфера обмена (через files или DataTransferItemList) */
+export function extractMediaFiles(data: DataTransfer | null | undefined): File[] {
 	if (!data) return [];
 
-	const fromFiles = Array.from(data.files ?? []).filter(isImageFile);
+	const fromFiles = Array.from(data.files ?? []).filter(isMediaFile);
 	if (fromFiles.length > 0) return fromFiles;
 
 	return Array.from(data.items ?? [])
-		.filter(i => i.kind === 'file' && i.type.startsWith('image/'))
-		.map(i => i.getAsFile()!)
-		.filter(Boolean) as File[];
+		.filter((item) => item.kind === 'file')
+		.map((item) => item.getAsFile())
+		.filter(isMediaFile);
 }
