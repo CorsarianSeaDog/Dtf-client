@@ -81,7 +81,17 @@
 		editorElement.addEventListener('beforeinput', onBeforeInput);
 		editorElement.addEventListener('keydown', onKeyDown, true);
 
+		// Файл, брошенный мимо редактора (на поля, заголовок), браузер открыл бы вместо страницы: уход с экрана терял бы правки.
+		// Window слушает после редактора, так что его собственный drop отрабатывает раньше
+		const holdFiles = (e: DragEvent) => {
+			if (e.dataTransfer?.types.includes('Files')) e.preventDefault();
+		};
+		window.addEventListener('dragover', holdFiles);
+		window.addEventListener('drop', holdFiles);
+
 		return () => {
+			window.removeEventListener('dragover', holdFiles);
+			window.removeEventListener('drop', holdFiles);
 			editorElement.removeEventListener('beforeinput', onBeforeInput);
 			editorElement.removeEventListener('keydown', onKeyDown, true);
 			isDestroyed = true;

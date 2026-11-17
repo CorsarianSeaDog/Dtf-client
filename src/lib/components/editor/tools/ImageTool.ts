@@ -1,7 +1,15 @@
 import { activeTheme } from '$lib/themes/index.svelte';
 import { play } from '$lib/motion';
 import { mountUploadProgress, type UploadProgressHandle } from '$lib/components/mountUploadProgress.svelte';
-import { createMediaEl, isAbortError, uploadToFile, waitMediaReady } from '../upload';
+import {
+	IMAGE_URL_PATTERN,
+	MEDIA_MIME_TYPES,
+	createMediaEl,
+	isAbortError,
+	mediaFromUrl,
+	uploadToFile,
+	waitMediaReady
+} from '../upload';
 
 /**
  * Расширяет стандартный `@editorjs/image`:
@@ -18,6 +26,18 @@ export function createImageTool(BaseImageTool: any) {
 		private uploading = false;
 		private aborted = false;
 
+		/**
+		 * Вставка и перетаскивание: файлы (картинки и видео), адрес картинки отдельной строкой и `<img>` из страницы.
+		 * Несколько файлов EditorJS раскладывает сам: на каждый файл свой блок.
+		 */
+		static get pasteConfig() {
+			return {
+				...super.pasteConfig,
+				patterns: { image: IMAGE_URL_PATTERN },
+				files: { mimeTypes: MEDIA_MIME_TYPES }
+			};
+		}
+
 		constructor(params: any) {
 			let runUpload: ((file: File) => Promise<any>) | undefined;
 			super({
@@ -25,7 +45,9 @@ export function createImageTool(BaseImageTool: any) {
 				config: {
 					...params.config,
 					uploader: {
-						uploadByFile: (file: File) => runUpload!(file)
+						uploadByFile: (file: File) => runUpload!(file),
+						// DTF грузит только файлы: адрес сначала скачиваем (EditorJS зовёт его при вставке адреса и `<img>`)
+						uploadByUrl: async (url: string) => runUpload!(await mediaFromUrl(url.trim()))
 					}
 				}
 			});
