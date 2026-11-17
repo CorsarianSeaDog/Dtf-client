@@ -3,10 +3,12 @@
 	import { isNative, openExternalUrl } from '$lib/capacitor';
 	import { shellUpdater } from '$lib/capacitor/updater.svelte';
 
-	function handleLinkClick(e: MouseEvent) {
+	const TELEGRAM_URL = 'https://t.me/re_dtf';
+
+	function handleLinkClick(e: MouseEvent, url: string) {
 		if (isNative()) {
 			e.preventDefault();
-			openExternalUrl(pwa.changesUrl);
+			openExternalUrl(url);
 		}
 	}
 </script>
@@ -38,13 +40,22 @@
 				{/if}
 			</span>
 			<a
+				href={TELEGRAM_URL}
+				target="_blank"
+				rel="noopener noreferrer"
+				class="pwa-prompt__link"
+				onclick={(e) => handleLinkClick(e, TELEGRAM_URL)}
+			>
+				Читайте список изменений в Telegram &nearr;
+			</a>
+			<a
 				href={pwa.changesUrl}
 				target="_blank"
 				rel="noopener noreferrer"
 				class="pwa-prompt__link"
-				onclick={handleLinkClick}
+				onclick={(e) => handleLinkClick(e, pwa.changesUrl)}
 			>
-				Посмотреть изменения на GitHub &nearr;
+				Compare on GitHub &nearr;
 			</a>
 		</div>
 
@@ -135,6 +146,10 @@
 		align-items: center;
 		gap: 4px;
 		width: fit-content;
+	}
+
+	.pwa-prompt__link + .pwa-prompt__link {
+		margin-top: 0;
 	}
 
 	.pwa-prompt__link:hover {
