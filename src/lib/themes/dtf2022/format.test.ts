@@ -141,6 +141,22 @@ describe('flattenComments', () => {
 			[4, ['dtf_1', 'dtf_2']]
 		]);
 	});
+
+	it('в жёстком режиме вырезает комментарии без ответов и сохраняет структуру веток', () => {
+		const hidden = (id: number, children: CommentTreeItem[] = []) => ({ ...node(id, children), content: 'Стоп-слово' });
+		const tree = [hidden(1), node(2, [hidden(3, [node(4), hidden(5)]), node(6)])];
+		const settings = { tags: [], keywords: ['стоп-слово'], users: [], filterPosts: true, filterComments: true };
+
+		const rows = flattenComments(tree, 2, { ...settings, mode: 'hard' });
+		expect(rows.map((row) => [row.comment.id, row.level, row.parent?.id, row.owners])).toEqual([
+			[2, 1, undefined, []],
+			[3, 2, 2, ['dtf_2']],
+			[4, 3, 3, ['dtf_2', 'dtf_3']],
+			[6, 2, 2, ['dtf_2']]
+		]);
+		expect(flattenComments(tree, 2, { ...settings, mode: 'hard', filterComments: false }).map((row) => row.comment.id))
+			.toEqual([1, 2, 3, 4, 5, 6]);
+	});
 });
 
 describe('donationsNote', () => {

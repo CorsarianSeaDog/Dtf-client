@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import type { Comment, CommentUpdate, CommentMedia } from '$lib/api/types';
+	import type { Comment, CommentUpdate, CommentMedia, CommentTreeItem } from '$lib/api/types';
 	import { api } from '$lib/api/index.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import { CommentsLogic } from '$lib/components/Comments/commentsLogic.svelte';
@@ -14,7 +14,7 @@
 	import CommentEditor from '../dtf2022/comments/CommentEditor.svelte';
 	import CommentItem from '../dtf2022/comments/CommentItem.svelte';
 	import CommentRestriction from '../dtf2022/comments/CommentRestriction.svelte';
-	import { commentKey, flattenComments } from '../dtf2022/comments/flatten';
+	import { commentKey, flattenComments, patchCommentRow } from '../dtf2022/comments/flatten';
 	import { collectThreadMentionAuthors } from '../dtf2022/comments/mentions';
 	import { bindCommentsView } from '../dtf2022/comments/commentsView.svelte';
 	import { VirtualRows } from '../dtf2022/comments/virtualRows.svelte';
@@ -68,12 +68,17 @@
 	const collapsed = new SvelteSet<string>();
 	/** При автопанорамировании ветки не упираются в искусственный лимит глубины */
 	let maxDepth = $derived(isAutopan ? 50 : logic.maxVisualDepth);
-	let rows = $derived(flattenComments(logic.comments, maxDepth));
+	const buildRows = () => flattenComments(logic.comments, maxDepth);
+	let rows = $derived(buildRows());
+
+	function updateRow(key: string, next: CommentTreeItem) {
+		rows = patchCommentRow(rows, key, next, buildRows);
+	}
 
 	/** Оценка или закладка: меняем узел и только его строку, а не пересобираем весь список */
 	function patchRow(key: string, update: CommentUpdate) {
 		const next = logic.patchComment(key, update);
-		if (next) rows = rows.map((row) => (row.key === key ? { ...row, comment: next } : row));
+		if (next) updateRow(key, next);
 	}
 
 	/** Строки без свёрнутых веток: строка скрыта, если свёрнут кто-то из её предков */
@@ -86,9 +91,7 @@
 		virtual,
 		collapsed,
 		getPost: () => ({ postId, sourceId }),
-		onPatchRow: (key, next) => {
-			rows = rows.map((row) => (row.key === key ? { ...row, comment: next } : row));
-		},
+		onPatchRow: updateRow,
 		onCountChange: (delta) => onCountChange?.(delta),
 		onReconnect: () => onReconnect?.()
 	});

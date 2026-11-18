@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import type { CommentUpdate, CommentEditorState, CommentMedia } from '$lib/api/types';
+	import type { CommentUpdate, CommentEditorState, CommentMedia, CommentTreeItem } from '$lib/api/types';
 	import { api } from '$lib/api/index.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import { CommentsLogic } from '$lib/components/Comments/commentsLogic.svelte';
@@ -13,7 +13,7 @@
 	import CommentEditor from './comments/CommentEditor.svelte';
 	import CommentItem from './comments/CommentItem.svelte';
 	import CommentRestriction from './comments/CommentRestriction.svelte';
-	import { commentKey, flattenComments } from './comments/flatten';
+	import { commentKey, flattenComments, patchCommentRow } from './comments/flatten';
 	import { collectThreadMentionAuthors } from './comments/mentions';
 	import { bindCommentsView } from './comments/commentsView.svelte';
 	import { VirtualRows } from './comments/virtualRows.svelte';
@@ -62,12 +62,17 @@
 
 	/** Свёрнутые ветки: ключи комментариев, чьи ответы скрыты */
 	const collapsed = new SvelteSet<string>();
-	let rows = $derived(flattenComments(logic.comments, logic.maxVisualDepth));
+	const buildRows = () => flattenComments(logic.comments, logic.maxVisualDepth);
+	let rows = $derived(buildRows());
+
+	function updateRow(key: string, next: CommentTreeItem) {
+		rows = patchCommentRow(rows, key, next, buildRows);
+	}
 
 	/** Оценка или закладка: меняем узел и только его строку, а не пересобираем весь список */
 	function patchRow(key: string, update: CommentUpdate) {
 		const next = logic.patchComment(key, update);
-		if (next) rows = rows.map((row) => (row.key === key ? { ...row, comment: next } : row));
+		if (next) updateRow(key, next);
 	}
 
 	/** Строки без свёрнутых веток: строка скрыта, если свёрнут кто-то из её предков */
@@ -80,9 +85,7 @@
 		virtual,
 		collapsed,
 		getPost: () => ({ postId, sourceId }),
-		onPatchRow: (key, next) => {
-			rows = rows.map((row) => (row.key === key ? { ...row, comment: next } : row));
-		},
+		onPatchRow: updateRow,
 		onCountChange: (delta) => onCountChange?.(delta),
 		onReconnect: () => onReconnect?.()
 	});
