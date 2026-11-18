@@ -12,7 +12,7 @@
 	import { settings } from '$lib/storage/settings.svelte';
 	import type { AccountSettings } from '$lib/api/types';
 	import type { FeedName } from '$lib/feed.svelte';
-	import type { SettingValue } from '$lib/themes/types';
+	import { EXPERIMENTAL, type SettingValue } from '$lib/themes/types';
 
 	/*
 	 * Страница «Моя лента»: сортировка по рейтингу реакций,
@@ -82,7 +82,7 @@
 	description="Список хранится на этом устройстве. Выбранные ленты запоминают прочитанные посты и скрывают их при следующей загрузке ленты."
 >
 	<SettingsGroup layout="subgroup">
-		<SettingsRow tag="label" title="Скрывать прочитанные посты">
+		<SettingsRow tag="label" title="Скрывать прочитанные посты" note={EXPERIMENTAL}>
 			<SettingsSwitch
 				checked={settings.value.hideSeen}
 				label="Скрывать прочитанные посты"
