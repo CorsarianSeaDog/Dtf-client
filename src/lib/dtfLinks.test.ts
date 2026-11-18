@@ -132,6 +132,7 @@ describe('dtfTargetToPath и dtfUrlToPath', () => {
 		expect(dtfTargetToPath({ type: 'profile', profileId: 3512753 })).toBe('/u/3512753');
 		expect(dtfTargetToPath({ type: 'feed' })).toBe('/');
 		expect(dtfTargetToPath({ type: 'feed', feed: 'new' })).toBe('/?feed=new');
+		expect(dtfTargetToPath({ type: 'feed', feed: 'popular' })).toBe('/?feed=popular');
 		expect(dtfTargetToPath({ type: 'notifications' })).toBe('/notifications');
 	});
 

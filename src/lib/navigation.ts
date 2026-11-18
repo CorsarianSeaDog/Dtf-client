@@ -531,7 +531,7 @@ export function openDtfUrl(href: string): boolean {
 	if (target.type === 'feed') {
 		if (page.state.overlays?.length) {
 			clearSubstates();
-			const feedUrl = resolve((target.feed && target.feed !== 'popular' ? `/?feed=${target.feed}` : '/') as '/');
+			const feedUrl = resolve(dtfTargetToPath(target) as '/');
 			goto(feedUrl, { shallow: true, state: { overlays: [] } });
 		} else if (target.feed) {
 			openFeedTab(target.feed);

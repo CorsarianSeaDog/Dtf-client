@@ -95,7 +95,7 @@ export function safeDecode(value: string): string {
 
 /** Внутренний путь приложения для найденной цели DTF или reDTF */
 export function dtfTargetToPath(target: DtfTarget): string {
-	if (target.type === 'feed') return target.feed && target.feed !== 'popular' ? `/?feed=${target.feed}` : '/';
+	if (target.type === 'feed') return target.feed ? `/?feed=${target.feed}` : '/';
 	if (target.type === 'notifications') return '/notifications';
 	if (target.type === 'tag') return `/tag/${encodeURIComponent(target.tag)}`;
 	if (target.type === 'post') {

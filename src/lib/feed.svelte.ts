@@ -33,10 +33,9 @@ export function parseSorting<F extends FeedName>(name: F, value: string | null):
 
 export function feedPath(feed: FeedName, sorting: FeedSorting = defaultSorting(feed)): string {
 	const params = new URLSearchParams();
-	if (feed !== DEFAULT_FEED) params.set('feed', feed);
+	params.set('feed', feed);
 	if (sorting !== defaultSorting(feed)) params.set('sorting', sorting);
-	const query = params.toString();
-	return query ? `/?${query}` : '/';
+	return `/?${params}`;
 }
 
 /** Соседняя лента в порядке вкладок: -1 — слева, 1 — справа */
@@ -76,7 +75,7 @@ function select(name: FeedName, sorting: FeedSorting) {
 /** Лента из адреса. Пока поверх ленты открыт оверлей, в адресе его путь, а не лента, и остаётся прежняя */
 export function feedFromUrl(): FeedName {
 	if (page.state.overlays?.length) return current;
-	return parseFeed(page.url.searchParams.get('feed'));
+	return parseFeed(page.url.searchParams.get('feed') ?? page.data.defaultFeed ?? null);
 }
 
 /** Сортировка ленты из адреса (поддерживает и прежний `?period=` для популярного); поверх оверлея остаётся прежняя */
