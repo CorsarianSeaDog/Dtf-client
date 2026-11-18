@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { EASE, glide, settle, swipe, translate } from '$lib/swipe';
+	import { EASE, glideDuration, settle, swipe, translate } from '$lib/swipe';
 	import { reducedMotion } from '$lib/motion';
 	import AboutSettings from './AboutSettings.svelte';
 	import AccountSettings from './AccountSettings.svelte';
@@ -312,7 +312,7 @@
 			}
 		};
 		if (reducedMotion() || Math.abs(end - x) < 1) return done();
-		anim = el.animate([{ transform: translate(x) }, { transform: translate(end) }], { duration: glide(end - x, v), easing: EASE, fill: 'forwards' });
+		anim = el.animate([{ transform: translate(x) }, { transform: translate(end) }], { duration: glideDuration(end - x, v), easing: EASE, fill: 'forwards' });
 		anim.finished.then(done, () => {});
 		return done;
 	}

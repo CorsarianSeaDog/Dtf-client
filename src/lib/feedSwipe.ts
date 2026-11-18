@@ -1,10 +1,9 @@
 import type { Attachment } from 'svelte/attachments';
 import { activeTheme } from './themes/index.svelte';
 import { neighborFeed, type FeedName } from './feed.svelte';
-import { reducedMotion } from './motion';
 import { getCurrentDevice } from './themes/types';
 import { createTension, haptics } from './haptics';
-import { DISTANCE, settle, spring, swipe, translate } from './swipe';
+import { DISTANCE, glide, settle, swipe, translate, type Glide } from './swipe';
 import { pullDrawer, type DrawerPull } from './drawerSwipe';
 
 /*
@@ -47,7 +46,7 @@ export function feedSwipe(options: FeedSwipeOptions): Attachment<HTMLElement> {
 		// Жест достался боковой панели: дорожка стоит
 		let pull: DrawerPull | undefined;
 		// Идущий доезд: остановить его там, где он сейчас
-		let halt: (() => void) | undefined;
+		let flight: Glide | undefined;
 		const tension = createTension('click');
 
 		const shift = () => (sides.get(offset > 0 ? -1 : 1) ? offset : rubber(offset, width));
@@ -106,35 +105,23 @@ export function feedSwipe(options: FeedSwipeOptions): Attachment<HTMLElement> {
 				if (target && !tension.armed) haptics.tick();
 				const to = target ? -dir * width : 0;
 				// Доезд ведёт тот же сдвиг, что и палец, по кадрам: касание останавливает его где угодно и ведёт дальше
-				const at = spring(offset, to, v ?? 0);
-				const t0 = performance.now();
-				let frame = 0;
-				const stop = () => {
-					cancelAnimationFrame(frame);
-					if (halt === stop) halt = undefined;
-				};
-				const done = () => {
-					stop();
+				flight?.stop();
+				flight = glide(offset, to, v ?? 0, (x) => {
+					offset = x;
+					track.style.transform = translate(shift());
+				}, () => {
 					clear();
 					if (target) options.commit(target);
-				};
-				halt = stop;
-				if (reducedMotion() || Math.abs(to - offset) < 1) return done();
-				const tick = (now: number) => {
-					offset = at(Math.max(0, now - t0));
-					if (Math.abs(to - offset) < 0.5) return done();
-					track.style.transform = translate(shift());
-					frame = requestAnimationFrame(tick);
-				};
-				frame = requestAnimationFrame(tick);
-				return () => {
-					if (halt === stop) done();
-				};
+				});
+				return flight.finish;
 			},
 			grab() {
-				if (!halt) return;
-				halt();
-				return offset;
+				if (!flight?.active) return;
+				return { offset, resume: flight.pause() };
+			},
+			destroy() {
+				flight?.stop();
+				clear();
 			}
 		})(track);
 	};

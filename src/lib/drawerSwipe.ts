@@ -1,7 +1,7 @@
 import type { Attachment } from 'svelte/attachments';
 import { reducedMotion } from './motion';
 import { createTension, haptics } from './haptics';
-import { DISTANCE, glide, settle, swipe } from './swipe';
+import { DISTANCE, glideDuration, settle, swipe } from './swipe';
 import { activeTheme } from './themes/index.svelte';
 import { getCurrentDevice } from './themes/types';
 
@@ -59,7 +59,7 @@ export function pullDrawer(): DrawerPull | undefined {
 			const dir = v === null ? 0 : settle(offset, v, width);
 			const open = dir ? dir < 0 : from >= 0.5;
 			if (open !== (from >= 0.5) && !tension.armed) haptics.tick();
-			d.settle(open, reducedMotion() ? 0 : glide(((open ? 1 : 0) - p) * width, v ?? 0));
+			d.settle(open, reducedMotion() ? 0 : glideDuration(((open ? 1 : 0) - p) * width, v ?? 0));
 		}
 	};
 }

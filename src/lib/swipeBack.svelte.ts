@@ -3,10 +3,9 @@ import type { Attachment } from 'svelte/attachments';
 import { page } from '$app/state';
 import { setBackDriver, type BackDriver, type BackSide } from './capacitor/back';
 import { closeOverlay } from './navigation';
-import { reducedMotion } from './motion';
 import { freeze, pageTransition } from './pageTransition.svelte';
 import { createTension, haptics } from './haptics';
-import { DISTANCE, EASE, glide, settle, swipe, translate } from './swipe';
+import { DISTANCE, glide, settle, swipe, translate, type Glide } from './swipe';
 import { settings } from './storage/settings.svelte';
 import { activeTheme } from './themes/index.svelte';
 import { getCurrentDevice } from './themes/types';
@@ -107,11 +106,17 @@ export function swipeBackGesture(options: SwipeBackOptions): Attachment<HTMLElem
 	let from: { top: string; under: string } | undefined;
 	// Куда уходит страница: палец ведёт её только вправо, а системный жест от правого края — влево
 	let side: BackSide = 1;
+	let position = 0;
+	let flight: Glide | undefined;
+	let touchFlight = false;
+	let systemDragging = false;
+	let touching = false;
 	const tension = createTension('click');
 
 	/** `x` — насколько страница ушла, по модулю */
 	function move(x: number) {
 		if (!top || !under || !dim) return;
+		position = x = Math.min(width, Math.max(0, x));
 		const p = Math.min(1, x / width);
 		top.style.transform = translate(side * x);
 		under.style.transform = translate(-side * PARALLAX * width * (1 - p));
@@ -171,70 +176,70 @@ export function swipeBackGesture(options: SwipeBackOptions): Attachment<HTMLElem
 
 	/** Довести жест с сдвига `x` до закрытия или возврата. `v` — скорость доезда, px/мс. Возвращает функцию, которая завершает доезд сразу */
 	function finish(x: number, close: boolean, v: number) {
-		const a = top;
-		const b = under;
-		const c = dim;
 		const layer = from?.under;
 		const closed = from?.top;
-		if (!a || !b || !c || !layer || !restorePage) return;
+		if (!top || !under || !dim || !layer || !restorePage) return;
 		if (close && !tension.armed) haptics.tick();
 		const end = close ? width : 0;
-		let settled = false;
-		let animations: Animation[] = [];
-		const done = () => {
-			if (settled) return;
-			settled = true;
-			animations.forEach((anim) => anim.cancel());
+		flight?.stop();
+		flight = glide(x, end, v, move, () => {
 			if (!close) return reset();
-			move(end);
 			swiped = closed;
 			landing = { layer, timer: setTimeout(reset, LANDING_TIMEOUT) };
 			closeOverlay();
-		};
-		if (reducedMotion() || Math.abs(end - x) < 1) return done();
-		const timing = { duration: glide(end - x, v), easing: EASE, fill: 'forwards' } as const;
-		const p = x / width;
-		animations = [
-			a.animate([{ transform: translate(side * x) }, { transform: translate(side * end) }], timing),
-			b.animate([{ transform: translate(-side * PARALLAX * width * (1 - p)) }, { transform: translate(close ? 0 : -side * PARALLAX * width) }], timing),
-			c.animate([{ opacity: DIM * (1 - p) }, { opacity: close ? 0 : DIM }], timing)
-		];
-		// Отменённая анимация (новое касание уже завершило доезд) отклоняет промис: там делать нечего
-		animations[0].finished.then(done, () => {});
-		return done;
+		});
+		return flight.finish;
 	}
 
 	const touch = swipe({
 		start(e) {
+			if (systemDragging || (!touchFlight && flight?.active)) return false;
 			from = layers();
 			const target = e.target as Element;
-			return Boolean(from && target.closest('[data-layer]')?.getAttribute('data-layer') === from.top && !target.closest('input, textarea, select, [contenteditable]'));
+			return Boolean(from && target.closest('[data-layer]')?.getAttribute('data-layer') === from.top);
 		},
-		begin: (dx) => dx >= 0 && open(1),
+		begin: (dx) => touching = dx >= 0 && open(1),
 		move(x) {
 			const clamped = Math.max(0, x);
 			move(clamped);
 			tension.move(clamped, width * DISTANCE);
 		},
 		end(offset, v) {
-			const x = Math.max(0, offset);
+			touching = false;
+			const x = Math.min(width, Math.max(0, offset));
+			touchFlight = true;
 			return finish(x, v !== null && settle(x, v, width) === -1, v ?? 0);
+		},
+		grab() {
+			if (!touchFlight || !flight?.active) return;
+			const resume = flight.pause();
+			touching = true;
+			return {
+				offset: position,
+				resume() {
+					touching = false;
+					resume();
+				}
+			};
+		},
+		destroy() {
+			flight?.stop();
+			touching = systemDragging = touchFlight = false;
+			reset();
 		}
 	});
 
 	// Системный жест. Ход приходит чаще кадров, поэтому рисуем по кадру последнее положение
 	let distance = 0;
 	let frame = 0;
-	// Доезд прошлого системного жеста: новый жест начинается, только когда он закончен
-	let pending: (() => void) | undefined;
 	const system: BackDriver = {
 		start(dir) {
-			if (!settings.value.predictiveBack) return false;
-			pending?.();
-			pending = undefined;
+			if (!settings.value.predictiveBack || touching) return false;
+			flight?.finish();
+			touchFlight = false;
 			from = layers();
 			distance = 0;
-			return open(dir);
+			return systemDragging = open(dir);
 		},
 		move(d) {
 			distance = Math.min(width, d);
@@ -247,8 +252,8 @@ export function swipeBackGesture(options: SwipeBackOptions): Attachment<HTMLElem
 		end(commit) {
 			cancelAnimationFrame(frame);
 			frame = 0;
-			const rest = finish(distance, commit, commit ? COMMIT_SPEED : 0);
-			pending = typeof rest === 'function' ? rest : undefined;
+			systemDragging = false;
+			finish(distance, commit, commit ? COMMIT_SPEED : 0);
 		}
 	};
 

@@ -1,5 +1,61 @@
-import { describe, expect, it } from 'vitest';
-import { rampUp, settle, spring } from './swipe';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { glide, rampUp, settle, spring } from './swipe';
+
+beforeEach(() => {
+	vi.useFakeTimers();
+	vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => setTimeout(() => fn(performance.now()), 16));
+	vi.stubGlobal('cancelAnimationFrame', clearTimeout);
+});
+afterEach(() => {
+	vi.useRealTimers();
+	vi.unstubAllGlobals();
+	vi.restoreAllMocks();
+});
+
+describe('доезд жестов', () => {
+	it('после паузы доезжает точно в цель и завершает действие один раз', () => {
+		const set = vi.fn();
+		const done = vi.fn();
+		const motion = glide(20, 400, 0.8, set, done);
+		vi.advanceTimersByTime(32);
+		const frames = set.mock.calls.length;
+		const resume = motion.pause();
+		vi.advanceTimersByTime(1000);
+		expect(set).toHaveBeenCalledTimes(frames);
+		resume();
+		vi.runAllTimers();
+		expect(set).toHaveBeenLastCalledWith(400);
+		motion.finish();
+		expect(done).toHaveBeenCalledTimes(1);
+	});
+
+	it('после остановки остаётся на нарисованном месте и не выполняет действие', () => {
+		const set = vi.fn();
+		const done = vi.fn();
+		const motion = glide(20, 400, 0, set, done);
+		vi.advanceTimersByTime(80);
+		motion.stop();
+		const held = set.mock.lastCall?.[0];
+		expect(held).toBeGreaterThan(20);
+		expect(held).toBeLessThan(400);
+		set.mockClear();
+		vi.runAllTimers();
+		motion.finish();
+		expect(set).not.toHaveBeenCalled();
+		expect(done).not.toHaveBeenCalled();
+	});
+
+	it('принудительное завершение ставит цель и отменяет остальные кадры', () => {
+		const set = vi.fn();
+		const done = vi.fn();
+		const motion = glide(20, 400, 0, set, done);
+		motion.finish();
+		vi.runAllTimers();
+		expect(set.mock.calls).toEqual([[400]]);
+		expect(done).toHaveBeenCalledTimes(1);
+	});
+
+});
 
 describe('rampUp', () => {
 	it('разгоняет страницу от нуля до пальца плавно и не выходит за границы', () => {
