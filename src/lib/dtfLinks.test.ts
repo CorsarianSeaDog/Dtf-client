@@ -53,6 +53,7 @@ describe('parseDtfUrl', () => {
 	it('профиль: /id<N> и /u/<N>-имя, а также /s/<N>', () => {
 		expect(parseDtfUrl('https://dtf.ru/id3512753')).toEqual({ type: 'profile', profileId: 3512753 });
 		expect(parseDtfUrl('https://dtf.ru/id3312859')).toEqual({ type: 'profile', profileId: 3312859 });
+		expect(parseDtfUrl('https://dtf.ru/id626676/subscribers')).toEqual({ type: 'profile', profileId: 626676 });
 		expect(parseDtfUrl('https://dtf.ru/u/120658-dzhamil/entries')).toEqual({ type: 'profile', profileId: 120658 });
 		expect(parseDtfUrl('https://dtf.ru/u/120658')).toEqual({ type: 'profile', profileId: 120658 });
 		expect(parseDtfUrl('https://dtf.ru/s/120658-subsite')).toEqual({ type: 'profile', profileId: 120658 });
@@ -141,6 +142,7 @@ describe('dtfTargetToPath и dtfUrlToPath', () => {
 		expect(dtfUrlToPath('https://dtf.ru/games/5394366-remejk?comment=69664424')).toBe('/post/5394366?comment=69664424');
 		expect(dtfUrlToPath('https://dtf.ru/games/5370998#sobytiya')).toBe('/post/5370998#sobytiya');
 		expect(dtfUrlToPath('https://dtf.ru/id3512753')).toBe('/u/3512753');
+		expect(dtfUrlToPath('https://dtf.ru/id626676/subscribers')).toBe('/u/626676');
 		expect(dtfUrlToPath('https://dtf.ru/notifications')).toBe('/notifications');
 		expect(dtfUrlToPath('https://dtf.ru/new')).toBe('/?feed=new');
 		expect(dtfUrlToPath('https://dtf.ru/rules')).toBeUndefined();

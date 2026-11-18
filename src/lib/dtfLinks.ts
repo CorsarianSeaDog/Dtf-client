@@ -53,8 +53,8 @@ export function parseDtfUrl(href: string): DtfTarget | undefined {
 		return { type: 'notifications' };
 	}
 
-	const profile = /^\/(?:id(\d+)\/?|(?:u|s)\/(\d+)(?:-[^/]*)?(?:\/(?:entries|comments|favorites|subscribers|subscriptions)?)?\/?)$/i.exec(url.pathname);
-	if (profile) return { type: 'profile', profileId: Number(profile[1] ?? profile[2]) };
+	const profile = /^\/(?:id|(?:u|s)\/)(\d+)(?:-[^/]*)?(?:\/(?:entries|comments|favorites|subscribers|subscriptions)?)?\/?$/i.exec(url.pathname);
+	if (profile) return { type: 'profile', profileId: Number(profile[1]) };
 
 	const post = /^\/(?:(?:post|(?:s\/)?[^/]+)\/)?(\d+)(?:-[^/]*)?(?:\/(comments)?)?\/?$/i.exec(url.pathname);
 	if (!post) {
