@@ -82,14 +82,14 @@ describe('filter storage', () => {
 	it('поддерживает пресеты ключевых слов (GTA 6)', () => {
 		const gtaPreset = KEYWORD_PRESETS.find((p) => p.id === 'gta6');
 		expect(gtaPreset).toBeDefined();
-		expect(gtaPreset?.keywords).toEqual(['gta 6', 'gta vi', 'гта 6', 'gta6', 'gtavi', 'гта6']);
+		expect(gtaPreset?.keywords).toEqual(['gta 6', 'gta vi', 'гта 6', 'gta6', 'gtavi', 'гта6', 'жта6', 'жта 6', 'grand theft auto vi', 'grand theft auto 6']);
 
 		expect(isKeywordPresetActive(gtaPreset!)).toBe(false);
 
 		// Добавляем пресет
 		const added = addIgnoredKeywords(gtaPreset!.keywords);
-		expect(added).toBe(6);
-		expect(filterSettings.value.keywords).toEqual(['gta 6', 'gta vi', 'гта 6', 'gta6', 'gtavi', 'гта6']);
+		expect(added).toBe(10);
+		expect(filterSettings.value.keywords).toEqual(['gta 6', 'gta vi', 'гта 6', 'gta6', 'gtavi', 'гта6', 'жта6', 'жта 6', 'grand theft auto vi', 'grand theft auto 6']);
 		expect(isKeywordPresetActive(gtaPreset!)).toBe(true);
 
 		// Повторное добавление не дублирует слова
