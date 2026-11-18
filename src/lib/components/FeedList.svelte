@@ -251,7 +251,7 @@
 								{/if}
 								<!-- Обёртка с наблюдателем нужна, только когда показ в ленте считается прочтением -->
 								{#if tracksFeed(name)}
-									<div {@attach (el) => (active ? trackInFeed(el, post, name) : undefined)}>
+									<div class="feed-item-track" {@attach (el) => (active ? trackInFeed(el, post, name) : undefined)}>
 										<ThemeLoader componentName="Post" {post} />
 									</div>
 								{:else}

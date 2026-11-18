@@ -80,7 +80,8 @@
 	}
 
 	/* Если под селектором сразу идёт первый пост (без блока новостей), межкарточный отступ сверху не нужен */
-	.sorting-filters + :global(.feed-item) {
+	.sorting-filters + :global(.feed-item),
+	.sorting-filters + :global(.feed-item-track > .feed-item) {
 		margin-top: 0;
 	}
 
