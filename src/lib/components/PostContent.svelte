@@ -7,7 +7,8 @@
 	import ThemeLoader, { hasThemeComponent } from '$lib/themes/ThemeLoader.svelte';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { markCommentsStart, trackPostClosed, trackPostLoaded } from '$lib/storage/stats.svelte';
-	import { trackFullRead, trackOpen } from '$lib/storage/seen.svelte';
+	import { hidesSeenIn, trackFullRead, trackOpen } from '$lib/storage/seen.svelte';
+	import type { SeenFeed } from '$lib/storage/settings.svelte';
 	import { nextPaint } from '$lib/ready';
 	import { appear } from '$lib/themes/appear';
 	import { scrollBehavior } from '$lib/motion';
@@ -22,6 +23,7 @@
 		toComments,
 		anchor,
 		depth = 0,
+		seenFeed,
 		onLoaded,
 		backButton
 	}: {
@@ -31,6 +33,7 @@
 		commentId?: number;
 		focusNonce?: number;
 		depth?: number;
+		seenFeed?: SeenFeed;
 		/** Прокрутить сразу к комментариям после загрузки */
 		toComments?: boolean;
 		/** Якорь в посте, к которому прокрутить */
@@ -168,7 +171,7 @@
 	});
 </script>
 
-<div class="post-screen" {@attach (el) => post && trackOpen(el, post)}>
+<div class="post-screen" {@attach (el) => post && trackOpen(el, post, seenFeed)}>
 	<ScreenBar screen="post" {post} />
 	<Reveal ready={post !== undefined || error !== undefined} anim="contentIn" onreveal={onReveal}>
 		{#snippet children()}
@@ -177,7 +180,7 @@
 				<ThemeLoader componentName="Post" post={loaded} preview={false} evictMedia={depth >= 3} />
 				{#if !loaded.isDraft}
 					<!-- Конец поста для журнала прочитанного -->
-					<div {@attach (el) => trackFullRead(el, loaded)}></div>
+					<div {@attach (el) => trackFullRead(el, loaded, seenFeed)}></div>
 				{/if}
 				{#if !loaded.isDraft && !loaded.commentsDisabled}
 					<!-- Граница поста и комментариев для статистики: сколько времени пользователь в комментариях -->
@@ -229,7 +232,9 @@
 						/>
 					{/if}
 					{#if loaded.sourceId === 'dtf' && hasThemeComponent(activeTheme.chain, 'Recommendations')}
-						<ThemeLoader componentName="Recommendations" postId={loaded.id} />
+						{#key hidesSeenIn('recommendations')}
+							<ThemeLoader componentName="Recommendations" postId={loaded.id} />
+						{/key}
 					{/if}
 				</div>
 			{/await}

@@ -23,7 +23,7 @@
 		/** `hint` — подсказка при наведении: что пункт делает на самом деле; `image` и `details` — аватар и вторая строка */
 		items: { value: T; label: string; icon?: string; hint?: string; image?: string; details?: string }[];
 		selected?: T;
-		onselect: (value: T) => void;
+		onselect: (value: T, event: MouseEvent | KeyboardEvent) => void;
 		/** Для `center` нужна числовая ширина: окно центруется по кнопке отрицательным отступом, transform занят анимацией */
 		width?: number | string;
 		align?: 'left' | 'right' | 'center';
@@ -48,9 +48,9 @@
 		input.focus();
 	}
 
-	function select(value: T) {
+	function select(value: T, event: MouseEvent | KeyboardEvent) {
 		open = false;
-		onselect(value);
+		onselect(value, event);
 	}
 
 	// Слушатели на window ставим только пока меню открыто, чтобы в длинных списках не копились тысячи обработчиков
@@ -92,7 +92,7 @@
 					aria-label="Поиск"
 					autocomplete="off"
 					bind:value={query}
-					onkeydown={(e) => e.key === 'Enter' && visible[0] && (e.preventDefault(), select(visible[0].value))}
+					onkeydown={(e) => e.key === 'Enter' && visible[0] && (e.preventDefault(), select(visible[0].value, e))}
 					{@attach searchField}
 				/>
 			{/if}
@@ -104,7 +104,7 @@
 						aria-selected={item.value === selected}
 						title={item.hint}
 						tabindex="0"
-						onclick={() => select(item.value)}
+						onclick={(e) => select(item.value, e)}
 						onkeydown={clickOnKey}
 					>
 						{#if item.icon}

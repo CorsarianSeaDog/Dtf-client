@@ -15,8 +15,7 @@
 	import { appear } from '$lib/themes/appear';
 	import { markFeedLoaded } from '$lib/ready';
 	import { editorialNews } from '$lib/editorialNews.svelte';
-	import { seenSnapshot, trackInFeed, tracksFeed } from '$lib/storage/seen.svelte';
-	import { settings } from '$lib/storage/settings.svelte';
+	import { hidesSeenIn, seenSnapshot, trackInFeed, tracksFeed } from '$lib/storage/seen.svelte';
 
 	/*
 	 * Одна лента главной. Страница держит несколько таких сразу: неактивная скрыта, но сохраняет посты,
@@ -30,9 +29,10 @@
 
 	// Прочитанное на момент загрузки ленты: за сессию оно остаётся на месте, пока ленту не обновят
 	let seen = $state.raw(new Set<string>());
+	let hideSeen = $derived(hidesSeenIn(name));
 	// «Показать прочитанные»: лента показывается целиком до смены сортировки
 	let showSeen = $state(false);
-	const unseen = (items: Post[]) => (settings.value.hideSeen && !showSeen ? items.filter((post) => !seen.has(postKey(post))) : items);
+	const unseen = (items: Post[]) => (seen.size ? items.filter((post) => !seen.has(postKey(post))) : items);
 	const withoutSeen = (result: PaginatedResult<Post>): PaginatedResult<Post> => ({ ...result, items: unseen(result.items) });
 	const hasMore = (result: PaginatedResult<Post>) => !!result.cursors && Object.keys(result.cursors).length > 0;
 
@@ -72,12 +72,14 @@
 	 */
 	async function loadInitial(isRefresh = false) {
 		const id = ++requestId;
+		moreInFlight = undefined;
+		loadingMore = false;
 		const cached = isRefresh ? undefined : peekFeed(name, sorting);
 		const showNews = name === 'popular' && sorting === 'now';
-		seen = seenSnapshot();
+		seen = showSeen ? new Set() : seenSnapshot(name);
 		error = null;
-		if (isRefresh) refreshing = true;
-		else {
+		refreshing = isRefresh;
+		if (!isRefresh) {
 			chunks.stop();
 			feedResult = cached ? withoutSeen(cached) : null;
 			renderedCount = feedResult?.items.length ?? 0;
@@ -138,7 +140,7 @@
 	function loadMore(): Promise<boolean> {
 		if (chunks.pending) return chunks.pending;
 		if (moreInFlight) return moreInFlight;
-		if (loading || loadingMore || error || !feedResult || !hasMore(feedResult)) {
+		if (loading || loadingMore || refreshing || error || !feedResult || !hasMore(feedResult)) {
 			return Promise.resolve(false);
 		}
 		const id = requestId;
@@ -160,7 +162,7 @@
 				console.error('Failed to load more posts:', e);
 				return false;
 			} finally {
-				loadingMore = false;
+				if (id === requestId) loadingMore = false;
 			}
 		})().finally(() => {
 			if (moreInFlight === run) moreInFlight = undefined;
@@ -169,9 +171,10 @@
 		return run;
 	}
 
-	// Лента появилась или у неё сменилась сортировка: загружаем с начала
+	// Новая сортировка или настройка скрытия требует заново построить список
 	$effect(() => {
 		void sorting;
+		void hideSeen;
 		untrack(() => {
 			showSeen = false;
 			loadInitial();
@@ -199,7 +202,7 @@
 
 	// Подгрузка вниз только у открытой ленты. Новый наблюдатель при возврате сразу сообщает, виден ли низ списка
 	$effect(() => {
-		if (!loaderNode || !active) return;
+		if (!loaderNode || !active || refreshing) return;
 		return watchVisible(loaderNode, loadMore);
 	});
 
@@ -210,7 +213,7 @@
 </script>
 
 <!-- Обновление жестом рисует сам жест: тогда список не притухает и своего индикатора нет -->
-<div class={['feed', { 'feed--refreshing': refreshing && !feed.refreshQuiet }]}>
+<div class={['feed', { 'feed--refreshing': refreshing && !feed.refreshQuiet }]} data-seen-feed={name}>
 	{#if refreshing && !feed.refreshQuiet}
 		<div class="refresh"><ThemeLoader componentName="Spinner" inline={true} /></div>
 	{/if}
@@ -230,7 +233,7 @@
 							switchSorting={(next: FeedSorting) => openFeedTab(name, next)}
 						/>
 						{#if feedResult.items.length === 0 && !hasMore(feedResult)}
-							{#if seen.size > 0 && settings.value.hideSeen && !showSeen}
+							{#if seen.size > 0}
 								<div class="empty">
 									Всё прочитано
 									<button class="show-seen" onclick={() => { showSeen = true; loadInitial(); }}>Показать прочитанные</button>
@@ -247,8 +250,8 @@
 									<ThemeLoader componentName="FeedNotice" onlater={feedNotice.later} onnever={feedNotice.never} />
 								{/if}
 								<!-- Обёртка с наблюдателем нужна, только когда показ в ленте считается прочтением -->
-								{#if tracksFeed()}
-									<div {@attach (el) => (active ? trackInFeed(el, post) : undefined)}>
+								{#if tracksFeed(name)}
+									<div {@attach (el) => (active ? trackInFeed(el, post, name) : undefined)}>
 										<ThemeLoader componentName="Post" {post} />
 									</div>
 								{:else}

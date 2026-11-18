@@ -1,10 +1,13 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { api } from '$lib/api/index.svelte';
 	import type { Post, RecommendationsCursor } from '$lib/api/types';
+	import { postKey } from '$lib/api/utils';
 	import PostItem from './Post.svelte';
 	import { loadOnVisible } from './loadOnVisible';
 	import { Button, Preloader } from './ui';
 	import { settings } from '$lib/storage/settings.svelte';
+	import { seenSnapshot, trackInFeed, tracksFeed } from '$lib/storage/seen.svelte';
 
 	/*
 	 * Лента рекомендаций под комментариями: у DTF это обычная бесконечная лента карточек без заголовка,
@@ -19,24 +22,35 @@
 	let cursor: RecommendationsCursor | undefined;
 	let loading = $state(false);
 	let requested = $state(settings.value.recommendations === 'auto');
+	let readPosts: Set<string> | undefined;
+	let destroyed = false;
+	onDestroy(() => (destroyed = true));
 	// svelte-ignore state_referenced_locally
-	const seen = new Set<number>([postId]);
+	const listedIds = new Set<number>([postId]);
 
 	async function load() {
 		if (loading || !hasMore) return;
 		loading = true;
+		const read = (readPosts ??= seenSnapshot('recommendations'));
 		try {
-			// Страница из одних повторов: горизонт остался на месте и сам не сработает, поэтому берём следующую
-			let fresh: Post[];
-			do {
+			// Если вся страница скрыта, сразу берём следующую: низ списка не сдвинулся
+			while (hasMore) {
 				const res = await api.getRecommendations(postId, cursor);
+				if (destroyed) return;
 				cursor = res.cursor;
 				hasMore = !!cursor;
-				fresh = res.items.filter((post) => !seen.has(post.id));
-				for (const post of fresh) seen.add(post.id);
+				const fresh: Post[] = [];
+				for (const post of res.items) {
+					if (listedIds.has(post.id) || read.has(postKey(post))) continue;
+					listedIds.add(post.id);
+					fresh.push(post);
+				}
+				if (!fresh.length) continue;
 				posts = [...posts, ...fresh];
-			} while (hasMore && !fresh.length);
+				return hasMore;
+			}
 		} catch (e) {
+			if (destroyed) return;
 			// Тихо перестаём подгружать: страница поста не страдает
 			console.warn('Рекомендации не загрузились', e);
 			hasMore = false;
@@ -46,9 +60,15 @@
 	}
 </script>
 
-<div class="recommendations">
+<div class="recommendations" data-seen-feed="recommendations">
 	{#each posts as post (post.sourceId + '_' + post.id)}
-		<PostItem {post} />
+		{#if tracksFeed('recommendations')}
+			<div {@attach (el) => trackInFeed(el, post, 'recommendations')}>
+				<PostItem {post} />
+			</div>
+		{:else}
+			<PostItem {post} />
+		{/if}
 	{/each}
 
 	{#if hasMore}

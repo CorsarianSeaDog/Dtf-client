@@ -35,8 +35,8 @@
 			.catch((e) => id === requestId && (error = e.message));
 	}
 
-	function openRepost(id: number) {
-		openOverlay({ type: 'post', data: { postId: id, sourceId: post.sourceId } });
+	function openRepost(id: number, event: MouseEvent | KeyboardEvent) {
+		openOverlay({ type: 'post', data: { postId: id, sourceId: post.sourceId } }, event.currentTarget);
 	}
 </script>
 

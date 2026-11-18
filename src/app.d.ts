@@ -1,5 +1,7 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
+import type { SeenFeed } from '$lib/storage/settings.svelte';
+
 declare global {
 	namespace App {
 		// interface Error {}
@@ -11,7 +13,7 @@ declare global {
 		 * в src/lib/navigation.ts (адрес и способ показа) и в src/routes/+layout.svelte (компонент).
 		 */
 		type OverlayData =
-			| { type: 'post'; data: { postId: number; sourceId: string; commentId?: number; focusNonce?: number; toComments?: boolean; anchor?: string } }
+			| { type: 'post'; data: { postId: number; sourceId: string; commentId?: number; focusNonce?: number; toComments?: boolean; anchor?: string; seenFeed?: SeenFeed } }
 			| { type: 'profile'; data: { profileId: number | string } }
 			| { type: 'settings'; data?: { page?: string; section?: string; solo?: boolean } }
 			| { type: 'notifications' }

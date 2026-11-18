@@ -1,6 +1,7 @@
 <script lang="ts">
 	import PostContent from '$lib/components/PostContent.svelte';
 	import { closeOverlay } from '$lib/navigation';
+	import type { SeenFeed } from '$lib/storage/settings.svelte';
 
 	let {
 		postId,
@@ -9,15 +10,16 @@
 		focusNonce,
 		depth = 0,
 		toComments,
-		anchor
-	}: { postId: number; sourceId?: string; commentId?: number; focusNonce?: number; toComments?: boolean; anchor?: string; depth?: number } = $props();
+		anchor,
+		seenFeed
+	}: { postId: number; sourceId?: string; commentId?: number; focusNonce?: number; toComments?: boolean; anchor?: string; depth?: number; seenFeed?: SeenFeed } = $props();
 
 	function goBack() {
 		closeOverlay();
 	}
 </script>
 
-<PostContent {postId} {sourceId} {commentId} {focusNonce} {toComments} {anchor} {depth}>
+<PostContent {postId} {sourceId} {commentId} {focusNonce} {toComments} {anchor} {depth} {seenFeed}>
 	{#snippet backButton()}
 		<button class="back-link" onclick={goBack}>← Вернуться в ленту</button>
 	{/snippet}

@@ -11,6 +11,7 @@
 	import { clearSeen } from '$lib/storage/seen.svelte';
 	import { settings } from '$lib/storage/settings.svelte';
 	import type { AccountSettings } from '$lib/api/types';
+	import type { FeedName } from '$lib/feed.svelte';
 	import type { SettingValue } from '$lib/themes/types';
 
 	/*
@@ -21,11 +22,12 @@
 	 */
 	let { onopencontent }: { onopencontent?: () => void } = $props();
 
-	const FEED_OPTIONS = [
+	const FEED_OPTIONS: { value: FeedName; title: string }[] = [
 		{ value: 'popular', title: 'Популярное' },
 		{ value: 'new', title: 'Свежее' },
 		{ value: 'my', title: 'Моя лента' }
 	];
+	const SEEN_FEED_OPTIONS = [...FEED_OPTIONS, { value: 'recommendations', title: 'Рекомендации под постами' }] as const;
 
 	const MY_FEED_SORTING_OPTIONS = [
 		{ value: 'new', title: 'Свежее' },
@@ -76,9 +78,9 @@
 
 <SettingsGroup
 	title="Прочитанные посты"
-	description="Список хранится только на этом устройстве. Скрытие срабатывает при следующей загрузке ленты: только что прочитанный пост остаётся на месте, пока ленту не обновят."
+	description="Список хранится на этом устройстве. Выбранные ленты запоминают прочитанные посты и скрывают их при следующей загрузке ленты."
 >
-	<SettingsRow tag="label" title="Скрывать прочитанные посты" subtitle="В лентах главной. Пока выключено, прочитанное не запоминается.">
+	<SettingsRow tag="label" title="Скрывать прочитанные посты">
 		<SettingsSwitch
 			checked={settings.value.hideSeen}
 			label="Скрывать прочитанные посты"
@@ -86,6 +88,15 @@
 		/>
 	</SettingsRow>
 	{#if settings.value.hideSeen}
+		{#each SEEN_FEED_OPTIONS as { value, title } (value)}
+			<SettingsRow tag="label" {title}>
+				<SettingsSwitch
+					checked={settings.value.hideSeenFeeds[value] !== false}
+					label={title}
+					onchange={(checked) => settings.patch({ hideSeenFeeds: { ...settings.value.hideSeenFeeds, [value]: checked } })}
+				/>
+			</SettingsRow>
+		{/each}
 		<SettingsRow title="Открытие поста" subtitle="Прочитан, если пост был открыт столько секунд.">
 			<SettingsSelect
 				id="seen-open"

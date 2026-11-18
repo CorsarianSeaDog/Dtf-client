@@ -3,11 +3,13 @@ import { DEFAULT_THEME, SETTINGS_VERSION } from './defaults';
 export { DEFAULT_THEME } from './defaults';
 import { persistedState } from './persisted.svelte';
 import { isNative } from '$lib/capacitor';
+import type { FeedName } from '$lib/feed.svelte';
 import type { AppIconId } from '$lib/icons';
 
 export type NestingMode = 'flatten' | 'autopan';
 export type CommentVirtualization = 'auto' | 'enabled' | 'disabled';
 export type RecommendationsMode = 'auto' | 'button';
+export type SeenFeed = FeedName | 'recommendations';
 export type ClientBadgesMode = 'all' | 'redtf_only' | 'none';
 export type MobileBadgesPosition = 'author' | 'date';
 export type PlusBadgesMode = 'classic' | 'custom';
@@ -38,8 +40,10 @@ export interface AppSettings {
 	recommendations: RecommendationsMode;
 	/** Вести локальную статистику (см. stats.svelte.ts) */
 	collectStats: boolean;
-	/** Скрывать в лентах главной прочитанные посты (см. seen.svelte.ts) */
+	/** Скрывать прочитанные посты (см. seen.svelte.ts) */
 	hideSeen: boolean;
+	/** Где скрывать прочитанные посты. Ленты без сохранённого значения включены. */
+	hideSeenFeeds: Partial<Record<SeenFeed, boolean>>;
 	/** Пост прочитан, если открыт столько секунд; 0 — открытие не считается */
 	seenOpenSeconds: number;
 	/** Пост прочитан, если пользователь долистал до его конца */
@@ -157,6 +161,7 @@ export const settings = persistedState<AppSettings>(
 		recommendations: 'auto',
 		collectStats: true,
 		hideSeen: false,
+		hideSeenFeeds: {},
 		seenOpenSeconds: 5,
 		seenFullRead: true,
 		seenFeedSeconds: 0,

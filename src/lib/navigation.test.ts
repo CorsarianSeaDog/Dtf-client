@@ -183,6 +183,27 @@ describe('navigation', () => {
 			mockPageState.overlays = [];
 		});
 
+		it('сохраняет ленту открытия поста в состоянии оверлея', () => {
+			class FeedLink {
+				closest() {
+					return { dataset: { seenFeed: 'recommendations' } };
+				}
+			}
+			vi.stubGlobal('Element', FeedLink);
+			try {
+				const event = { button: 0, currentTarget: new FeedLink(), preventDefault: vi.fn() } as unknown as MouseEvent;
+				openPost(event, { id: 123, sourceId: 'dtf' }, { toComments: true });
+				openDtfLink(event, 'https://dtf.ru/games/123');
+				for (const url of ['/post/123#comments', '/post/123']) {
+					expect(goto).toHaveBeenCalledWith(url, expect.objectContaining({
+						state: { overlays: [expect.objectContaining({ data: expect.objectContaining({ seenFeed: 'recommendations' }) })] }
+					}));
+				}
+			} finally {
+				vi.unstubAllGlobals();
+			}
+		});
+
 		it('openDtfUrl открывает оверлей для ссылок на посты, профили и теги', () => {
 			expect(openDtfUrl('https://dtf.ru/games/5394366-remejk')).toBe(true);
 			expect(goto).toHaveBeenCalledWith(

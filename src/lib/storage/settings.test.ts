@@ -43,6 +43,7 @@ describe('settings & shouldVirtualizeComments', () => {
 			commentNesting: 'flatten',
 			collectStats: true,
 			hideSeen: false,
+			hideSeenFeeds: {},
 			seenOpenSeconds: 5,
 			seenFullRead: true,
 			seenFeedSeconds: 0,

@@ -44,6 +44,7 @@ describe('auth & proxy failover', () => {
 			commentNesting: 'flatten',
 			collectStats: true,
 			hideSeen: false,
+			hideSeenFeeds: {},
 			seenOpenSeconds: 5,
 			seenFullRead: true,
 			seenFeedSeconds: 0,

@@ -5,7 +5,7 @@ import { parseDtfUrl, dtfTargetToPath, safeDecode } from './dtfLinks';
 import { feed, feedPath, openFeedTab, type FeedName } from './feed.svelte';
 import { scrollBehavior } from './motion';
 import { markOrigin } from './pageTransition.svelte';
-import { settings, DEFAULT_SHARE_SERVICE_URL } from '$lib/storage/settings.svelte';
+import { settings, DEFAULT_SHARE_SERVICE_URL, type SeenFeed } from '$lib/storage/settings.svelte';
 
 /*
  * Навигация внутри приложения. Посты, профили, настройки, вход и редактор открываются
@@ -176,7 +176,7 @@ export function getSidebarActive(): { feed?: FeedName; profileId?: string } {
 }
 
 /** Открыть оверлей поверх текущего экрана */
-export function openOverlay(overlay: App.OverlayData) {
+export function openOverlay(overlay: App.OverlayData, origin?: EventTarget | null) {
 	if (overlay.type === 'post') {
 		const currentOverlays = page.state.overlays ?? [];
 		const sourceId = overlay.data.sourceId ?? 'dtf';
@@ -220,6 +220,12 @@ export function openOverlay(overlay: App.OverlayData) {
 				replace: true,
 				state: page.state
 			});
+		}
+
+		// Источник прочтения остаётся с оверлеем при переходах по истории и не попадает в ссылку.
+		if (origin && origin instanceof Element) {
+			const seenFeed = origin.closest<HTMLElement>('[data-seen-feed]')?.dataset.seenFeed as SeenFeed | undefined;
+			if (seenFeed) overlay = { ...overlay, data: { ...overlay.data, seenFeed } };
 		}
 	}
 
@@ -448,7 +454,7 @@ function openFromLink(e: MouseEvent, overlay: App.OverlayData) {
 	if (isNewTabClick(e)) return;
 	e.preventDefault();
 	markOrigin(e);
-	openOverlay(overlay);
+	openOverlay(overlay, e.currentTarget ?? e.target);
 }
 
 /** Открыть пост поверх ленты (лента сохраняет прокрутку) */
@@ -524,7 +530,7 @@ export function openSupport(e?: MouseEvent) {
  * Открыть ссылку или целевой объект dtf.ru или redtf.org внутри приложения (для deep links и программных переходов).
  * Возвращает true, если цель поддерживается и открыта.
  */
-export function openDtfUrl(href: string): boolean {
+export function openDtfUrl(href: string, origin?: EventTarget | null): boolean {
 	const target = parseDtfUrl(href);
 	if (!target) return false;
 
@@ -554,7 +560,7 @@ export function openDtfUrl(href: string): boolean {
 				toComments: target.toComments,
 				anchor: target.anchor
 			}
-		});
+		}, origin);
 	} else if (target.type === 'tag') {
 		openOverlay({ type: 'tag', data: { tag: target.tag } });
 	} else {
@@ -605,7 +611,7 @@ export function openDtfLink(e: MouseEvent, href: string): boolean {
 
 	e.preventDefault();
 	markOrigin(e);
-	return openDtfUrl(href);
+	return openDtfUrl(href, e.currentTarget ?? e.target);
 }
 
 /**
