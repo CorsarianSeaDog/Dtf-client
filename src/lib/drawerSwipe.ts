@@ -69,7 +69,8 @@ export function drawerSwipe(isOpen: () => boolean): Attachment<HTMLElement> {
 	return (node) => {
 		const { begin, grab, move, end, destroy } = drawerInput();
 		return swipe({
-			start: () => !!drawer && (isOpen() || drawer.active),
+			mobile: true,
+			start: () => isOpen() || !!drawer?.active,
 			begin: (dx) => dx < 0 && begin(),
 			grab, move, end, destroy
 		})(node);

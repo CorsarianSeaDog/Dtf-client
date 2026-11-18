@@ -295,7 +295,7 @@
 	let swipeLayer = $state<HTMLElement>();
 	const swipeComment = commentSwipe({
 		// Свайп открывает ответ, а при запрете писать он не нужен
-		enabled: () => activeTheme.gestures && !blocked,
+		enabled: () => !blocked,
 		// Кнопка «Ответить» есть только у обычного комментария: у удалённого и скрытого фильтром свайпа нет
 		keyOf: (item) => (item.querySelector(':scope > .comment-item__content > .comment-item__action') ? item.id.replace('comment-', '') : undefined),
 		count: () => swipeActions.length,

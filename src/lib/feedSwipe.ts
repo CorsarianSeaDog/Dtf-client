@@ -1,9 +1,7 @@
-import { activeTheme } from './themes/index.svelte';
-import { getCurrentDevice } from './themes/types';
 import type { Attachment } from 'svelte/attachments';
 import { neighborFeed, type FeedName } from './feed.svelte';
 import { createTension, haptics } from './haptics';
-import { DISTANCE, glide, settle, swipe, translate, type Glide } from './swipe';
+import { DISTANCE, gesturesAllowed, glide, settle, swipe, translate, type Glide } from './swipe';
 import { drawerInput } from './drawerSwipe';
 
 /*
@@ -31,7 +29,7 @@ export interface FeedSwipeOptions {
 const SWIPE_ONLY_MOBILE = true;
 
 /** Свайп возможен в этой теме и при нынешней ширине экрана. Им же решается, готовить ли соседние ленты заранее */
-export const swipeAllowed = () => activeTheme.gestures && (!SWIPE_ONLY_MOBILE || getCurrentDevice() === 'mobile');
+export const swipeAllowed = () => gesturesAllowed(SWIPE_ONLY_MOBILE);
 
 /** Сопротивление там, где соседа нет: сдвиг растёт всё медленнее и не доходит до половины ширины */
 const rubber = (x: number, width: number) => Math.sign(x) * (1 - 1 / ((Math.abs(x) * 0.55) / width + 1)) * width;
@@ -75,7 +73,8 @@ export function feedSwipe(options: FeedSwipeOptions): Attachment<HTMLElement> {
 		}
 
 		return swipe({
-			start: () => options.enabled() && swipeAllowed(),
+			mobile: SWIPE_ONLY_MOBILE,
+			start: options.enabled,
 			begin(dx) {
 				from = options.current();
 				if (dx > 0 && !neighborFeed(from, -1) && drawer.begin()) return true;

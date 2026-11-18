@@ -138,6 +138,29 @@ describe('swipe', () => {
 		vi.spyOn(activeTheme, 'gestures', 'get').mockReturnValue(true);
 	});
 
+	it('по умолчанию работает на широком сенсорном экране, mobile ограничивает только отмеченный жест', () => {
+		for (const mobile of [false, true]) {
+			const el = node(), h = hooks();
+			const detach = swipe({ ...h, mobile })(el);
+			el.dispatchEvent(pointer('pointerdown'));
+			el.dispatchEvent(pointer('pointermove', 200));
+			el.dispatchEvent(pointer('pointerup', 200));
+			expect(h.begin).toHaveBeenCalledTimes(mobile ? 0 : 1);
+			if (typeof detach === 'function') detach();
+		}
+	});
+
+	it('тема без жестов и мышь не запускают даже пользовательскую проверку старта', () => {
+		const el = node(), h = hooks();
+		const detach = swipe(h)(el);
+		el.dispatchEvent(pointer('pointerdown', 100, 'mouse'));
+		expect(h.start).not.toHaveBeenCalled();
+		vi.spyOn(activeTheme, 'gestures', 'get').mockReturnValue(false);
+		el.dispatchEvent(pointer('pointerdown'));
+		expect(h.start).not.toHaveBeenCalled();
+		if (typeof detach === 'function') detach();
+	});
+
 	it('поля ввода, край экрана и запрет потребителя не подхватывают доезд', () => {
 		const el = node(), h = hooks();
 		const detach = swipe(h)(el);

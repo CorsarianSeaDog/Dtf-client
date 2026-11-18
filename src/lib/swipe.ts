@@ -1,6 +1,8 @@
 import type { Attachment } from 'svelte/attachments';
 import { reducedMotion } from './motion';
 import { createTension, haptics } from './haptics';
+import { activeTheme } from './themes/index.svelte';
+import { getCurrentDevice } from './themes/types';
 
 /*
  * Горизонтальный жест пальцем: общая часть свайпа лент и свайпа «назад». Ведёт палец от касания до отпускания,
@@ -11,6 +13,8 @@ import { createTension, haptics } from './haptics';
 type GrabbedGlide = { offset: number; resume: () => void };
 
 export interface SwipeHooks {
+	/** Только в мобильной раскладке. Без флага жест доступен при любой ширине сенсорного экрана */
+	mobile?: boolean;
 	/** Можно ли начать жест с этого касания */
 	start: (e: PointerEvent) => boolean;
 	/** Палец пошёл по горизонтали на `dx`: `false` — жест не наш, палец остаётся браузеру */
@@ -31,6 +35,9 @@ export interface SwipeHooks {
 	/** Узел убран: очистить свои стили и остановить свой доезд или отменить текущий жест */
 	destroy?: (dragging: boolean) => void;
 }
+
+/** Поддержка жестов темой и необязательное ограничение раскладки; используется и жестами вне `swipe` */
+export const gesturesAllowed = (mobile = false) => activeTheme.gestures && (!mobile || getCurrentDevice() === 'mobile');
 
 /** У краёв экрана жест принадлежит системе («назад» в Android и iOS) */
 const EDGE = 24;
@@ -270,7 +277,7 @@ export function swipe(hooks: SwipeHooks): Attachment<HTMLElement> {
 			if (!e.isPrimary) return;
 			node.removeEventListener('click', stopClick, true);
 			const target = e.target as Element | null;
-			if (e.clientX < EDGE || e.clientX > innerWidth - EDGE || target?.closest?.('input, textarea, select, [contenteditable]')) return;
+			if (!gesturesAllowed(hooks.mobile) || e.clientX < EDGE || e.clientX > innerWidth - EDGE || target?.closest?.('input, textarea, select, [contenteditable]')) return;
 			// Доезд мог начать другой узел (лента открыла панель) или кнопка. Проверка нужна и перед таким подхватом
 			if (hooks.grab && !hooks.start(e)) return;
 			held = hooks.grab?.();

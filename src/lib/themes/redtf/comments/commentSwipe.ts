@@ -91,7 +91,7 @@ export function commentSwipe(options: CommentSwipeOptions): Attachment<HTMLEleme
 		start(e) {
 			const target = e.target as Element;
 			const node = target.closest<HTMLElement>('.comment-item');
-			if (!options.enabled() || !node || target.closest('input, textarea, select, [contenteditable], .comment-editor-container')) return false;
+			if (!options.enabled() || !node || target.closest('.comment-editor-container')) return false;
 			const key = options.keyOf(node);
 			if (!key) return false;
 			item = node;

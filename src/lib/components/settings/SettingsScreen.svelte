@@ -296,6 +296,7 @@
 	}
 
 	const backSwipe = swipe({
+		mobile: true,
 		start: () => !dragging || back.active,
 		begin(dx) {
 			if (dx <= 0) return false;

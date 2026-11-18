@@ -5,10 +5,8 @@ import { setBackDriver, type BackDriver, type BackSide } from './capacitor/back'
 import { closeOverlay } from './navigation';
 import { freeze, pageTransition } from './pageTransition.svelte';
 import { createTension, haptics } from './haptics';
-import { DISTANCE, glide, settle, swipe, translate, type Glide } from './swipe';
+import { DISTANCE, gesturesAllowed, glide, settle, swipe, translate, type Glide } from './swipe';
 import { settings } from './storage/settings.svelte';
-import { activeTheme } from './themes/index.svelte';
-import { getCurrentDevice } from './themes/types';
 
 /*
  * Свайп «назад» по странице-оверлею (пост, профиль, уведомления) в мобильной раскладке. Палец тянет страницу вправо,
@@ -52,7 +50,7 @@ const screenOf = (layer: string) => document.querySelector(`[data-layer="${layer
 function layers() {
 	const overlays = page.state.overlays ?? [];
 	const top = overlays.at(-1);
-	if (!activeTheme.gestures || getCurrentDevice() !== 'mobile' || pageTransition.active || landing || top?.presentation !== 'page') return;
+	if (!gesturesAllowed(true) || pageTransition.active || landing || top?.presentation !== 'page') return;
 	const below = overlays.at(-2);
 	if (below && below.presentation !== 'page') return;
 	return { top: top.id, under: below?.id ?? '__feed__' };
@@ -192,6 +190,7 @@ export function swipeBackGesture(options: SwipeBackOptions): Attachment<HTMLElem
 	}
 
 	const touch = swipe({
+		mobile: true,
 		start(e) {
 			if (systemDragging || (!touchFlight && flight?.active)) return false;
 			from = layers();

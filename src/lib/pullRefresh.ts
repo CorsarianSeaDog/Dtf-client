@@ -1,7 +1,6 @@
 import type { Attachment } from 'svelte/attachments';
 import { createTension } from './haptics';
-import { activeTheme } from './themes/index.svelte';
-import { getCurrentDevice } from './themes/types';
+import { gesturesAllowed } from './swipe';
 
 /*
  * Обновление жестом: от самого верха страницы палец тянет её вниз, и отпускание за порогом обновляет содержимое.
@@ -48,8 +47,6 @@ export const resist = (d: number) => MAX * (1 - 1 / (1 + (0.7 * Math.max(0, d)) 
 /** Ход пальца, которому соответствует сдвиг `y`: жест подхватывает страницу посреди доезда без рывка */
 export const unresist = (y: number) => (MAX / 0.7) * (1 / (1 - Math.min(y, MAX - 1) / MAX) - 1);
 
-const allowed = () => activeTheme.gestures && getCurrentDevice() === 'mobile';
-
 /** Тема показывает загрузку, пока идёт обновление */
 function holdWhile(p: Puller, refresh: () => Promise<unknown>) {
 	p.hold();
@@ -63,7 +60,7 @@ function holdWhile(p: Puller, refresh: () => Promise<unknown>) {
  */
 export function refreshWithIndicator(refresh: () => Promise<unknown>): Promise<unknown> {
 	const p = puller;
-	if (!p || !allowed() || p.grab() === undefined) return refresh();
+	if (!p || !gesturesAllowed(true) || p.grab() === undefined) return refresh();
 	return holdWhile(p, refresh);
 }
 
@@ -128,7 +125,7 @@ export function pullRefresh(options: PullRefreshOptions): Attachment<HTMLElement
 				busy ||
 				scrollY > 1 ||
 				!p ||
-				!allowed() ||
+				!gesturesAllowed(true) ||
 				!options.enabled() ||
 				el?.closest('.mobile-bar') ||
 				p.grab() === undefined
