@@ -5,22 +5,30 @@
 	 * Группа настроек в духе libadwaita: заголовок, пояснение и белая карточка со строками на мягкой тени.
 	 * Цвета берутся из переменных окна (SettingsScreen).
 	 */
-	let { id, settingKey, title, note, description, children }: { id?: string; settingKey?: string; title?: string; note?: string; description?: string; children: Snippet } = $props();
+	let { id, settingKey, title, note, description, layout = 'card', children }: {
+		id?: string;
+		settingKey?: string;
+		title?: string;
+		note?: string;
+		description?: string;
+		layout?: 'card' | 'subgroups' | 'subgroup';
+		children: Snippet;
+	} = $props();
 </script>
 
-<section {id} data-setting-key={settingKey} class="group">
+<section {id} data-setting-key={settingKey} class={['group', { 'group--subgroup': layout === 'subgroup' }]}>
 	{#if title}
-		<h3 class="group__title">
+		<svelte:element this={layout === 'subgroup' ? 'h4' : 'h3'} class="group__title">
 			{title}
 			{#if note}
 				<span class="group__note">{note}</span>
 			{/if}
-		</h3>
+		</svelte:element>
 	{/if}
 	{#if description}
 		<p class="group__description">{description}</p>
 	{/if}
-	<div class="group__list">
+	<div class={layout === 'subgroups' ? 'group__subgroups' : 'group__list'}>
 		{@render children()}
 	</div>
 </section>
@@ -38,6 +46,10 @@
 	.group:first-child,
 	.group:has(.group__title):first-child {
 		margin-top: 0;
+	}
+
+	.group.group--subgroup {
+		margin: 0;
 	}
 
 	.group:has(:global(.select-wrap--open)) {
@@ -65,8 +77,27 @@
 		line-height: 20px;
 	}
 
-	.group__title + .group__list {
+	.group__title + .group__list,
+	.group__title + .group__subgroups {
 		margin-top: 12px;
+	}
+
+	.group--subgroup .group__title {
+		margin-bottom: 0;
+		color: var(--st-muted);
+		font-size: 14px;
+		font-weight: 600;
+		line-height: 20px;
+	}
+
+	.group--subgroup .group__title + .group__list {
+		margin-top: 4px;
+	}
+
+	.group__subgroups {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 12px;
 	}
 
 	.group__list {
