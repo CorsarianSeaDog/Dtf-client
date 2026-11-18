@@ -77,54 +77,63 @@
 </SettingsGroup>
 
 <SettingsGroup
+	layout="subgroups"
 	title="Прочитанные посты"
 	description="Список хранится на этом устройстве. Выбранные ленты запоминают прочитанные посты и скрывают их при следующей загрузке ленты."
 >
-	<SettingsRow tag="label" title="Скрывать прочитанные посты">
-		<SettingsSwitch
-			checked={settings.value.hideSeen}
-			label="Скрывать прочитанные посты"
-			onchange={(checked) => settings.patch({ hideSeen: checked })}
-		/>
-	</SettingsRow>
+	<SettingsGroup layout="subgroup">
+		<SettingsRow tag="label" title="Скрывать прочитанные посты">
+			<SettingsSwitch
+				checked={settings.value.hideSeen}
+				label="Скрывать прочитанные посты"
+				onchange={(checked) => settings.patch({ hideSeen: checked })}
+			/>
+		</SettingsRow>
+	</SettingsGroup>
 	{#if settings.value.hideSeen}
-		{#each SEEN_FEED_OPTIONS as { value, title } (value)}
-			<SettingsRow tag="label" {title}>
-				<SettingsSwitch
-					checked={settings.value.hideSeenFeeds[value] !== false}
-					label={title}
-					onchange={(checked) => settings.patch({ hideSeenFeeds: { ...settings.value.hideSeenFeeds, [value]: checked } })}
+		<SettingsGroup layout="subgroup" title="Где скрывать">
+			{#each SEEN_FEED_OPTIONS as { value, title } (value)}
+				<SettingsRow tag="label" {title}>
+					<SettingsSwitch
+						checked={settings.value.hideSeenFeeds[value] !== false}
+						label={title}
+						onchange={(checked) => settings.patch({ hideSeenFeeds: { ...settings.value.hideSeenFeeds, [value]: checked } })}
+					/>
+				</SettingsRow>
+			{/each}
+		</SettingsGroup>
+		<SettingsGroup layout="subgroup" title="Что считать прочитанным">
+			<SettingsRow title="Открытие поста" subtitle="Прочитан, если пост был открыт столько секунд.">
+				<SettingsSelect
+					id="seen-open"
+					options={OPEN_OPTIONS}
+					value={settings.value.seenOpenSeconds}
+					label="Открытие поста"
+					onchange={(value) => settings.patch({ seenOpenSeconds: value })}
 				/>
 			</SettingsRow>
-		{/each}
-		<SettingsRow title="Открытие поста" subtitle="Прочитан, если пост был открыт столько секунд.">
-			<SettingsSelect
-				id="seen-open"
-				options={OPEN_OPTIONS}
-				value={settings.value.seenOpenSeconds}
-				label="Открытие поста"
-				onchange={(value) => settings.patch({ seenOpenSeconds: value })}
-			/>
-		</SettingsRow>
-		<SettingsRow tag="label" title="Дочитан до конца" subtitle="Прочитан, если вы долистали пост до конца.">
-			<SettingsSwitch
-				checked={settings.value.seenFullRead}
-				label="Дочитан до конца"
-				onchange={(checked) => settings.patch({ seenFullRead: checked })}
-			/>
-		</SettingsRow>
-		<SettingsRow title="Показ в ленте" subtitle="Прочитан, если карточка была в центре экрана ленты столько секунд.">
-			<SettingsSelect
-				id="seen-feed"
-				options={FEED_SEEN_OPTIONS}
-				value={settings.value.seenFeedSeconds}
-				label="Показ в ленте"
-				onchange={(value) => settings.patch({ seenFeedSeconds: value })}
-			/>
-		</SettingsRow>
-		<SettingsRow title="Забыть прочитанное" subtitle="Все посты снова появятся в лентах после обновления.">
-			<SettingsButton onclick={clearSeen}>Очистить</SettingsButton>
-		</SettingsRow>
+			<SettingsRow tag="label" title="Дочитан до конца" subtitle="Прочитан, если вы долистали пост до конца.">
+				<SettingsSwitch
+					checked={settings.value.seenFullRead}
+					label="Дочитан до конца"
+					onchange={(checked) => settings.patch({ seenFullRead: checked })}
+				/>
+			</SettingsRow>
+			<SettingsRow title="Показ в ленте" subtitle="Прочитан, если карточка была в центре экрана ленты столько секунд.">
+				<SettingsSelect
+					id="seen-feed"
+					options={FEED_SEEN_OPTIONS}
+					value={settings.value.seenFeedSeconds}
+					label="Показ в ленте"
+					onchange={(value) => settings.patch({ seenFeedSeconds: value })}
+				/>
+			</SettingsRow>
+		</SettingsGroup>
+		<SettingsGroup layout="subgroup">
+			<SettingsRow title="Забыть прочитанное" subtitle="Все посты снова появятся в лентах после обновления.">
+				<SettingsButton onclick={clearSeen}>Очистить</SettingsButton>
+			</SettingsRow>
+		</SettingsGroup>
 	{/if}
 </SettingsGroup>
 
