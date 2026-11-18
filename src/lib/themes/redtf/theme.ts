@@ -1,5 +1,4 @@
 import { ease, fluent, type ThemeMotion } from '$lib/motion';
-import { EASE as SWIPE_EASE } from '$lib/swipe';
 import { defineTheme, EXPERIMENTAL, getCurrentDevice, type SettingValue } from '../types';
 import { extendsTheme, palettes } from './palettes';
 
@@ -28,8 +27,8 @@ type PageMotion = Pick<ThemeMotion, 'recede' | 'wait' | 'breathe' | 'depart' | '
 // на месте и размывается (без эффектов прозрачности — белеет), а справа выдвинута панель будущей страницы с индикатором
 // Темп слайда (настройка `transitionSpeed`). «Плавно» — кривая шторок iOS: разгон мягче броска, торможение длиннее
 const SLIDE_TIMING: Record<string, { duration: number; easing: string }> = {
-	fast: { duration: 260, easing: SWIPE_EASE },
-	normal: { duration: 380, easing: SWIPE_EASE },
+	fast: { duration: 260, easing: ease.swipe },
+	normal: { duration: 380, easing: ease.swipe },
 	smooth: { duration: 520, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' }
 };
 

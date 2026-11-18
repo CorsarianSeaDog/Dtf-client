@@ -104,6 +104,7 @@ const supportsLinear = () => typeof CSS !== 'undefined' && CSS.supports?.('trans
 
 /** Кривые: QuarticEase, Fluent и Material */
 export const ease = {
+	swipe: 'cubic-bezier(0.33, 1, 0.68, 1)',
 	m3Emphasized: supportsLinear() ? M3_EMPHASIZED : 'cubic-bezier(0.2, 0, 0, 1)',
 	out: 'cubic-bezier(0.165, 0.84, 0.44, 1)',
 	inOut: 'cubic-bezier(0.77, 0, 0.175, 1)',

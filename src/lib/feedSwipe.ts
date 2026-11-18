@@ -1,10 +1,10 @@
-import type { Attachment } from 'svelte/attachments';
 import { activeTheme } from './themes/index.svelte';
-import { neighborFeed, type FeedName } from './feed.svelte';
 import { getCurrentDevice } from './themes/types';
+import type { Attachment } from 'svelte/attachments';
+import { neighborFeed, type FeedName } from './feed.svelte';
 import { createTension, haptics } from './haptics';
 import { DISTANCE, glide, settle, swipe, translate, type Glide } from './swipe';
-import { pullDrawer, type DrawerPull } from './drawerSwipe';
+import { drawerInput } from './drawerSwipe';
 
 /*
  * Свайп между лентами главной. Палец тянет дорожку с лентами, соседняя лента стоит рядом сразу на своей прокрутке,
@@ -44,7 +44,7 @@ export function feedSwipe(options: FeedSwipeOptions): Attachment<HTMLElement> {
 		// Соседи, выставленные рядом с дорожкой (null — соседа нет)
 		const sides = new Map<-1 | 1, HTMLElement | null>();
 		// Жест достался боковой панели: дорожка стоит
-		let pull: DrawerPull | undefined;
+		const drawer = drawerInput();
 		// Идущий доезд: остановить его там, где он сейчас
 		let flight: Glide | undefined;
 		const tension = createTension('click');
@@ -78,15 +78,14 @@ export function feedSwipe(options: FeedSwipeOptions): Attachment<HTMLElement> {
 			start: () => options.enabled() && swipeAllowed(),
 			begin(dx) {
 				from = options.current();
-				pull = dx > 0 && !neighborFeed(from, -1) ? pullDrawer() : undefined;
-				if (pull) return true;
+				if (dx > 0 && !neighborFeed(from, -1) && drawer.begin()) return true;
 				width = track.clientWidth;
 				track.style.willChange = 'transform';
 				tension.reset();
 				return true;
 			},
 			move(x) {
-				if (pull) return pull.move(x);
+				if (drawer.engaged) return drawer.move(x);
 				offset = x;
 				const dir = offset > 0 ? -1 : 1;
 				if (offset) place(dir);
@@ -95,11 +94,7 @@ export function feedSwipe(options: FeedSwipeOptions): Attachment<HTMLElement> {
 				tension.move(Math.abs(s), width * DISTANCE, Boolean(sides.get(dir)));
 			},
 			end(x, v) {
-				if (pull) {
-					pull.end(x, v);
-					pull = undefined;
-					return;
-				}
+				if (drawer.engaged) return drawer.end(x, v);
 				const dir = v === null ? 0 : settle(offset, v, width);
 				const target = dir && sides.get(dir) ? neighborFeed(from, dir) : undefined;
 				if (target && !tension.armed) haptics.tick();
@@ -116,11 +111,14 @@ export function feedSwipe(options: FeedSwipeOptions): Attachment<HTMLElement> {
 				return flight.finish;
 			},
 			grab() {
+				const held = drawer.grab();
+				if (held) return held;
 				if (!flight?.active) return;
 				return { offset, resume: flight.pause() };
 			},
-			destroy() {
+			destroy(dragging) {
 				flight?.stop();
+				drawer.destroy(dragging);
 				clear();
 			}
 		})(track);

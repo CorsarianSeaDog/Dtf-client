@@ -1,5 +1,6 @@
 import type { Attachment } from 'svelte/attachments';
 import { reducedMotion } from './motion';
+import { createTension, haptics } from './haptics';
 
 /*
  * Горизонтальный жест пальцем: общая часть свайпа лент и свайпа «назад». Ведёт палец от касания до отпускания,
@@ -39,7 +40,6 @@ const SLOP = 10;
 const FLING = 0.35;
 /** Доля ширины, после которой медленный жест доводится до конца */
 export const DISTANCE = 0.35;
-export const EASE = 'cubic-bezier(0.33, 1, 0.68, 1)';
 /** За сколько мс страница догоняет палец после старта жеста: без скачка скорости с нуля и без рывка после тяжёлого первого кадра */
 const RAMP = 120;
 
@@ -60,9 +60,6 @@ export function settle(offset: number, velocity: number, width: number): -1 | 0 
 	const go = fling ? fling === side : Math.abs(offset) > width * DISTANCE;
 	return go ? (-side as -1 | 1) : 0;
 }
-
-/** Длительность доезда: начальная скорость кривой примерно равна скорости пальца — бросок долетает быстро, медленный отпуск плавно */
-export const glideDuration = (distance: number, velocity: number) => Math.min(360, Math.max(160, (3 * Math.abs(distance)) / Math.max(Math.abs(velocity), 0.01)));
 
 export const translate = (x: number) => `translate3d(${x}px, 0, 0)`;
 
@@ -131,6 +128,70 @@ export function glide(from: number, to: number, velocity: number, set: (x: numbe
 	if (reducedMotion() || Math.abs(to - from) < 1) motion.finish();
 	else frame = requestAnimationFrame(tick);
 	return motion;
+}
+
+/** Жест между двумя положениями. Прогресс — для отрисовки, расстояния и скорость пружины остаются в пикселях */
+export function progressSwipe(options: {
+	width: () => number;
+	set: (p: number) => void;
+	/** Доехали до одного из концов, в том числе после возврата */
+	commit: (p: 0 | 1) => void;
+}) {
+	let p = 0;
+	let from = 0;
+	let origin: 0 | 1 = 0;
+	let width = 1;
+	let target: 0 | 1 = 0;
+	let flight: Glide | undefined;
+	const tension = createTension('click');
+	const set = (next: number) => options.set(p = Math.min(1, Math.max(0, next)));
+
+	function coast(to: 0 | 1, velocity: number) {
+		flight?.stop();
+		target = to;
+		flight = glide(p * width, to * width, velocity, (x) => set(x / width), () => options.commit(to));
+		return flight.finish;
+	}
+
+	return {
+		get active() { return flight?.active ?? false; },
+		begin() {
+			flight?.stop();
+			width = Math.max(1, options.width());
+			from = p;
+			origin = p >= 0.5 ? 1 : 0;
+			tension.reset();
+			set(p);
+			return true;
+		},
+		move(offset: number) {
+			set(from + offset / width);
+			tension.move(Math.abs(p - origin) * width, width * DISTANCE);
+		},
+		end(_offset: number, velocity: number | null) {
+			const dir = velocity === null ? 0 : settle((p - origin) * width, velocity, width);
+			const to = dir ? (dir < 0 ? 1 : 0) : origin;
+			if (to !== origin && !tension.armed) haptics.tick();
+			return coast(to, velocity ?? 0);
+		},
+		grab() {
+			if (!flight?.active) return;
+			return { offset: (p - from) * width, resume: flight.pause() };
+		},
+		/** Кнопка ведёт тот же прогресс и доезд, но без тактильного порога жеста */
+		animate(to: 0 | 1) {
+			if (to === target && (flight?.active || p === to)) return;
+			width = Math.max(1, options.width());
+			from = origin = to ? 0 : 1;
+			tension.reset();
+			coast(to, 0);
+		},
+		destroy() {
+			flight?.stop();
+			from = origin = target = 0;
+			set(0);
+		}
+	};
 }
 
 export function swipe(hooks: SwipeHooks): Attachment<HTMLElement> {

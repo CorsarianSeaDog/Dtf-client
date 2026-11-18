@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { MediaQuery } from 'svelte/reactivity';
 	import { feed, openFeedTab, type FeedName } from '$lib/feed.svelte';
 	import { prefetchFeed } from '$lib/feedCache';
 	import { drawerSwipe, provideDrawer } from '$lib/drawerSwipe';
 	import { activeTheme } from '$lib/themes/index.svelte';
-	import { reducedMotion } from '$lib/motion';
+	import { MOBILE_BREAKPOINT } from '$lib/themes/types';
 	import { getProfilePath, getSidebarActive, openFeed, openPost, openProfile, openSettings, openSupport } from '$lib/navigation';
 	import { pinnedSubsites } from '$lib/storage/pinnedSubsites.svelte';
 	import { startWriting } from '../dtf2022/actions.svelte';
@@ -32,47 +33,33 @@
 	});
 
 	// На смартфоне панель лежит под страницей, а уезжает сама страница (pushDrawer.ts); шире — выдвижная панель поверх, на CSS
-	const pushes = () => matchMedia('(max-width: 719px)').matches;
-	let push: ReturnType<typeof pushDrawer> | undefined;
-
+	const mobile = new MediaQuery(`max-width: ${MOBILE_BREAKPOINT}px`);
 	$effect(() => {
-		if (!panel || !items) return;
-		const drawer = pushDrawer(panel, items);
-		push = drawer;
-		const stop = provideDrawer({
-			width: () => panel?.offsetWidth ?? 0,
-			progress: drawer.progress,
-			drag: drawer.set,
-			settle(open, ms) {
-				drawer.animate(open, ms);
+		const drawerPanel = panel;
+		if (!mobile.current || !drawerPanel || !items) return;
+		const control = provideDrawer({
+			width: () => drawerPanel.offsetWidth,
+			set: pushDrawer(drawerPanel, items),
+			commit(open) {
 				if (open !== sidebar.open) sidebar.toggle();
 			}
 		});
-		return () => {
-			stop();
-			drawer.reset();
-			push = undefined;
-		};
-	});
-
-	// Кнопка меню и закрытие по ссылке: тот же доезд, что после свайпа (после свайпа он уже идёт, и вызов ничего не меняет)
-	$effect(() => {
-		const open = sidebar.open;
-		if (push && pushes()) push.animate(open, reducedMotion() ? 0 : undefined);
-		// Из панели чаще всего идут в настройки: их код подтягиваем заранее
-		if (open) loadSettingsOverlay();
+		// Кнопка меню и закрытие по ссылке ведут тот же доезд, пока панель в мобильной раскладке.
+		$effect(() => control.animate(sidebar.open));
+		return control.destroy;
 	});
 
 	const closeSwipe = drawerSwipe(() => sidebar.open);
 
 	function onResize() {
-		sidebar.closeIfDocked();
-		if (!pushes()) push?.reset();
+		if (!mobile.current) sidebar.closeIfDocked();
 	}
 
 	// Под открытой панелью страница не скроллится
 	$effect(() => {
 		if (!sidebar.open) return;
+		// Из панели чаще всего идут в настройки: их код подтягиваем заранее
+		loadSettingsOverlay();
 		document.body.style.overflow = 'hidden';
 		return () => (document.body.style.overflow = '');
 	});

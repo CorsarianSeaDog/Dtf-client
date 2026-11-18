@@ -1,9 +1,5 @@
 import type { Attachment } from 'svelte/attachments';
-import { reducedMotion } from './motion';
-import { createTension, haptics } from './haptics';
-import { DISTANCE, glideDuration, settle, swipe } from './swipe';
-import { activeTheme } from './themes/index.svelte';
-import { getCurrentDevice } from './themes/types';
+import { progressSwipe, swipe } from './swipe';
 
 /*
  * Боковая панель, которую выдвигают пальцем: свайп вправо по первой ленте открывает её, свайп влево по открытой закрывает.
@@ -14,69 +10,68 @@ import { getCurrentDevice } from './themes/types';
 export interface Drawer {
 	/** Ход пальца от закрытой панели до открытой */
 	width: () => number;
-	/** Положение сейчас, даже посреди доезда: жест подхватывает панель, а не прыгает */
-	progress: () => number;
-	/** Палец ведёт панель: поставить положение `p` без анимации */
-	drag: (p: number) => void;
-	/** Палец отпущен: доехать до открытой или закрытой панели за `ms` */
-	settle: (open: boolean, ms: number) => void;
+	/** Нарисовать положение `p` без собственной анимации */
+	set: (p: number) => void;
+	/** Доехали до открытой или закрытой панели */
+	commit: (open: boolean) => void;
 }
 
-let drawer: Drawer | undefined;
+let drawer: ReturnType<typeof progressSwipe> | undefined;
 
-/** Тема сообщает панель, которую можно тянуть. Возвращает отписку */
+/** Тема сообщает, что рисовать; кнопка меню и жесты получают один контроллер доезда */
 export function provideDrawer(d: Drawer) {
-	drawer = d;
-	return () => {
-		if (drawer === d) drawer = undefined;
+	const pull = progressSwipe({ ...d, commit: (p) => d.commit(p === 1) });
+	drawer = pull;
+	return {
+		animate: (open: boolean) => pull.animate(open ? 1 : 0),
+		destroy() {
+			if (drawer === pull) drawer = undefined;
+			pull.destroy();
+		}
 	};
 }
 
-const allowed = () => activeTheme.gestures && getCurrentDevice() === 'mobile';
+/** Узел берёт общий контроллер только на время своего жеста */
+export function drawerInput() {
+	let pull: typeof drawer;
 
-export interface DrawerPull {
-	/** Сдвиг пальца от начала жеста, вправо — положительный */
-	move: (offset: number) => void;
-	end: (offset: number, velocity: number | null) => void;
-}
+	function end(offset: number, velocity: number | null) {
+		const current = pull;
+		pull = undefined;
+		if (current === drawer) return current?.end(offset, velocity);
+	}
 
-/** Взять панель пальцем */
-export function pullDrawer(): DrawerPull | undefined {
-	const d = drawer;
-	if (!d || !allowed()) return;
-	const from = d.progress();
-	const width = d.width() || innerWidth;
-	const tension = createTension('click');
-	let p = from;
-	d.drag(p);
 	return {
-		move(offset) {
-			p = Math.min(1, Math.max(0, from + offset / width));
-			d.drag(p);
-			tension.move(Math.abs(offset), width * DISTANCE);
+		get engaged() { return !!pull; },
+		begin() {
+			pull = drawer;
+			return pull?.begin() ?? false;
 		},
-		end(offset, v) {
-			const dir = v === null ? 0 : settle(offset, v, width);
-			const open = dir ? dir < 0 : from >= 0.5;
-			if (open !== (from >= 0.5) && !tension.armed) haptics.tick();
-			d.settle(open, reducedMotion() ? 0 : glideDuration(((open ? 1 : 0) - p) * width, v ?? 0));
+		grab() {
+			const current = drawer;
+			const held = current?.grab();
+			pull = held ? current : undefined;
+			return held;
+		},
+		move(offset: number) {
+			// После смены раскладки или темы контроллер жеста уже мог исчезнуть.
+			if (pull === drawer) pull?.move(offset);
+		},
+		end,
+		destroy(dragging: boolean) {
+			if (dragging) end(0, null);
 		}
 	};
 }
 
 /** Закрытие свайпом влево по открытой панели */
 export function drawerSwipe(isOpen: () => boolean): Attachment<HTMLElement> {
-	let pull: DrawerPull | undefined;
-	return swipe({
-		start: () => isOpen() && allowed(),
-		begin(dx) {
-			pull = dx < 0 ? pullDrawer() : undefined;
-			return !!pull;
-		},
-		move: (offset) => pull?.move(offset),
-		end(offset, v) {
-			pull?.end(offset, v);
-			pull = undefined;
-		}
-	});
+	return (node) => {
+		const { begin, grab, move, end, destroy } = drawerInput();
+		return swipe({
+			start: () => !!drawer && (isOpen() || drawer.active),
+			begin: (dx) => dx < 0 && begin(),
+			grab, move, end, destroy
+		})(node);
+	};
 }

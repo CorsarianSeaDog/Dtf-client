@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { EASE, glideDuration, settle, swipe, translate } from '$lib/swipe';
-	import { reducedMotion } from '$lib/motion';
+	import { progressSwipe, swipe, translate } from '$lib/swipe';
 	import AboutSettings from './AboutSettings.svelte';
 	import AccountSettings from './AccountSettings.svelte';
 	import FeedSettings from './FeedSettings.svelte';
@@ -162,6 +161,7 @@
 	let pageTitle = $derived(getPageTitle(selectedPageId, folderTitle, rootNavigation));
 
 	function resetSolo() {
+		resetBackSwipe();
 		soloByUser = false;
 		soloBackTarget = null;
 	}
@@ -169,13 +169,6 @@
 	function performMobileBack() {
 		resetSolo();
 		openedByUser = false;
-		slide = undefined;
-	}
-
-	function handleMobileBack() {
-		if (!popSubstate()) {
-			performMobileBack();
-		}
 	}
 
 	function openPage(targetPageId: string, targetFolderId: string | null = activeFolderId) {
@@ -235,17 +228,10 @@
 	}
 
 	function performBackToRoot() {
-		folderSlide = undefined;
 		resetSolo();
 		activeFolderId = null;
 		selectedPageId = null;
 		openedByUser = false;
-	}
-
-	function handleBackToRoot() {
-		if (!popSubstate()) {
-			performBackToRoot();
-		}
 	}
 
 	function openSoloPage(
@@ -263,6 +249,7 @@
 	}
 
 	function performReturnFromSolo() {
+		resetBackSwipe();
 		if (soloBackTarget) {
 			setFolder(soloBackTarget.folderId);
 			selectedPageId = soloBackTarget.pageId;
@@ -273,69 +260,57 @@
 		scroller?.scrollTo({ top: 0 });
 	}
 
-	function handleReturnFromSolo() {
-		if (!popSubstate()) {
-			performReturnFromSolo();
-		}
+	const backSteps = { solo: performReturnFromSolo, page: performMobileBack, folder: performBackToRoot };
+
+	function goBack(step: keyof typeof backSteps) {
+		if (!popSubstate()) backSteps[step]();
 	}
 
-	// Свайп вправо — «назад». Слой (страница или подменю) уезжает слайдом вслед за пальцем; из соло-страницы с возвратом жест просто срабатывает
-	const follows = () => (opened ? !(isSolo && soloBackTarget) : activeFolderId !== null);
-	const setSlide = (p?: number) => (opened ? (slide = p) : (folderSlide = p));
-
-	function goBack() {
-		if (isSolo && soloBackTarget) handleReturnFromSolo();
-		else if (opened) handleMobileBack();
-		else handleBackToRoot();
-	}
-
-	// С корня настроек свайп вправо закрывает их целиком: окно уезжает за палец, как страница-оверлей
-	const atRoot = () => !opened && activeFolderId === null;
-
-	/** Довести уход окна с сдвига `x` до закрытия или возврата. Возвращает функцию, которая завершает доезд сразу */
-	function finishExit(x: number, back: boolean, v: number) {
-		const el = windowEl;
-		if (!el) return;
-		const end = back ? innerWidth : 0;
-		let settled = false;
-		let anim: Animation | undefined;
-		const done = () => {
-			if (settled) return;
-			settled = true;
-			anim?.cancel();
-			if (back) {
-				// Окно за краем: прячем его, чтобы анимация закрытия модалки не вернула его на экран
-				el.style.visibility = 'hidden';
+	// Слой и ширина не меняются до конца жеста, включая подхват во время доезда
+	let backLayer: 'window' | 'page' | 'folder' | 'solo' = 'window';
+	let backWidth = 0;
+	const back = progressSwipe({
+		width: () => backWidth = windowEl?.clientWidth ?? innerWidth,
+		set(p) {
+			dragging = true;
+			if (backLayer === 'window' && windowEl) windowEl.style.transform = translate(p * backWidth);
+			else if (backLayer === 'page') slide = 1 - p;
+			else if (backLayer === 'folder') folderSlide = 1 - p;
+		},
+		commit(p) {
+			if (!p) return resetBackSwipe();
+			// Вложенный шаг истории меняется асинхронно: нижний слой остаётся видимым до обработчика возврата
+			if (backLayer === 'window') {
+				// modalOut возвращает transform к центру; visibility дети могут переопределить. Уехавшее окно больше не рисуем
+				if (windowEl) windowEl.style.display = 'none';
 				onclose();
-			} else {
-				el.style.transform = '';
-			}
-		};
-		if (reducedMotion() || Math.abs(end - x) < 1) return done();
-		anim = el.animate([{ transform: translate(x) }, { transform: translate(end) }], { duration: glideDuration(end - x, v), easing: EASE, fill: 'forwards' });
-		anim.finished.then(done, () => {});
-		return done;
+			} else goBack(backLayer);
+		}
+	});
+
+	function resetBackSwipe() {
+		back.destroy();
+		slide = folderSlide = undefined;
+		dragging = false;
+		if (windowEl) windowEl.style.transform = '';
 	}
 
 	const backSwipe = swipe({
-		start: (e) => gestures && !(e.target as Element).closest('input, textarea, select, [contenteditable]'),
-		begin: (dx) => dx > 0,
-		move(x) {
-			dragging = true;
-			if (atRoot()) {
-				if (windowEl) windowEl.style.transform = translate(Math.max(0, x));
-				return;
-			}
-			if (!follows()) return;
-			setSlide(1 - Math.min(1, x / innerWidth));
+		start: () => !dragging || back.active,
+		begin(dx) {
+			if (dx <= 0) return false;
+			backLayer = opened ? (isSolo && soloBackTarget ? 'solo' : 'page') : activeFolderId ? 'folder' : 'window';
+			return back.begin();
 		},
+		move: back.move,
 		end(x, v) {
-			dragging = false;
-			const back = v !== null && settle(x, v, innerWidth) === -1;
-			if (atRoot()) return finishExit(Math.max(0, x), back, v ?? 0);
-			if (follows()) setSlide(back ? 0 : undefined);
-			if (back) goBack();
-		}
+			const finish = back.end(x, v);
+			// Solo заменяет содержимое на месте: без второго слоя движение пока не рисуем
+			if (backLayer === 'solo') finish();
+			return finish;
+		},
+		grab: back.grab,
+		destroy: resetBackSwipe
 	});
 
 	function toggleFade() {
@@ -386,7 +361,7 @@
 					type="button"
 					aria-label="Назад к разделам"
 					inert={activeFolderId === null}
-					onclick={handleBackToRoot}
+					onclick={() => goBack('folder')}
 				>
 					<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<path d="M10 3L5 8l5 5" />
@@ -528,7 +503,7 @@
 			<header class="bar">
 				{#if isSolo && soloBackTarget}
 					<!-- В соло-режиме с возвратом отображается только одна кнопка и на мобиле, и на десктопе -->
-					<button class="solo-back-button" type="button" onclick={handleReturnFromSolo}>
+					<button class="solo-back-button" type="button" onclick={() => goBack('solo')}>
 						<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 							<path d="M10 3L5 8l5 5" />
 						</svg>
@@ -540,7 +515,7 @@
 						class="icon-button back"
 						type="button"
 						aria-label="Назад к разделам"
-						onclick={handleMobileBack}
+						onclick={() => goBack('page')}
 					>
 						<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
 							<path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
@@ -549,7 +524,7 @@
 
 					<!-- Кнопка возврата из Solo-режима на десктопе (когда открыли solo снаружи без цели возврата) -->
 					{#if isSolo}
-						<button class="solo-back-button solo-back-button--menu" type="button" onclick={handleReturnFromSolo}>
+						<button class="solo-back-button solo-back-button--menu" type="button" onclick={() => goBack('solo')}>
 							<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 								<path d="M10 3L5 8l5 5" />
 							</svg>
@@ -605,7 +580,7 @@
 							<AboutSettings section={activeSection} />
 						{:else if selectedPageId === 'debug' && isDevVisible}
 							{#await import('./DebugSettings.svelte') then { default: Page }}
-								<Page ondisable={() => { selectedPageId = null; handleMobileBack(); }} />
+								<Page ondisable={() => { selectedPageId = null; goBack('page'); }} />
 							{/await}
 						{:else if selectedPageId === 'reactions'}
 							{#await import('./ReactionsSettings.svelte') then { default: Page }}
@@ -998,7 +973,7 @@
 		transform: translateX(calc((1 - var(--p)) * 100%));
 	}
 
-	/* Пока слой ведёт палец, он идёт без анимации */
+	/* Палец и пружинный доезд сами рисуют положение: CSS не должен догонять каждый их кадр */
 	.window[data-dragging] :is(.nav-layer, .side-title, .folder-back, .sidebar, .content) {
 		transition: none;
 	}

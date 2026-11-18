@@ -1,7 +1,7 @@
 import type { Attachment } from 'svelte/attachments';
 import { createTension, haptics } from '$lib/haptics';
-import { reducedMotion } from '$lib/motion';
-import { EASE, swipe, translate } from '$lib/swipe';
+import { ease, reducedMotion } from '$lib/motion';
+import { swipe, translate } from '$lib/swipe';
 
 /*
  * Свайп влево по комментарию, как в Telegram: комментарий едет за пальцем, справа выезжает значок ответа.
@@ -177,7 +177,7 @@ export function commentSwipe(options: CommentSwipeOptions): Attachment<HTMLEleme
 			if (reducedMotion() || x < 1) return done();
 			// Перескок входит в общий доезд: снимаем его без своей анимации
 			moved.style.transition = moved.style.translate = '';
-			const timing = { duration: 240, easing: EASE, fill: 'forwards' } as const;
+			const timing = { duration: 240, easing: ease.swipe, fill: 'forwards' } as const;
 			animations = [
 				moved.animate([{ transform: translate(-pull(x) - detent) }, { transform: translate(0) }], timing),
 				icons.animate([{ opacity: 1 }, { opacity: 0 }], { ...timing, duration: 180 })
