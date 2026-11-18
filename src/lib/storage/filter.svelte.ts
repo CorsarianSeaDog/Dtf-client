@@ -49,7 +49,7 @@ export const KEYWORD_PRESETS: KeywordPreset[] = [
 		keywords: ['gta 6', 'gta vi', 'гта 6', 'gta6', 'gtavi', 'гта6', 'жта6', 'жта 6', 'grand theft auto vi', 'grand theft auto 6']
 	},
 	{
-		id: 'gta6',
+		id: 'moregta6',
 		title: 'GTA 6 (+)',
 		keywords: ['люсия', 'джейсон', 'леонида', 'вайс сити', 'вайсити', 'вайс-сити', 'lucia', 'leonida', 'vice-city', 'vice city', 'vicecity']
 	},
