@@ -326,7 +326,7 @@
 			<p class="comments-status">Комментариев пока нет</p>
 		{/if}
 
-		<div class="comments-list" style:padding-top="{virtual.padTop}px" style:padding-bottom="{virtual.padBottom}px" {@attach virtual.attach}>
+		<div class="comments-list" style:--rows-above="{virtual.padTop}px" style:--rows-below="{virtual.padBottom}px" {@attach virtual.attach}>
 			{#each virtual.items as row, i (row.key)}
 				{@const index = virtual.start + i}
 				<CommentItem
@@ -381,6 +381,21 @@
 		width: 100%;
 		margin-left: auto;
 		margin-right: auto;
+	}
+
+	.comments-list::before,
+	.comments-list::after {
+		content: '';
+		display: block;
+		overflow-anchor: none;
+	}
+
+	.comments-list::before {
+		height: var(--rows-above);
+	}
+
+	.comments-list::after {
+		height: var(--rows-below);
 	}
 
 	/* Шапка */

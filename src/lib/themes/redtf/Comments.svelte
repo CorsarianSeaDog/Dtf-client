@@ -385,8 +385,8 @@
 		<div class="comments-viewport" bind:this={logic.viewportElement}>
 			<div
 				class={['comments-list', { 'comments-list--swipe': activeTheme.gestures }]}
-				style:padding-top="{virtual.padTop}px"
-				style:padding-bottom="{virtual.padBottom}px"
+				style:--rows-above="{virtual.padTop}px"
+				style:--rows-below="{virtual.padBottom}px"
 				bind:this={listEl}
 				{@attach virtual.attach}
 				{@attach swipeComment}
@@ -494,6 +494,21 @@
 	.comments-viewport {
 		position: relative;
 		width: 100%;
+	}
+
+	.comments-list::before,
+	.comments-list::after {
+		content: '';
+		display: block;
+		overflow-anchor: none;
+	}
+
+	.comments-list::before {
+		height: var(--rows-above);
+	}
+
+	.comments-list::after {
+		height: var(--rows-below);
 	}
 
 	/* Горизонтальный жест по комментарию — свайп ответа (влево) или «назад» (вправо), вертикальный остаётся прокрутке */
