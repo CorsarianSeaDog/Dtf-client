@@ -3,7 +3,10 @@ import type { Comment, Post } from './types';
 import type { SourceState } from './sources/types';
 
 const mocks = vi.hoisted(() => ({
-	dtf: { getPosts: vi.fn(), getPost: vi.fn(), getComments: vi.fn(), reactToComment: vi.fn(), addComment: vi.fn(), searchSubsites: vi.fn() },
+	dtf: {
+		getPosts: vi.fn(), getPost: vi.fn(), getComments: vi.fn(), reactToComment: vi.fn(), addComment: vi.fn(), searchSubsites: vi.fn(),
+		getTopics: vi.fn()
+	},
 	sourceProvider: { getPosts: vi.fn(), getPost: vi.fn(), getComments: vi.fn(), getReplacedComments: undefined as any, reactToComment: undefined as any },
 	registry: { activeSources: [] as any[] }
 }));
@@ -383,6 +386,29 @@ describe('api.searchSubsites', () => {
 			await expect(api.searchSubsites('retry-key', false)).rejects.toThrow('fail');
 			await expect(api.searchSubsites('retry-key', false)).resolves.toBe(hit);
 			expect(mocks.dtf.searchSubsites).toHaveBeenCalledTimes(5);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+});
+
+describe('api.getTopics', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('кеширует каталог тем, дедуплицирует параллельные вызовы и сбрасывает при ошибке', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+		try {
+			const topics = [{ id: 1, name: 'Игры', isCommunity: true }];
+			mocks.dtf.getTopics.mockRejectedValueOnce(new Error('fail')).mockResolvedValueOnce(topics);
+
+			await expect(api.getTopics()).rejects.toThrow('fail');
+			const [a, b] = await Promise.all([api.getTopics(), api.getTopics()]);
+			expect(a).toBe(topics);
+			expect(b).toBe(topics);
+			expect(mocks.dtf.getTopics).toHaveBeenCalledTimes(2);
 		} finally {
 			vi.useRealTimers();
 		}

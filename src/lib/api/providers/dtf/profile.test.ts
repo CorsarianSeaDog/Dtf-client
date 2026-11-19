@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { dtfApiProvider } from './index';
 import { fetchWithAuth } from './client';
 
@@ -73,5 +73,21 @@ describe('getProfilePosts', () => {
 		vi.mocked(fetchWithAuth).mockResolvedValueOnce(Response.json({ result: { items: [{ type: 'entry', data: entry }], lastId: 30, lastSortingValue: 14 } }));
 		await dtfApiProvider.getProfilePosts(626676, 'popular', { lastId: 20, lastSortingValue: 24 }, false);
 		expect(fetchWithAuth).toHaveBeenLastCalledWith('https://api.dtf.ru/v2.31/timeline?subsitesIds=626676&sorting=all&lastId=20&lastSortingValue=24');
+	});
+});
+
+describe('getTopics', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('загружает публичный каталог тем, раскрывает данные подсайта и пропускает пустые элементы', async () => {
+		vi.mocked(fetchWithAuth).mockResolvedValueOnce(Response.json({
+			result: [null, { data: { id: 42, name: 'Тема', type: 2, counters: { subscribers: 15 } } }]
+		}));
+		await expect(dtfApiProvider.getTopics()).resolves.toMatchObject([
+			{ id: 42, name: 'Тема', isCommunity: true, subscribersCount: 15 }
+		]);
+		expect(fetchWithAuth).toHaveBeenLastCalledWith('https://api.dtf.ru/v2.7/discovery/topics');
 	});
 });

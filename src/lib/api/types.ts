@@ -585,6 +585,7 @@ export interface ApiProvider {
 	getTagPosts?(tag: string): Promise<Post[]>;
 	searchPosts?(query: string, sorting: SearchSorting, filters: SearchFilters, cursor?: CursorData): Promise<PaginatedResult<Post> & { total?: number }>;
 	searchSubsites?(query: string, communities: boolean): Promise<{ items: SearchSubsite[]; total: number }>;
+	getTopics?(): Promise<SearchSubsite[]>;
 	searchComments?(options?: SearchCommentsOptions): Promise<SearchCommentsResult>;
 	getDrafts?(offset?: number): Promise<Post[]>;
 	getBookmarkedPosts?(offset?: number): Promise<Post[]>;

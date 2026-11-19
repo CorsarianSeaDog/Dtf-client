@@ -39,7 +39,24 @@ import { cachePost, cachePosts, isPostFresh, loadPost, peekPost, uncachePost } f
 
 const DTF = 'dtf';
 const SUBSITE_SEARCH_TTL = 60_000;
-const subsiteSearchCache = new Map<string, { expires: number; promise: Promise<{ items: SearchSubsite[]; total: number }> }>();
+const subsiteCache = new Map<string, { expires: number; promise: Promise<unknown> }>();
+
+function cachedSubsiteCall<T>(key: string, load: () => Promise<T>): Promise<T> {
+	const now = Date.now();
+	const cached = subsiteCache.get(key);
+	if (cached && cached.expires > now) return cached.promise as Promise<T>;
+	if (subsiteCache.size > 30) {
+		for (const [k, entry] of subsiteCache) {
+			if (entry.expires <= now) subsiteCache.delete(k);
+		}
+	}
+	const promise = load().catch((e) => {
+		if (subsiteCache.get(key)?.promise === promise) subsiteCache.delete(key);
+		throw e;
+	});
+	subsiteCache.set(key, { expires: now + SUBSITE_SEARCH_TTL, promise });
+	return promise;
+}
 
 export { ApiError, ProxyError } from './errors';
 export type Cursors = Record<string, CursorData>;
@@ -355,25 +372,12 @@ export const api = {
 		cachePosts(res.items);
 		return res;
 	},
+	getTopics: () => cachedSubsiteCall('topics', dtfApiProvider.getTopics),
 	searchSubsites(query: string, communities = false) {
 		const trimmed = query.trim();
 		const normalized = trimmed.toLowerCase();
 		if (!normalized) return dtfApiProvider.searchSubsites(query, communities);
-		const key = `${normalized}\0${communities ? 1 : 0}`;
-		const now = Date.now();
-		const cached = subsiteSearchCache.get(key);
-		if (cached && cached.expires > now) return cached.promise;
-		if (subsiteSearchCache.size > 30) {
-			for (const [k, entry] of subsiteSearchCache) {
-				if (entry.expires <= now) subsiteSearchCache.delete(k);
-			}
-		}
-		const promise = dtfApiProvider.searchSubsites(trimmed, communities).catch((e) => {
-			if (subsiteSearchCache.get(key)?.promise === promise) subsiteSearchCache.delete(key);
-			throw e;
-		});
-		subsiteSearchCache.set(key, { expires: now + SUBSITE_SEARCH_TTL, promise });
-		return promise;
+		return cachedSubsiteCall(`search\0${normalized}\0${communities ? 1 : 0}`, () => dtfApiProvider.searchSubsites(trimmed, communities));
 	},
 	searchComments: dtfApiProvider.searchComments,
 	getDrafts: dtfApiProvider.getDrafts,

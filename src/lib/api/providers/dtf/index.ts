@@ -97,8 +97,8 @@ function attachmentsOf(media: CommentMedia[]): string {
 }
 
 /** Записи в ответах приходят то в `data`, то напрямую; бывают и пустые */
-function entriesOf(items: any[] | undefined): any[] {
-	return (items || []).map((item) => item.data || item).filter((entry) => entry.id !== undefined);
+function entriesOf(items: unknown): any[] {
+	return (Array.isArray(items) ? items : []).map((item) => item?.data || item).filter((entry) => entry?.id !== undefined);
 }
 
 /** Личный хеш канала `mobile:{userHash}` приходит в /subsite/me; живёт в памяти только для текущего поколения сессии */
@@ -340,7 +340,13 @@ export const dtfApiProvider = {
 		const response = await fetchSearch(`/v2.51/search/subsites?${params}`);
 		const result = (await response.json()).result;
 
-		return { items: (result?.items || []).map((item: any) => mapSearchSubsite(item.data || item)), total: result?.total ?? 0 };
+		return { items: entriesOf(result?.items).map(mapSearchSubsite), total: result?.total ?? 0 };
+	},
+
+	async getTopics(): Promise<SearchSubsite[]> {
+		const response = await fetchWithAuth(`${apiV('2.7')}/discovery/topics`);
+		const result = await resultOf(response, 'Не удалось загрузить темы DTF');
+		return entriesOf(result).map(mapSearchSubsite);
 	},
 
 	/** Поиск по комментариям (`/v2.51/search/comments`): поддерживает текст, сортировку, точное совпадение, фильтр по автору и 1-indexed `page` */
