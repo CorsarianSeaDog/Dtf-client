@@ -60,10 +60,13 @@ function createIndex(overrides?: Partial<Parameters<typeof buildSettingsSearchIn
 			{ pageId: 'interface-content', folderId: 'interface', icon: 'content', path: 'Интерфейс › Лента и контент', fields: [SAMPLE_FIELDS[2]] },
 			{ pageId: 'interface-comments', folderId: 'interface', icon: 'comments', path: 'Интерфейс › Комментарии', fields: [SAMPLE_FIELDS[3]] }
 		],
-		currentDevice: 'desktop',
-		hasTouch: false,
+		visibility: {
+			device: 'desktop',
+			touch: false,
+			platform: 'windows',
+			native: false
+		},
 		isDevVisible: false,
-		isNativePlatform: false,
 		hasGestures: false,
 		...overrides
 	});
@@ -91,7 +94,11 @@ describe('settingsSearch', () => {
 	});
 
 	it('фильтрует пункты по устройству, сенсорному вводу, devMode, платформе и жестам', () => {
-		const desktopIndex = createIndex({ currentDevice: 'desktop', hasTouch: false, isDevVisible: false, isNativePlatform: false, hasGestures: false });
+		const desktopIndex = createIndex({
+			visibility: { device: 'desktop', touch: false, platform: 'windows', native: false },
+			isDevVisible: false,
+			hasGestures: false
+		});
 		expect(searchSettings(desktopIndex, 'блюр мобильного')).toHaveLength(0);
 		expect(searchSettings(desktopIndex, 'ширина контента')).toHaveLength(1);
 		expect(searchSettings(desktopIndex, 'действия свайпа')).toHaveLength(0);
@@ -100,12 +107,19 @@ describe('settingsSearch', () => {
 		expect(searchSettings(desktopIndex, 'ota')).toHaveLength(0);
 
 		// Планшет: ширина десктопная, но есть тач-ввод
-		const tabletIndex = createIndex({ currentDevice: 'desktop', hasTouch: true, hasGestures: true });
+		const tabletIndex = createIndex({
+			visibility: { device: 'desktop', touch: true, platform: 'android', native: false },
+			hasGestures: true
+		});
 		expect(searchSettings(tabletIndex, 'ширина контента')).toHaveLength(1);
 		expect(searchSettings(tabletIndex, 'действия свайпа')).toHaveLength(1);
 		expect(searchSettings(tabletIndex, 'любимые реакции')).toHaveLength(1);
 
-		const mobileDevIndex = createIndex({ currentDevice: 'mobile', hasTouch: true, isDevVisible: true, isNativePlatform: true, hasGestures: true });
+		const mobileDevIndex = createIndex({
+			visibility: { device: 'mobile', touch: true, platform: 'android', native: true },
+			isDevVisible: true,
+			hasGestures: true
+		});
 		expect(searchSettings(mobileDevIndex, 'блюр мобильного')).toHaveLength(1);
 		expect(searchSettings(mobileDevIndex, 'ширина контента')).toHaveLength(0);
 		expect(searchSettings(mobileDevIndex, 'safe area')).toHaveLength(1);

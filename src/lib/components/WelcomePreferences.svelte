@@ -15,8 +15,8 @@
 
 	let fields = $derived(themeSettingsSchema(activeTheme.id));
 	let device = $derived<SettingDevice>(mobile.current ? 'mobile' : 'desktop');
-	let votes = $derived(fields.find((field) => field.key === 'votes' && isFieldVisible(field, {}, fields, device)));
-	let width = $derived(fields.find((field) => field.key === 'contentWidth' && isFieldVisible(field, {}, fields, device)));
+	let votes = $derived(fields.find((field) => field.key === 'votes' && isFieldVisible(field, {}, fields, { device })));
+	let width = $derived(fields.find((field) => field.key === 'contentWidth' && isFieldVisible(field, {}, fields, { device })));
 </script>
 
 <div class="preferences" {@attach () => { document.getElementById('splash')?.setAttribute('data-preferences', ''); }}>

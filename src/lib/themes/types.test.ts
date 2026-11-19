@@ -1,5 +1,19 @@
-import { describe, it, expect, vi } from 'vitest';
-import { isFieldVisible, getCurrentDevice, hasTouchInput, MOBILE_BREAKPOINT, type SettingField } from './types';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { Capacitor } from '@capacitor/core';
+import {
+	isFieldVisible,
+	getCurrentDevice,
+	getCurrentPlatform,
+	hasTouchInput,
+	matchesVisibility,
+	MOBILE_BREAKPOINT,
+	type SettingField
+} from './types';
+
+afterEach(() => {
+	vi.unstubAllGlobals();
+	vi.restoreAllMocks();
+});
 
 describe('isFieldVisible', () => {
 	const fieldWithoutDeps: SettingField = {
@@ -78,22 +92,22 @@ describe('isFieldVisible', () => {
 	});
 
 	it('учитывает ограничение по устройству (device: mobile)', () => {
-		expect(isFieldVisible(mobileOnlyField, {}, undefined, 'mobile')).toBe(true);
-		expect(isFieldVisible(mobileOnlyField, {}, undefined, 'desktop')).toBe(false);
+		expect(isFieldVisible(mobileOnlyField, {}, undefined, { device: 'mobile' })).toBe(true);
+		expect(isFieldVisible(mobileOnlyField, {}, undefined, { device: 'desktop' })).toBe(false);
 	});
 
 	it('учитывает ограничение по устройству (device: desktop)', () => {
-		expect(isFieldVisible(desktopOnlyField, {}, undefined, 'desktop')).toBe(true);
-		expect(isFieldVisible(desktopOnlyField, {}, undefined, 'mobile')).toBe(false);
+		expect(isFieldVisible(desktopOnlyField, {}, undefined, { device: 'desktop' })).toBe(true);
+		expect(isFieldVisible(desktopOnlyField, {}, undefined, { device: 'mobile' })).toBe(false);
 	});
 
 	it('комбинирует device и dependsOn', () => {
 		// Не подходит устройство, даже если dependsOn совпал
-		expect(isFieldVisible(mobileWithDepField, { votes: 'rating' }, undefined, 'desktop')).toBe(false);
+		expect(isFieldVisible(mobileWithDepField, { votes: 'rating' }, undefined, { device: 'desktop' })).toBe(false);
 		// Устройство подходит, но dependsOn не совпал
-		expect(isFieldVisible(mobileWithDepField, { votes: 'likes' }, undefined, 'mobile')).toBe(false);
+		expect(isFieldVisible(mobileWithDepField, { votes: 'likes' }, undefined, { device: 'mobile' })).toBe(false);
 		// И устройство, и dependsOn совпали
-		expect(isFieldVisible(mobileWithDepField, { votes: 'rating' }, undefined, 'mobile')).toBe(true);
+		expect(isFieldVisible(mobileWithDepField, { votes: 'rating' }, undefined, { device: 'mobile' })).toBe(true);
 	});
 
 	it('учитывает ограничение по сенсорному вводу (touch) независимо от ширины экрана', () => {
@@ -105,10 +119,147 @@ describe('isFieldVisible', () => {
 			touch: true
 		};
 
-		expect(isFieldVisible(touchField, {}, undefined, 'desktop', false)).toBe(false);
-		expect(isFieldVisible(touchField, {}, undefined, 'mobile', false)).toBe(false);
-		expect(isFieldVisible(touchField, {}, undefined, 'desktop', true)).toBe(true);
-		expect(isFieldVisible(touchField, {}, undefined, 'mobile', true)).toBe(true);
+		expect(isFieldVisible(touchField, {}, undefined, { device: 'desktop', touch: false })).toBe(false);
+		expect(isFieldVisible(touchField, {}, undefined, { device: 'mobile', touch: false })).toBe(false);
+		expect(isFieldVisible(touchField, {}, undefined, { device: 'desktop', touch: true })).toBe(true);
+		expect(isFieldVisible(touchField, {}, undefined, { device: 'mobile', touch: true })).toBe(true);
+	});
+
+	it('учитывает ограничение по платформе (platform) и нативной оболочке (native)', () => {
+		const androidField: SettingField = {
+			key: 'haptics',
+			type: 'toggle',
+			title: 'Вибрация',
+			default: true,
+			platform: 'android'
+		};
+		const nativeAndroidField: SettingField = {
+			key: 'predictiveBack',
+			type: 'toggle',
+			title: 'Predictive Back',
+			default: false,
+			platform: 'android',
+			native: true
+		};
+		const mobileOsField: SettingField = {
+			key: 'mobileOsFeature',
+			type: 'toggle',
+			title: 'Только Android и iOS',
+			default: false,
+			platform: ['android', 'ios']
+		};
+
+		expect(isFieldVisible(androidField, {}, undefined, { device: 'mobile', touch: true, platform: 'android', native: false })).toBe(true);
+		expect(isFieldVisible(androidField, {}, undefined, { device: 'mobile', touch: true, platform: 'android', native: true })).toBe(true);
+		expect(isFieldVisible(androidField, {}, undefined, { device: 'mobile', touch: true, platform: 'ios', native: false })).toBe(false);
+		expect(isFieldVisible(androidField, {}, undefined, { device: 'desktop', touch: false, platform: 'windows', native: false })).toBe(false);
+
+		expect(isFieldVisible(nativeAndroidField, {}, undefined, { device: 'mobile', touch: true, platform: 'android', native: false })).toBe(false);
+		expect(isFieldVisible(nativeAndroidField, {}, undefined, { device: 'mobile', touch: true, platform: 'android', native: true })).toBe(true);
+		expect(isFieldVisible(nativeAndroidField, {}, undefined, { device: 'mobile', touch: true, platform: 'ios', native: true })).toBe(false);
+
+		expect(isFieldVisible(mobileOsField, {}, undefined, { device: 'desktop', touch: true, platform: 'android', native: false })).toBe(true);
+		expect(isFieldVisible(mobileOsField, {}, undefined, { device: 'mobile', touch: true, platform: 'ios', native: false })).toBe(true);
+		expect(isFieldVisible(mobileOsField, {}, undefined, { device: 'desktop', touch: false, platform: 'linux', native: false })).toBe(false);
+	});
+});
+
+describe('matchesVisibility', () => {
+	it('проверяет native: false только для браузера', () => {
+		expect(matchesVisibility({ native: false }, { native: false })).toBe(true);
+		expect(matchesVisibility({ native: false }, { native: true })).toBe(false);
+	});
+});
+
+describe('getCurrentPlatform', () => {
+	it('возвращает other без window (SSR)', () => {
+		expect(getCurrentPlatform()).toBe('other');
+	});
+
+	it('определяет Android и iOS через Capacitor даже без мобильного User-Agent', () => {
+		vi.stubGlobal('window', {});
+		vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (X11; Linux x86_64)', platform: 'Linux x86_64', maxTouchPoints: 0 });
+		const spy = vi.spyOn(Capacitor, 'getPlatform').mockReturnValue('android');
+		expect(getCurrentPlatform()).toBe('android');
+
+		spy.mockReturnValue('ios');
+		expect(getCurrentPlatform()).toBe('ios');
+	});
+
+	it('определяет Android в браузере (Chrome, Firefox, планшет, desktop mode через userAgentData)', () => {
+		vi.stubGlobal('window', {});
+		vi.stubGlobal('navigator', {
+			userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36',
+			platform: 'Linux armv81',
+			maxTouchPoints: 5
+		});
+		expect(getCurrentPlatform()).toBe('android');
+
+		vi.stubGlobal('navigator', {
+			userAgent: 'Mozilla/5.0 (Android 14; Mobile; rv:121.0) Gecko/121.0 Firefox/121.0',
+			platform: 'Linux aarch64',
+			maxTouchPoints: 5
+		});
+		expect(getCurrentPlatform()).toBe('android');
+
+		// Режим ПК на Android при сохранённом Client Hint
+		vi.stubGlobal('navigator', {
+			userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+			platform: 'Linux x86_64',
+			userAgentData: { platform: 'Android' },
+			maxTouchPoints: 5
+		});
+		expect(getCurrentPlatform()).toBe('android');
+	});
+
+	it('определяет iOS и iPadOS в браузере', () => {
+		vi.stubGlobal('window', {});
+		vi.stubGlobal('navigator', {
+			userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148',
+			platform: 'iPhone',
+			maxTouchPoints: 5
+		});
+		expect(getCurrentPlatform()).toBe('ios');
+
+		// iPadOS 13+ представляется как Macintosh, но с тачскрином
+		vi.stubGlobal('navigator', {
+			userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15',
+			platform: 'MacIntel',
+			maxTouchPoints: 5
+		});
+		expect(getCurrentPlatform()).toBe('ios');
+	});
+
+	it('определяет десктопные ОС в браузере', () => {
+		vi.stubGlobal('window', {});
+		vi.stubGlobal('navigator', {
+			userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0',
+			platform: 'Win32',
+			maxTouchPoints: 0
+		});
+		expect(getCurrentPlatform()).toBe('windows');
+
+		vi.stubGlobal('navigator', {
+			userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605.1.15',
+			platform: 'MacIntel',
+			maxTouchPoints: 0
+		});
+		expect(getCurrentPlatform()).toBe('macos');
+
+		vi.stubGlobal('navigator', {
+			userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/120.0.0.0 Safari/537.36',
+			platform: 'MacIntel',
+			userAgentData: { platform: 'macOS' },
+			maxTouchPoints: 5
+		});
+		expect(getCurrentPlatform()).toBe('macos');
+
+		vi.stubGlobal('navigator', {
+			userAgent: 'Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0',
+			platform: 'Linux x86_64',
+			maxTouchPoints: 0
+		});
+		expect(getCurrentPlatform()).toBe('linux');
 	});
 });
 

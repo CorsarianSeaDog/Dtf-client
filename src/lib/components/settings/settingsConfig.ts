@@ -1,8 +1,8 @@
 import { activeTheme, themes } from '$lib/themes/index.svelte';
 import { activeThemeSettings } from '$lib/themes/settings.svelte';
 import { paletteSelection } from '$lib/themes/palette';
-import { EXPERIMENTAL, hasTouchInput, isFieldVisible } from '$lib/themes/types';
-import type { ChoiceField, SettingDevice, SettingField, SettingValue, ToggleField } from '$lib/themes/types';
+import { EXPERIMENTAL, isFieldVisible, pickVisibility } from '$lib/themes/types';
+import type { ChoiceField, SettingField, SettingValue, SettingVisibility, ToggleField, VisibilityContext } from '$lib/themes/types';
 import {
 	DEFAULT_THEME,
 	settings,
@@ -16,7 +16,7 @@ import {
 } from '$lib/storage/settings.svelte';
 import type { DeclarativeFieldGroup, SettingsNavPageMeta } from './settingsSearch';
 
-export interface RootNavItem {
+export interface RootNavItem extends SettingVisibility {
 	id: string;
 	type: 'page' | 'folder';
 	title: string;
@@ -28,11 +28,10 @@ export interface RootNavSection {
 	items: RootNavItem[];
 }
 
-export interface SubNavItem {
+export interface SubNavItem extends SettingVisibility {
 	id: string;
 	title: string;
 	icon: string;
-	device?: SettingDevice;
 }
 
 export interface SubNavGroup {
@@ -255,6 +254,7 @@ export function buildNavSearchPages(rootNavigation: RootNavSection[]): SettingsN
 					path: group.title,
 					title: item.title,
 					keywords: PAGE_KEYWORDS[item.id],
+					...pickVisibility(item),
 					devOnly: item.id === 'debug'
 				}))
 		),
@@ -266,7 +266,7 @@ export function buildNavSearchPages(rootNavigation: RootNavSection[]): SettingsN
 				path: `Персонализация › ${group.title}`,
 				title: item.title,
 				keywords: PAGE_KEYWORDS[item.id],
-				device: item.device
+				...pickVisibility(item)
 			}))
 		)
 	];
@@ -465,21 +465,13 @@ function themeEntries(
 export function buildDeclarativePages(
 	themeFields: SettingField[],
 	themeValues: ReturnType<typeof activeThemeSettings>,
-	currentDevice: SettingDevice,
 	clientBadges: ClientBadgesMode,
-	hasTouch = hasTouchInput()
+	visibility: VisibilityContext = {}
 ): DeclarativePageConfig[] {
-	const visible = (keys: Set<string>) =>
-		themeFields.filter(
-			(f) => keys.has(f.key) && isFieldVisible(f, themeValues.value, themeFields, currentDevice, hasTouch)
-		);
-
-	const otherFields = themeFields.filter(
-		(f) => !KNOWN_THEME_KEYS.has(f.key) && isFieldVisible(f, themeValues.value, themeFields, currentDevice, hasTouch)
-	);
-
-	const transparencyField =
-		themeFields.find((f) => f.key === 'transparencyEffects') ?? defaultTransparencyField;
+	const group = (keys: Set<string>) => themeFields.filter((f) => keys.has(f.key));
+	const otherFields = themeFields.filter((f) => !KNOWN_THEME_KEYS.has(f.key));
+	const themeFieldSet = new Set(themeFields);
+	const transparencyField = themeFields.find((f) => f.key === 'transparencyEffects') ?? defaultTransparencyField;
 
 	const paletteField: ChoiceField = {
 		key: 'palette',
@@ -492,7 +484,7 @@ export function buildDeclarativePages(
 		]
 	};
 
-	return [
+	const pages: DeclarativePageConfig[] = [
 		{
 			pageId: 'theme-select',
 			icon: 'theme-select',
@@ -559,7 +551,7 @@ export function buildDeclarativePages(
 			icon: 'animations',
 			searchPath: 'Интерфейс › Анимации',
 			cardsLayout: true,
-			entries: themeEntries(visible(THEME_GROUP_KEYS.motion), themeValues)
+			entries: themeEntries(group(THEME_GROUP_KEYS.motion), themeValues)
 		},
 		{
 			pageId: 'interface-top-bar',
@@ -568,7 +560,7 @@ export function buildDeclarativePages(
 			searchPath: 'Интерфейс › Верхняя панель',
 			cardsLayout: true,
 			emptyHint: 'У выбранной темы нет отдельных настроек верхней панели.',
-			entries: themeEntries(visible(THEME_GROUP_KEYS.topBar), themeValues)
+			entries: themeEntries(group(THEME_GROUP_KEYS.topBar), themeValues)
 		},
 		{
 			pageId: 'interface-mobile-bar',
@@ -576,9 +568,7 @@ export function buildDeclarativePages(
 			icon: 'mobile-bar',
 			searchPath: 'Интерфейс › Мобильная панель',
 			cardsLayout: true,
-			entries: [
-				...themeEntries(visible(THEME_GROUP_KEYS.mobileBar), themeValues)
-			]
+			entries: themeEntries(group(THEME_GROUP_KEYS.mobileBar), themeValues)
 		},
 		{
 			pageId: 'interface-content',
@@ -587,7 +577,7 @@ export function buildDeclarativePages(
 			searchPath: 'Интерфейс › Лента и контент',
 			cardsLayout: true,
 			entries: [
-				...themeEntries(visible(THEME_GROUP_KEYS.content), themeValues),
+				...themeEntries(group(THEME_GROUP_KEYS.content), themeValues),
 				{
 					field: recommendationsField,
 					getValue: () => settings.value.recommendations,
@@ -622,7 +612,7 @@ export function buildDeclarativePages(
 			searchPath: 'Интерфейс › Оценки',
 			cardsLayout: false,
 			emptyHint: 'У выбранной темы нет дополнительных настроек оценок.',
-			entries: themeEntries(visible(THEME_GROUP_KEYS.votes), themeValues),
+			entries: themeEntries(group(THEME_GROUP_KEYS.votes), themeValues),
 			soloLink: {
 				groupTitle: 'Реестр реакций',
 				title: 'Настройка реакций',
@@ -655,7 +645,7 @@ export function buildDeclarativePages(
 					getValue: () => settings.value.commentVirtualization,
 					setValue: (value) => settings.patch({ commentVirtualization: value as CommentVirtualization })
 				},
-				...themeEntries(visible(THEME_GROUP_KEYS.comment), themeValues),
+				...themeEntries(group(THEME_GROUP_KEYS.comment), themeValues),
 				{
 					field: clientBadgesField,
 					getValue: () => settings.value.clientBadges,
@@ -694,10 +684,19 @@ export function buildDeclarativePages(
 					getValue: () => settings.value.smartTypography,
 					setValue: (value) => settings.patch({ smartTypography: Boolean(value) })
 				},
-				...themeEntries(visible(THEME_GROUP_KEYS.editor), themeValues)
+				...themeEntries(group(THEME_GROUP_KEYS.editor), themeValues)
 			]
 		}
 	];
+
+	return pages.map((page) => ({
+		...page,
+		entries: page.entries.filter((entry) =>
+			themeFieldSet.has(entry.field) || entry.field === transparencyField
+				? isFieldVisible(entry.field, themeValues.value, themeFields, visibility)
+				: isFieldVisible(entry.field, settings.value, undefined, visibility)
+		)
+	}));
 }
 
 export function toSearchFieldGroups(pages: DeclarativePageConfig[]): DeclarativeFieldGroup[] {

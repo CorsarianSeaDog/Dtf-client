@@ -1,6 +1,12 @@
-import { hasTouchInput, type SettingDevice, type SettingField } from '$lib/themes/types';
+import {
+	matchesVisibility,
+	pickVisibility,
+	type SettingField,
+	type SettingVisibility,
+	type VisibilityContext
+} from '$lib/themes/types';
 
-export interface SettingsSearchItem {
+export interface SettingsSearchItem extends SettingVisibility {
 	id: string;
 	pageId: string;
 	folderId?: string;
@@ -16,10 +22,7 @@ export interface SettingsSearchItem {
 	settingKey?: string;
 	/** Запасной текст заголовка строки/группы для страниц без схемы */
 	anchorText?: string;
-	device?: SettingDevice | SettingDevice[];
-	touch?: boolean;
 	devOnly?: boolean;
-	platform?: 'native' | 'web';
 	requiresGestures?: boolean;
 }
 
@@ -38,25 +41,19 @@ export interface DeclarativeFieldGroup {
 	devOnly?: boolean;
 }
 
-export interface SettingsNavPageMeta {
+export interface SettingsNavPageMeta extends SettingVisibility {
 	pageId: string;
 	folderId?: string;
 	icon: string;
 	path: string;
 	title: string;
 	keywords?: string;
-	device?: SettingDevice;
 	devOnly?: boolean;
 }
 
 /** Приводит текст к единому виду для поиска: нижний регистр и `ё` → `е` */
 export function normalizeSearchText(text: string): string {
 	return text.toLowerCase().replaceAll('ё', 'е').trim();
-}
-
-function matchesDevice(itemDevice: SettingDevice | SettingDevice[] | undefined, currentDevice: SettingDevice): boolean {
-	if (!itemDevice) return true;
-	return Array.isArray(itemDevice) ? itemDevice.includes(currentDevice) : itemDevice === currentDevice;
 }
 
 /**
@@ -375,7 +372,7 @@ const CUSTOM_SEARCH_ITEMS: SettingsSearchItem[] = [
 		subtitle: 'Проверка OTA-обновлений и новых APK на GitHub',
 		keywords: 'версия обновление ota apk',
 		anchorText: 'Обновления',
-		platform: 'native'
+		native: true
 	},
 	{
 		id: 'about:updatesWeb',
@@ -386,7 +383,7 @@ const CUSTOM_SEARCH_ITEMS: SettingsSearchItem[] = [
 		subtitle: 'Текущая версия и список релизов',
 		keywords: 'версия обновление релизы pwa',
 		anchorText: 'Обновления',
-		platform: 'web'
+		native: false
 	},
 	{
 		id: 'about:documents',
@@ -454,8 +451,7 @@ function fieldToSearchItem(
 		subtitle: field.description,
 		options,
 		settingKey: field.key,
-		device: field.device,
-		touch: field.touch,
+		...pickVisibility(field),
 		devOnly: meta.devOnly
 	};
 }
@@ -464,13 +460,10 @@ function fieldToSearchItem(
 export function buildSettingsSearchIndex(params: {
 	navPages: SettingsNavPageMeta[];
 	fieldGroups: DeclarativeFieldGroup[];
-	currentDevice: SettingDevice;
-	hasTouch?: boolean;
+	visibility: VisibilityContext;
 	isDevVisible: boolean;
-	isNativePlatform: boolean;
 	hasGestures: boolean;
 }): SettingsSearchItem[] {
-	const hasTouch = params.hasTouch ?? hasTouchInput();
 	const raw: SettingsSearchItem[] = [
 		...params.navPages.map((nav) => ({
 			id: `page:${nav.pageId}`,
@@ -480,7 +473,7 @@ export function buildSettingsSearchIndex(params: {
 			path: nav.path,
 			title: nav.title,
 			keywords: nav.keywords,
-			device: nav.device,
+			...pickVisibility(nav),
 			devOnly: nav.devOnly
 		})),
 		...params.fieldGroups.flatMap((group) =>
@@ -497,10 +490,7 @@ export function buildSettingsSearchIndex(params: {
 
 	for (const item of prioritized) {
 		if (item.devOnly && !params.isDevVisible) continue;
-		if (!matchesDevice(item.device, params.currentDevice)) continue;
-		if (item.touch && !hasTouch) continue;
-		if (item.platform === 'native' && !params.isNativePlatform) continue;
-		if (item.platform === 'web' && params.isNativePlatform) continue;
+		if (!matchesVisibility(item, params.visibility)) continue;
 		if (item.requiresGestures && !params.hasGestures) continue;
 
 		const dedupeKey = `${item.pageId}::${normalizeSearchText(item.title)}`;

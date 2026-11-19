@@ -17,8 +17,8 @@
 	import { themeSettingsSchema } from '$lib/themes/registry';
 	import { activeThemeSettings } from '$lib/themes/settings.svelte';
 	import { settings } from '$lib/storage/settings.svelte';
-	import { getCurrentDevice, hasTouchInput, MOBILE_BREAKPOINT } from '$lib/themes/types';
-	import type { SettingDevice } from '$lib/themes/types';
+	import { getCurrentDevice, getCurrentPlatform, hasTouchInput, matchesVisibility, MOBILE_BREAKPOINT } from '$lib/themes/types';
+	import type { SettingDevice, SettingPlatform } from '$lib/themes/types';
 	import { pushSubstate, popSubstate } from '$lib/navigation';
 	import { isNative } from '$lib/capacitor';
 	import { dev } from '$app/env';
@@ -54,7 +54,9 @@
 		section,
 		solo = false,
 		device,
-		touch
+		touch,
+		platform,
+		native
 	}: {
 		onclose: () => void;
 		page?: string;
@@ -62,6 +64,8 @@
 		solo?: boolean;
 		device?: SettingDevice;
 		touch?: boolean;
+		platform?: SettingPlatform;
+		native?: boolean;
 	} = $props();
 
 	let detectedDevice = $state<SettingDevice>(getCurrentDevice());
@@ -86,13 +90,21 @@
 
 	let currentDevice = $derived(device ?? detectedDevice);
 	let currentTouch = $derived(touch ?? detectedTouch);
+	let currentPlatform = $derived(platform ?? getCurrentPlatform());
+	let currentNative = $derived(native ?? isNative());
+	let visibility = $derived({
+		device: currentDevice,
+		touch: currentTouch,
+		platform: currentPlatform,
+		native: currentNative
+	});
 	const isDevVisible = $derived(dev || Boolean(settings.value.devMode));
 	const rootNavigation = $derived(getRootNavigation(isDevVisible));
 
 	let themeFields = $derived(themeSettingsSchema(activeTheme.id));
 	let themeValues = $derived(activeThemeSettings());
 	let declarativePages = $derived(
-		buildDeclarativePages(themeFields, themeValues, currentDevice, settings.value.clientBadges, currentTouch)
+		buildDeclarativePages(themeFields, themeValues, settings.value.clientBadges, visibility)
 	);
 	// Страницы подменю, на которых для текущей темы и устройства нечего показать, из меню и поиска убираем
 	let emptyPageIds = $derived(new Set(declarativePages.filter((p) => !p.entries.length && !p.soloLink).map((p) => p.pageId)));
@@ -144,10 +156,8 @@
 		buildSettingsSearchIndex({
 			navPages: buildNavSearchPages(rootNavigation).filter((nav) => !emptyPageIds.has(nav.pageId)),
 			fieldGroups: toSearchFieldGroups(declarativePages),
-			currentDevice,
-			hasTouch: currentTouch,
+			visibility,
 			isDevVisible,
-			isNativePlatform: isNative(),
 			hasGestures: Boolean(activeTheme.gestures)
 		})
 	);
@@ -439,27 +449,30 @@
 									{/if}
 								{:else}
 									{#each rootNavigation as group (group.title)}
-										<section class="nav__section">
-											<h3 class="nav__group">{group.title}</h3>
-											<div class="nav__list">
-												{#each group.items as item (item.id)}
-													<button
-														class={['nav__item', { 'nav__item--active': item.id === selectedPageId && activeFolderId === null }]}
-														type="button"
-														aria-current={item.id === selectedPageId && activeFolderId === null ? 'page' : undefined}
-														onclick={() => handleRootItemClick(item)}
-													>
-														<SettingsIcon name={item.icon} />
-														<span class="nav__title">{item.title}</span>
-														{#if item.type === 'folder'}
-															<svg class="nav__arrow nav__arrow--folder" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-																<path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-															</svg>
-														{/if}
-													</button>
-												{/each}
-											</div>
-										</section>
+										{@const visibleItems = group.items.filter((item) => matchesVisibility(item, visibility))}
+										{#if visibleItems.length > 0}
+											<section class="nav__section">
+												<h3 class="nav__group">{group.title}</h3>
+												<div class="nav__list">
+													{#each visibleItems as item (item.id)}
+														<button
+															class={['nav__item', { 'nav__item--active': item.id === selectedPageId && activeFolderId === null }]}
+															type="button"
+															aria-current={item.id === selectedPageId && activeFolderId === null ? 'page' : undefined}
+															onclick={() => handleRootItemClick(item)}
+														>
+															<SettingsIcon name={item.icon} />
+															<span class="nav__title">{item.title}</span>
+															{#if item.type === 'folder'}
+																<svg class="nav__arrow nav__arrow--folder" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+																	<path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+																</svg>
+															{/if}
+														</button>
+													{/each}
+												</div>
+											</section>
+										{/if}
 									{/each}
 								{/if}
 							</div>
@@ -474,11 +487,12 @@
 					{#if folderSeen}
 					<div class="nav">
 						{#each INTERFACE_SUBNAV as group (group.title)}
-							<section class="nav__section">
-								<h3 class="nav__group">{group.title}</h3>
-								<div class="nav__list">
-									{#each group.items as item (item.id)}
-										{#if (!item.device || item.device === currentDevice) && !emptyPageIds.has(item.id)}
+							{@const visibleItems = group.items.filter((item) => matchesVisibility(item, visibility) && !emptyPageIds.has(item.id))}
+							{#if visibleItems.length > 0}
+								<section class="nav__section">
+									<h3 class="nav__group">{group.title}</h3>
+									<div class="nav__list">
+										{#each visibleItems as item (item.id)}
 											<button
 												class={['nav__item', { 'nav__item--active': item.id === selectedPageId }]}
 												type="button"
@@ -488,10 +502,10 @@
 												<SettingsIcon name={item.icon} />
 												<span class="nav__title">{item.title}</span>
 											</button>
-										{/if}
-									{/each}
-								</div>
-							</section>
+										{/each}
+									</div>
+								</section>
+							{/if}
 						{/each}
 					</div>
 					{/if}

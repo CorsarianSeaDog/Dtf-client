@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import type { ThemeMotion } from '$lib/motion';
 
 /** Описание темы. Лежит в `<тема>/theme.ts`, реестр находит его сам (см. registry.ts). */
@@ -15,17 +16,34 @@ export const MOBILE_BREAKPOINT = 719;
 /** Устройство, на котором отображается настройка */
 export type SettingDevice = 'mobile' | 'desktop';
 
-interface FieldBase {
+/** Платформа (ОС), на которой отображается настройка */
+export type SettingPlatform = 'android' | 'ios' | 'windows' | 'macos' | 'linux' | 'other';
+
+export interface SettingVisibility {
+	/** Устройство, на котором доступна настройка: только смартфоны ('mobile') или десктопы ('desktop') */
+	device?: SettingDevice | SettingDevice[];
+	/** Настройка актуальна только при наличии сенсорного ввода (смартфоны, планшеты, гибридные экраны) */
+	touch?: boolean;
+	/** Платформа (ОС), на которой доступна настройка (определяется и в браузере, и в Capacitor) */
+	platform?: SettingPlatform | SettingPlatform[];
+	/** Настройка только для нативного приложения Capacitor (`true`) или только для браузера (`false`) */
+	native?: boolean;
+}
+
+export interface VisibilityContext {
+	device?: SettingDevice;
+	touch?: boolean;
+	platform?: SettingPlatform;
+	native?: boolean;
+}
+
+interface FieldBase extends SettingVisibility {
 	/** Ключ в сохранённых настройках темы */
 	key: string;
 	title: string;
 	description?: string;
 	/** Условие показа: поле отображается только если значение другого поля совпадает с указанным */
 	dependsOn?: FieldDependency;
-	/** Устройство, на котором доступна настройка: только смартфоны ('mobile') или десктопы ('desktop') */
-	device?: SettingDevice | SettingDevice[];
-	/** Настройка актуальна только при наличии сенсорного ввода (смартфоны, планшеты, гибридные экраны) */
-	touch?: boolean;
 	/** Жёлтая пометка рядом с названием настройки, например `EXPERIMENTAL`. Снимается удалением этого поля */
 	note?: string;
 	/** Настройка временно не показывается в настройках; значение по умолчанию и сохранённое продолжают действовать */
@@ -96,23 +114,71 @@ export function hasTouchInput(): boolean {
 	return false;
 }
 
-/** Проверяет, должно ли отображаться поле с учётом его зависимости `dependsOn`, устройства `device` и поддержки тач-ввода `touch` */
+function fromCapacitor<T>(read: () => T | undefined): T | undefined {
+	if (typeof window === 'undefined') return undefined;
+	try {
+		return read();
+	} catch {
+		return undefined;
+	}
+}
+
+/** Определяет текущую платформу (ОС) одинаково надёжно и в браузере, и в Capacitor */
+export function getCurrentPlatform(): SettingPlatform {
+	const capPlatform = fromCapacitor(() => Capacitor.getPlatform?.());
+	if (capPlatform === 'android' || capPlatform === 'ios') return capPlatform;
+	if (typeof window === 'undefined' || typeof navigator === 'undefined') return 'other';
+
+	const hint = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform?.toLowerCase();
+	if (hint === 'android' || hint === 'ios' || hint === 'windows' || hint === 'macos' || hint === 'linux') {
+		return hint;
+	}
+
+	const ua = navigator.userAgent || '';
+	const navPlatform = navigator.platform || '';
+	const source = `${ua}\n${navPlatform}`;
+
+	// Android проверяем до Linux, потому что в его User-Agent есть строка «Linux»
+	if (/android/i.test(source)) return 'android';
+
+	// iPhone/iPad/iPod, включая iPadOS 13+, который представляется как Macintosh с тачскрином
+	if (/iphone|ipad|ipod/i.test(source) || (/mac/i.test(source) && navigator.maxTouchPoints > 1)) {
+		return 'ios';
+	}
+
+	if (/windows|\bwin/i.test(source)) return 'windows';
+	if (/\bmac/i.test(source)) return 'macos';
+	if (/linux|x11/i.test(source)) return 'linux';
+	return 'other';
+}
+
+function matchesOneOf<T>(expected: T | T[], actual: T): boolean {
+	return Array.isArray(expected) ? expected.includes(actual) : expected === actual;
+}
+
+/** Выбирает только поля видимости (удобно при пробросе метаданных в поиск) */
+export function pickVisibility(v: SettingVisibility): SettingVisibility {
+	return { device: v.device, touch: v.touch, platform: v.platform, native: v.native };
+}
+
+/** Проверяет ограничения видимости по устройству, сенсорному вводу, платформе и нативной оболочке */
+export function matchesVisibility(target: SettingVisibility, ctx: VisibilityContext = {}): boolean {
+	if (target.touch && !(ctx.touch ?? hasTouchInput())) return false;
+	if (target.native !== undefined && target.native !== (ctx.native ?? Boolean(fromCapacitor(() => Capacitor.isNativePlatform?.())))) return false;
+	if (target.device && !matchesOneOf(target.device, ctx.device ?? getCurrentDevice())) return false;
+	if (target.platform && !matchesOneOf(target.platform, ctx.platform ?? getCurrentPlatform())) return false;
+	return true;
+}
+
+/** Проверяет, должно ли отображаться поле с учётом `dependsOn` и ограничений видимости */
 export function isFieldVisible(
 	field: SettingField,
 	values: Record<string, any> = {},
 	allFields?: SettingField[],
-	device?: SettingDevice,
-	touch?: boolean
+	ctx: VisibilityContext = {}
 ): boolean {
 	if (field.hidden) return false;
-	if (field.touch && !(touch ?? hasTouchInput())) return false;
-	if (field.device) {
-		const currentDevice = device ?? getCurrentDevice();
-		const matches = Array.isArray(field.device)
-			? field.device.includes(currentDevice)
-			: field.device === currentDevice;
-		if (!matches) return false;
-	}
+	if (!matchesVisibility(field, ctx)) return false;
 
 	if (!field.dependsOn) return true;
 	let current = values[field.dependsOn.key];
@@ -120,10 +186,7 @@ export function isFieldVisible(
 		const target = allFields.find((f) => f.key === field.dependsOn?.key);
 		if (target) current = target.default;
 	}
-	if (Array.isArray(field.dependsOn.value)) {
-		return field.dependsOn.value.includes(current);
-	}
-	return current === field.dependsOn.value;
+	return matchesOneOf(field.dependsOn.value, current);
 }
 
 export interface ThemePalette {
