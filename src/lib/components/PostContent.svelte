@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { api } from '$lib/api/index.svelte';
 	import type { Post } from '$lib/api/types';
 	import Reveal from './Reveal.svelte';
@@ -13,6 +14,7 @@
 	import { appear } from '$lib/themes/appear';
 	import { scrollBehavior } from '$lib/motion';
 	import { safeDecode } from '$lib/dtfLinks';
+	import { pullRefresh } from '$lib/pullRefresh';
 	import { onDestroy, tick, type Snippet } from 'svelte';
 
 	let {
@@ -50,10 +52,30 @@
 
 	// svelte-ignore state_referenced_locally
 	let postPromise = $state.raw(api.getPost(postId, sourceId));
+	let commentsRefresh: (() => Promise<unknown>) | undefined;
+
 	function retryLoad() {
 		error = undefined;
 		postPromise = api.getPost(postId, sourceId, true);
 	}
+
+	function onTop() {
+		if (depth > 0) return false;
+		const top = page.state.overlays?.at(-1);
+		if (!top) return page.route?.id === '/post/[id]';
+		return top.type === 'post' && top.data.postId === postId && (top.data.sourceId ?? 'dtf') === sourceId;
+	}
+
+	async function refresh() {
+		const fresh = api.getPost(postId, sourceId, true);
+		postPromise = fresh;
+		await Promise.allSettled([fresh, commentsRefresh?.()]);
+	}
+
+	const pull = pullRefresh({
+		enabled: onTop,
+		refresh
+	});
 	// Комментарии рисуются после кадра с постом: тысячи их узлов иначе задерживают и сам пост
 	// svelte-ignore state_referenced_locally
 	const commentsTurn = (cached ? Promise.resolve() : postPromise).then(nextPaint, () => {});
@@ -143,13 +165,18 @@
 		}
 	});
 
+	let cachedHandled = false;
 	$effect(() => {
-		if (cached) {
+		if (cached && !cachedHandled) {
+			cachedHandled = true;
 			trackPostLoaded(cached);
 			onLoaded?.(cached.title);
 		}
-		postPromise
+		const current = postPromise;
+		current
 			.then((loaded) => {
+				if (postPromise !== current) return;
+				error = undefined;
 				if (cached && !postShown) {
 					if (loaded !== post) pendingRefresh = loaded;
 				} else {
@@ -159,6 +186,7 @@
 				onLoaded?.(loaded.title);
 			})
 			.catch((e) => {
+				if (postPromise !== current) return;
 				if (!post) {
 					error = e.message;
 					onLoaded?.('Ошибка');
@@ -171,7 +199,7 @@
 	});
 </script>
 
-<div class="post-screen" {@attach (el) => post && trackOpen(el, post, seenFeed)}>
+<div class="post-screen" {@attach pull} {@attach (el) => post && trackOpen(el, post, seenFeed)}>
 	<ScreenBar screen="post" {post} />
 	<Reveal ready={post !== undefined || error !== undefined} anim="contentIn" onreveal={onReveal}>
 		{#snippet children()}
@@ -229,6 +257,7 @@
 									})
 									.catch(() => {});
 							}}
+							onRefreshReady={(fn) => (commentsRefresh = fn)}
 						/>
 					{/if}
 					{#if loaded.sourceId === 'dtf' && hasThemeComponent(activeTheme.chain, 'Recommendations')}

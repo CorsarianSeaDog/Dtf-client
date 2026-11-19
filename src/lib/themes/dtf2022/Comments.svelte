@@ -30,7 +30,8 @@
 		focusNonce,
 		onfocused,
 		onCountChange,
-		onReconnect
+		onReconnect,
+		onRefreshReady
 	}: {
 		postId: number;
 		sourceId?: string;
@@ -43,6 +44,7 @@
 		onfocused?: () => void;
 		onCountChange?: (delta: number) => void;
 		onReconnect?: () => void;
+		onRefreshReady?: (refresh: (() => Promise<void>) | undefined) => void;
 	} = $props();
 
 	let sortings = $derived([
@@ -87,7 +89,8 @@
 		getPost: () => ({ postId, sourceId }),
 		onPatchRow: updateRow,
 		onCountChange: (delta) => onCountChange?.(delta),
-		onReconnect: () => onReconnect?.()
+		onReconnect: () => onReconnect?.(),
+		onRefreshReady: (fn) => onRefreshReady?.(fn)
 	});
 
 	let replyTo = $state<string | null>(null);

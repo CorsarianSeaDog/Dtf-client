@@ -13,11 +13,13 @@ export function bindCommentsView(options: {
 	onPatchRow: (key: string, next: CommentTreeItem) => void;
 	onCountChange?: (delta: number) => void;
 	onReconnect?: () => void;
+	onRefreshReady?: (refresh: (() => Promise<void>) | undefined) => void;
 }): void {
-	const { logic, virtual, collapsed, getPost, onPatchRow, onCountChange, onReconnect } = options;
+	const { logic, virtual, collapsed, getPost, onPatchRow, onCountChange, onReconnect, onRefreshReady } = options;
 	logic.onRowPatched = onPatchRow;
 	logic.onCommentCountChange = (delta) => onCountChange?.(delta);
 	logic.onReconnect = () => onReconnect?.();
+	onRefreshReady?.(() => logic.refresh());
 
 	const { postId, sourceId } = untrack(getPost);
 	const savedView = getCommentsViewState(postId, sourceId);
@@ -37,11 +39,12 @@ export function bindCommentsView(options: {
 		if (anchor) void tick().then(() => virtual.restoreAnchor(anchor));
 	};
 
-	onDestroy(() =>
+	onDestroy(() => {
+		onRefreshReady?.(undefined);
 		saveCommentsViewState(postId, sourceId, {
 			sorting: logic.sorting,
 			collapsed: [...collapsed],
 			heights: virtual.exportHeights()
-		})
-	);
+		});
+	});
 }

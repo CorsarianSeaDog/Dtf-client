@@ -495,4 +495,22 @@ describe('CommentsLogic ($state.raw)', () => {
 		await logic.loadComments(true, { bypassCache: true });
 		expect(logic.allCommentsMap.has('dtf_88')).toBe(true);
 	});
+
+	it('refresh досинхронизирует при наличии комментариев и перезагружает при ошибке или пустом списке', async () => {
+		getComments.mockResolvedValueOnce({
+			items: [makeComment(1), makeComment(91)],
+			cursors: undefined
+		});
+		await logic.refresh();
+		expect(logic.allCommentsMap.has('dtf_91')).toBe(true);
+
+		logic.error = 'Ошибка сети';
+		getComments.mockResolvedValueOnce({
+			items: [makeComment(92)],
+			cursors: undefined
+		});
+		await logic.refresh();
+		expect(logic.error).toBeNull();
+		expect(logic.allCommentsMap.has('dtf_92')).toBe(true);
+	});
 });

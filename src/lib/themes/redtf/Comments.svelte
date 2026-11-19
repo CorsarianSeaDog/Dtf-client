@@ -41,7 +41,8 @@
 		focusNonce,
 		onfocused,
 		onCountChange,
-		onReconnect
+		onReconnect,
+		onRefreshReady
 	}: ThemeComponents['Comments'] = $props();
 
 	/** Писать нельзя: ни нового комментария, ни ответа (правка своего остаётся на усмотрение сервера) */
@@ -93,7 +94,8 @@
 		getPost: () => ({ postId, sourceId }),
 		onPatchRow: updateRow,
 		onCountChange: (delta) => onCountChange?.(delta),
-		onReconnect: () => onReconnect?.()
+		onReconnect: () => onReconnect?.(),
+		onRefreshReady: (fn) => onRefreshReady?.(fn)
 	});
 
 	let replyTo = $state<string | null>(null);

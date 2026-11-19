@@ -73,6 +73,8 @@ export interface ThemeComponents {
 		onCountChange?: (delta: number) => void;
 		/** Канал комментариев переподключился после обрыва */
 		onReconnect?: () => void;
+		/** Передаёт функцию обновления комментариев (и `undefined` при размонтировании) для pull-to-refresh */
+		onRefreshReady?: (refresh: (() => Promise<void>) | undefined) => void;
 	};
 	Profile: {
 		profile: Profile;

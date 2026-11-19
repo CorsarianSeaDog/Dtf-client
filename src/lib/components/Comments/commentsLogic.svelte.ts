@@ -549,6 +549,15 @@ export class CommentsLogic {
 		}
 	}
 
+	/** Обновить комментарии: при ошибке или пустом списке загружает заново без кэша, иначе досинхронизирует */
+	async refresh(): Promise<void> {
+		if (this.error || this.comments.length === 0) {
+			await this.loadComments(true, { bypassCache: true });
+			return;
+		}
+		await this.resyncFromServer();
+	}
+
 	scheduleResync(delayMs = RESYNC_DELAY_MS) {
 		if (this.resyncInFlight) {
 			this.resyncQueued = true;
