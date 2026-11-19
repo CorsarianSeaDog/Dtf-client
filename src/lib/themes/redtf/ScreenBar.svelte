@@ -16,6 +16,8 @@
 
 	/** Экраны без панели: от неё остаётся полоска безопасной зоны, чтобы содержимое не уходило под системную строку */
 	let bare = $derived(screen === 'notifications' || screen === 'account' || screen === 'messages');
+	/** Уведомления и сообщения лежат на карточке --bg-card, а не прямо на фоне страницы */
+	let bareCard = $derived(screen === 'notifications' || screen === 'messages');
 	let isMe = $derived(!!profile && currentUser.value?.id === profile.id);
 	let menuOpen = $state(false);
 
@@ -78,7 +80,7 @@
 	</button>
 {/snippet}
 
-<div class={['screen-bar', { 'screen-bar--bare': bare }]} role={bare ? 'presentation' : 'navigation'} aria-label={bare ? undefined : 'Верхняя панель'}
+<div class={['screen-bar', { 'screen-bar--bare': bare, 'screen-bar--card': bareCard }]} role={bare ? 'presentation' : 'navigation'} aria-label={bare ? undefined : 'Верхняя панель'}
 	{@attach markScreen} {@attach hideOnScroll} {@attach watchPostTitle}>
 	{#if !bare}
 		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
@@ -151,6 +153,13 @@
 	.screen-bar--bare {
 		height: env(safe-area-inset-top, 0px);
 		background: var(--bg-main);
+	}
+
+	.screen-bar--card {
+		align-self: center;
+		width: 100%;
+		max-width: var(--content-width);
+		background: var(--bg-card);
 	}
 
 	@media (max-width: 719px) {

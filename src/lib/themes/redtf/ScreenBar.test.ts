@@ -30,7 +30,10 @@ it('набор кнопок зависит от экрана', () => {
 	expect(own).not.toContain('Больше');
 
 	// Уведомления и аккаунт: только полоска безопасной зоны
-	for (const screen of ['notifications', 'account'] as const) {
-		expect(render(ScreenBar, { props: { screen } }).body).not.toMatch(/<button|<a /);
+	for (const screen of ['notifications', 'messages', 'account'] as const) {
+		const html = render(ScreenBar, { props: { screen } }).body;
+		expect(html).not.toMatch(/<button|<a /);
+		if (screen === 'account') expect(html).not.toContain('screen-bar--card');
+		else expect(html).toContain('screen-bar--card');
 	}
 });
