@@ -44,6 +44,21 @@ const SAMPLE_FIELDS: SettingField[] = [
 			{ value: 'list', title: 'Колонка' },
 			{ value: 'drum', title: 'Барабан' }
 		]
+	},
+	{
+		key: 'haptics',
+		type: 'toggle',
+		title: 'Тактильный отклик (вибрация)',
+		default: true,
+		platform: 'android'
+	},
+	{
+		key: 'predictiveBack',
+		type: 'toggle',
+		title: 'Поддержка Predictive Gesture',
+		default: false,
+		platform: 'android',
+		native: true
 	}
 ];
 
@@ -58,7 +73,8 @@ function createIndex(overrides?: Partial<Parameters<typeof buildSettingsSearchIn
 			{ pageId: 'interface-votes', folderId: 'interface', icon: 'votes', path: 'Интерфейс › Оценки', fields: [SAMPLE_FIELDS[0]] },
 			{ pageId: 'interface-mobile-bar', folderId: 'interface', icon: 'mobile-bar', path: 'Интерфейс › Мобильная панель', fields: [SAMPLE_FIELDS[1]] },
 			{ pageId: 'interface-content', folderId: 'interface', icon: 'content', path: 'Интерфейс › Лента и контент', fields: [SAMPLE_FIELDS[2]] },
-			{ pageId: 'interface-comments', folderId: 'interface', icon: 'comments', path: 'Интерфейс › Комментарии', fields: [SAMPLE_FIELDS[3]] }
+			{ pageId: 'interface-comments', folderId: 'interface', icon: 'comments', path: 'Интерфейс › Комментарии', fields: [SAMPLE_FIELDS[3]] },
+			{ pageId: 'app', icon: 'app', path: 'Персонализация › Приложение', fields: [SAMPLE_FIELDS[4], SAMPLE_FIELDS[5]] }
 		],
 		visibility: {
 			device: 'desktop',
@@ -105,6 +121,8 @@ describe('settingsSearch', () => {
 		expect(searchSettings(desktopIndex, 'safe area')).toHaveLength(0);
 		expect(searchSettings(desktopIndex, 'любимые реакции')).toHaveLength(0);
 		expect(searchSettings(desktopIndex, 'ota')).toHaveLength(0);
+		expect(searchSettings(desktopIndex, 'вибрация').some((m) => m.item.id === 'app:haptics')).toBe(false);
+		expect(searchSettings(desktopIndex, 'predictive')).toHaveLength(0);
 
 		// Планшет: ширина десктопная, но есть тач-ввод
 		const tabletIndex = createIndex({
@@ -114,6 +132,8 @@ describe('settingsSearch', () => {
 		expect(searchSettings(tabletIndex, 'ширина контента')).toHaveLength(1);
 		expect(searchSettings(tabletIndex, 'действия свайпа')).toHaveLength(1);
 		expect(searchSettings(tabletIndex, 'любимые реакции')).toHaveLength(1);
+		expect(searchSettings(tabletIndex, 'вибрация').some((m) => m.item.id === 'app:haptics')).toBe(true);
+		expect(searchSettings(tabletIndex, 'predictive')).toHaveLength(0);
 
 		const mobileDevIndex = createIndex({
 			visibility: { device: 'mobile', touch: true, platform: 'android', native: true },
@@ -125,6 +145,15 @@ describe('settingsSearch', () => {
 		expect(searchSettings(mobileDevIndex, 'safe area')).toHaveLength(1);
 		expect(searchSettings(mobileDevIndex, 'любимые реакции')).toHaveLength(1);
 		expect(searchSettings(mobileDevIndex, 'ota')).toHaveLength(1);
+		expect(searchSettings(mobileDevIndex, 'вибрация').some((m) => m.item.id === 'app:haptics')).toBe(true);
+		expect(searchSettings(mobileDevIndex, 'predictive')).toHaveLength(1);
+
+		const iosIndex = createIndex({
+			visibility: { device: 'mobile', touch: true, platform: 'ios', native: true },
+			hasGestures: true
+		});
+		expect(searchSettings(iosIndex, 'вибрация').some((m) => m.item.id === 'app:haptics')).toBe(false);
+		expect(searchSettings(iosIndex, 'predictive')).toHaveLength(0);
 	});
 
 	it('дедуплицирует одинаковые названия страницы и настройки в пользу настройки', () => {

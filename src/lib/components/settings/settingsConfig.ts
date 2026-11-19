@@ -288,7 +288,8 @@ const hapticsField: ToggleField = {
 	key: 'haptics',
 	type: 'toggle',
 	title: 'Тактильный отклик (вибрация)',
-	description: 'Вибрация при лайках, реакциях и переключении вкладок (для Android)',
+	description: 'Вибрация при лайках, реакциях и переключении вкладок',
+	platform: 'android',
 	default: true
 };
 
@@ -296,8 +297,10 @@ const predictiveBackField: ToggleField = {
 	key: 'predictiveBack',
 	type: 'toggle',
 	title: 'Поддержка Predictive Gesture',
-	description: 'Анимация возврата при системном жесте от края экрана (для Android)',
+	description: 'Анимация возврата при системном жесте от края экрана',
 	note: EXPERIMENTAL,
+	platform: 'android',
+	native: true,
 	default: false
 };
 

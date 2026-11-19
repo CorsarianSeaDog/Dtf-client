@@ -262,20 +262,60 @@ describe('SettingsScreen', () => {
 		expect(themeIndex).toBeLessThan(colorSchemeIndex);
 	});
 
-	it('рендерит раздел Приложение с нужными параметрами и кнопкой выбора иконки', () => {
-		const { body } = render(SettingsScreen, {
+	it('рендерит раздел Приложение с нужными параметрами и фильтрует их по платформе и Capacitor', () => {
+		const desktop = render(SettingsScreen, {
 			props: {
 				onclose: () => {},
-				page: 'app'
+				page: 'app',
+				platform: 'windows',
+				native: false
 			}
-		});
+		}).body;
 
-		expect(body).toContain('Тактильный отклик (вибрация)');
-		expect(body).toContain('Продвинутые эффекты прозрачности и размытия');
-		expect(body).toContain('Невидимая подпись reDTF');
-		expect(body).toContain('Превью ссылок в соцсетях');
-		expect(body).toContain('Иконка приложения');
-		expect(body).toContain('Выбрать');
+		expect(desktop).not.toContain('Тактильный отклик (вибрация)');
+		expect(desktop).not.toContain('Поддержка Predictive Gesture');
+		expect(desktop).toContain('Продвинутые эффекты прозрачности и размытия');
+		expect(desktop).toContain('Невидимая подпись reDTF');
+		expect(desktop).toContain('Превью ссылок в соцсетях');
+		expect(desktop).toContain('Иконка приложения');
+		expect(desktop).toContain('Выбрать');
+
+		const androidWeb = render(SettingsScreen, {
+			props: {
+				onclose: () => {},
+				page: 'app',
+				platform: 'android',
+				native: false
+			}
+		}).body;
+
+		expect(androidWeb).toContain('Тактильный отклик (вибрация)');
+		expect(androidWeb).not.toContain('Поддержка Predictive Gesture');
+
+		const androidNative = render(SettingsScreen, {
+			props: {
+				onclose: () => {},
+				page: 'app',
+				platform: 'android',
+				native: true
+			}
+		}).body;
+
+		expect(androidNative).toContain('Тактильный отклик (вибрация)');
+		expect(androidNative).toContain('Поддержка Predictive Gesture');
+		expect(androidNative).not.toContain('(для Android)');
+
+		const iosNative = render(SettingsScreen, {
+			props: {
+				onclose: () => {},
+				page: 'app',
+				platform: 'ios',
+				native: true
+			}
+		}).body;
+
+		expect(iosNative).not.toContain('Тактильный отклик (вибрация)');
+		expect(iosNative).not.toContain('Поддержка Predictive Gesture');
 	});
 
 	it('рендерит раздел Верхняя панель с меню аватара и блюром', () => {
