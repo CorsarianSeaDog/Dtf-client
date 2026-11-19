@@ -51,3 +51,27 @@ describe('getProfileComments', () => {
 		expect(fetchWithAuth).toHaveBeenLastCalledWith('https://api.dtf.ru/v2.5/comments?subsiteId=125515&sorting=hotness&page=0&lastId=10&lastSortingValue=73.5');
 	});
 });
+
+describe('getProfilePosts', () => {
+	it('выбирает hotness для популярного темы и date для свежего', async () => {
+		const entry = { id: 1, title: 'Пост' };
+		vi.mocked(fetchWithAuth).mockResolvedValueOnce(Response.json({ result: { items: [{ type: 'entry', data: entry }], lastId: 10, lastSortingValue: 5 } }));
+		await dtfApiProvider.getProfilePosts(64953, 'popular', undefined, true);
+		expect(fetchWithAuth).toHaveBeenLastCalledWith('https://api.dtf.ru/v2.31/timeline?subsitesIds=64953&sorting=hotness');
+
+		vi.mocked(fetchWithAuth).mockResolvedValueOnce(Response.json({ result: { items: [{ type: 'entry', data: entry }], lastId: 10, lastSortingValue: 5 } }));
+		await dtfApiProvider.getProfilePosts(64953, 'new', undefined, true);
+		expect(fetchWithAuth).toHaveBeenLastCalledWith('https://api.dtf.ru/v2.31/timeline?subsitesIds=64953&sorting=date');
+	});
+
+	it('запрашивает sorting=all для популярного профиля пользователя и пагинирует', async () => {
+		const entry = { id: 2, title: 'Пост юзера' };
+		vi.mocked(fetchWithAuth).mockResolvedValueOnce(Response.json({ result: { items: [{ type: 'entry', data: entry }], lastId: 20, lastSortingValue: 24 } }));
+		await dtfApiProvider.getProfilePosts(626676, 'popular');
+		expect(fetchWithAuth).toHaveBeenLastCalledWith('https://api.dtf.ru/v2.31/timeline?subsitesIds=626676&sorting=all');
+
+		vi.mocked(fetchWithAuth).mockResolvedValueOnce(Response.json({ result: { items: [{ type: 'entry', data: entry }], lastId: 30, lastSortingValue: 14 } }));
+		await dtfApiProvider.getProfilePosts(626676, 'popular', { lastId: 20, lastSortingValue: 24 }, false);
+		expect(fetchWithAuth).toHaveBeenLastCalledWith('https://api.dtf.ru/v2.31/timeline?subsitesIds=626676&sorting=all&lastId=20&lastSortingValue=24');
+	});
+});

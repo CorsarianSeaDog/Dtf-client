@@ -49,6 +49,11 @@ describe('mapProfile', () => {
 		expect(profile.avatarMedia).toEqual({ uuid: 'av-1', width: 200, height: 200, video: true, type: 'gif' });
 		expect(profile.coverUrl).toBe('https://leonardo.osnova.io/cov-1/-/preview/1920/-/format/webp/#video');
 	});
+
+	it('определяет, является ли профиль темой (сообществом)', () => {
+		expect(mapProfile({ id: 1, type: 1 }).isCommunity).toBe(false);
+		expect(mapProfile({ id: 2, type: 2 }).isCommunity).toBe(true);
+	});
 });
 
 describe('бейджи Плюса', () => {

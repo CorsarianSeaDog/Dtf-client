@@ -188,9 +188,11 @@ export interface Profile {
 	isMuted?: boolean;
 	createdAt?: string;
 	url?: string;
+	/** Тема (сообщество), а не пользователь или личный блог */
+	isCommunity?: boolean;
 }
 
-/** Сортировка постов в профиле */
+/** Сортировка постов в профиле или подсайте */
 export type ProfileSorting = 'popular' | 'new';
 
 /** Пользователь, блог или тема (сообщество) из выдачи поиска */
@@ -569,7 +571,7 @@ export interface ApiProvider {
 
 	// Профили
 	getProfile?(id: number): Promise<Profile>;
-	getProfilePosts?(id: number, sorting: ProfileSorting, cursor?: CursorData): Promise<PaginatedResult<Post>>;
+	getProfilePosts?(id: number, sorting: ProfileSorting, cursor?: CursorData, isCommunity?: boolean): Promise<PaginatedResult<Post>>;
 	getProfileSubscribers?(id: number, cursor?: CursorData): Promise<PaginatedResult<ProfileListItem>>;
 	getProfileSubscriptions?(id: number): Promise<ProfileListItem[]>;
 	getProfileComments?(id: number, sorting?: ProfileSorting, cursor?: CursorData): Promise<PaginatedResult<Comment>>;

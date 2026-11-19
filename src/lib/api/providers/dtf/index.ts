@@ -74,7 +74,7 @@ async function postSubsiteUpdate(userId: number, fields: Record<string, string>)
 
 /** Курсор для следующей страницы в запросе к API */
 function cursorQuery(cursor?: CursorData): string {
-	return cursor ? `&lastId=${cursor.lastId}&lastSortingValue=${cursor.lastSortingValue}` : '';
+	return cursor?.lastId != null ? `&lastId=${cursor.lastId}&lastSortingValue=${cursor.lastSortingValue ?? 0}` : '';
 }
 
 /** Форма запроса из полей; DTF принимает записи только как multipart */
@@ -701,8 +701,8 @@ export const dtfApiProvider = {
 		return mapProfile(subsite);
 	},
 
-	async getProfilePosts(id: number, sorting: ProfileSorting, cursor?: CursorData): Promise<PaginatedResult<Post>> {
-		const dtfSorting = sorting === 'popular' ? 'hotness' : 'date';
+	async getProfilePosts(id: number, sorting: ProfileSorting, cursor?: CursorData, isCommunity = false): Promise<PaginatedResult<Post>> {
+		const dtfSorting = sorting === 'popular' ? (isCommunity ? 'hotness' : 'all') : 'date';
 		const response = await fetchWithAuth(`${API_URL}/timeline?subsitesIds=${id}&sorting=${dtfSorting}${cursorQuery(cursor)}`);
 		const result = (await response.json()).result;
 

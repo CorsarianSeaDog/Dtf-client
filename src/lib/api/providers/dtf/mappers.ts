@@ -300,7 +300,8 @@ export function mapProfile(subsite: any): Profile {
 		isSubscribedToNewPosts: subsite.isSubscribedToNewPosts,
 		isMuted: subsite.isMuted,
 		createdAt: subsite.created ? new Date(subsite.created * 1000).toISOString() : undefined,
-		url: subsite.url
+		url: subsite.url,
+		isCommunity: subsite.type === 2
 	};
 }
 

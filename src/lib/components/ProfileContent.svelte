@@ -76,10 +76,10 @@
 			try {
 				const result = query
 					? await api.searchPosts(query, searchSorting, { title: false, editorial: false, strict: false, authorId: currentId }, cursor)
-					: await api.getProfilePosts(currentId, sorting, cursor);
+					: await api.getProfilePosts(currentId, sorting, cursor, profile?.isCommunity);
 				if (id !== requestId) return false;
 				allPosts = appendUnique(allPosts, result.items, postKey);
-				hasMore = result.items.length > 0 && result.lastId !== undefined;
+				hasMore = result.items.length > 0 && result.lastId != null;
 				cursor = hasMore ? { lastId: result.lastId!, lastSortingValue: result.lastSortingValue ?? 0 } : undefined;
 				const promise = chunks.run();
 				loadingPosts = false;
