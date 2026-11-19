@@ -1,4 +1,22 @@
-import type { Comment } from './types';
+import type { Comment, DtfEditorBlock, DtfEditorEntry } from './types';
+
+/** Собирает запись редактора для `POST /v2.31/editor` со значениями по умолчанию */
+export function buildEditorEntry(blocks: DtfEditorBlock[], original?: Partial<DtfEditorEntry>): DtfEditorEntry {
+	return {
+		id: original?.id || 0,
+		...(original?.user_id !== undefined ? { user_id: original.user_id } : {}),
+		type: original?.type ?? 1,
+		subsite_id: original?.subsite_id || 0,
+		title: original?.title || '',
+		is_published: original?.is_published ?? false,
+		is_adult: original?.is_adult ?? false,
+		is_enabled_comments: original?.is_enabled_comments ?? true,
+		is_enabled_likes: original?.is_enabled_likes ?? true,
+		is_enabled_ad: original?.is_enabled_ad ?? true,
+		...(original?.repostId ? { repostId: original.repostId, repostData: null } : {}),
+		entry: { blocks }
+	};
+}
 
 /** Уникальный ключ записи для списков и дедупликации */
 export const postKey = (post: { sourceId: string; id: number }) => `${post.sourceId}_${post.id}`;

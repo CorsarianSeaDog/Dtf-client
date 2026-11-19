@@ -1,6 +1,6 @@
 import type { DtfEditorBlock, DtfEditorEntry } from '$lib/api/types';
 import type { OutputData, OutputBlockData } from '@editorjs/editorjs';
-import { getLeonardoUrl } from '$lib/api/utils';
+import { buildEditorEntry, getLeonardoUrl } from '$lib/api/utils';
 
 type EditorJsToDtfMapper = (block: OutputBlockData) => Pick<DtfEditorBlock, 'type' | 'data'> | null;
 type DtfToEditorJsMapper = (block: DtfEditorBlock) => Pick<OutputBlockData, 'type' | 'data'> | null;
@@ -171,23 +171,7 @@ function preserved(block: DtfEditorBlock): Pick<OutputBlockData, 'type' | 'data'
 
 export function editorJsToDtf(editorData: OutputData, originalEntry?: Partial<DtfEditorEntry>): DtfEditorEntry {
 	const blocks: DtfEditorBlock[] = editorData.blocks.map(convertEditorJsBlockToDtf).filter(Boolean) as DtfEditorBlock[];
-
-	return {
-		id: originalEntry?.id || 0,
-		user_id: originalEntry?.user_id,
-		type: originalEntry?.type || 1,
-		subsite_id: originalEntry?.subsite_id || 0,
-		title: originalEntry?.title || '',
-		is_published: originalEntry?.is_published ?? false,
-		is_adult: originalEntry?.is_adult ?? false,
-		is_enabled_comments: originalEntry?.is_enabled_comments ?? true,
-		is_enabled_likes: originalEntry?.is_enabled_likes ?? true,
-		is_enabled_ad: originalEntry?.is_enabled_ad ?? true,
-		...(originalEntry?.repostId ? { repostId: originalEntry.repostId, repostData: null } : {}),
-		entry: {
-			blocks
-		}
-	};
+	return buildEditorEntry(blocks, originalEntry);
 }
 
 function convertEditorJsBlockToDtf(block: OutputBlockData): DtfEditorBlock | null {

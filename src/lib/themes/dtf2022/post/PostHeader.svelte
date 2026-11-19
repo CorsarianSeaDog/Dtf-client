@@ -1,10 +1,10 @@
 <script lang="ts">
-	import type { Post } from '$lib/api/types';
+	import type { ContentControls, Post } from '$lib/api/types';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { openExternalUrl } from '$lib/capacitor';
-	import { closeOverlay, getPostPath, getPostShareUrl, getProfilePath, openPost, openProfile } from '$lib/navigation';
+	import { closeOverlay, getPostPath, getPostShareUrl, getProfilePath, openOverlay, openPost, openProfile } from '$lib/navigation';
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import { authStorage } from '$lib/storage/auth.svelte';
 	import { api } from '$lib/api/index.svelte';
@@ -37,12 +37,13 @@
 		subscribe && !!post.subsite && post.subsite.id !== currentUser.value?.id && !subscriptions.isSubscribed(post.subsite.id, post.subsite.isSubscribed)
 	);
 
-	// Меню «⋯»: открытие на DTF, ссылка; для чужих — скрытие, блокировка и жалоба; для своего — удаление (по etcControls.remove).
 	// Скрыть пост и заблокировать может только вошедший, скрыть автора у себя — любой
 	let menuOpen = $state(false);
 	let complaining = $state(false);
 	let confirmingDelete = $state(false);
-	let canRemove = $state(false);
+	let copyingToDraft = $state(false);
+	let controlsState = $state<{ postId: number; value: ContentControls }>();
+	let controls = $derived(controlsState?.postId === post.id ? controlsState.value : undefined);
 	// Черновик виден только автору: время не ведёт на страницу, меню «⋯» выключено (на действия с черновиком сервер отвечает ошибкой)
 	let draft = $derived(post.isDraft === true);
 	let others = $derived(isAnotherDtfUser(post.sourceId, post.author.id));
@@ -51,8 +52,13 @@
 	const setMenuOpen = (v: boolean) => {
 		menuOpen = v;
 		notifyOverlay();
-		if (v && isOwnDtf && !canRemove) {
-			api.getContentControls(post.id).then((c) => (canRemove = c.remove)).catch(() => (canRemove = false));
+		if (v && isOwnDtf && controlsState?.postId !== post.id) {
+			const targetId = post.id;
+			api.getContentControls(post.id)
+				.then((value) => (controlsState = { postId: targetId, value }))
+				.catch(() => {
+					if (controlsState?.postId === targetId) controlsState = undefined;
+				});
 		}
 	};
 	const setComplaining = (v: boolean) => {
@@ -69,7 +75,8 @@
 		...(others && currentUser.value ? [{ value: 'hide_post' as const, label: 'Скрыть пост', icon: 'v_eye', hint: 'Пост пропадёт из всех ваших лент на DTF' }] : []),
 		...(others ? authorMenuItems(post.author) : []),
 		...(others ? [{ value: 'complain' as const, label: 'Пожаловаться', icon: 'v_flag' }] : []),
-		...(isOwnDtf && canRemove ? [{ value: 'delete_post' as const, label: 'Удалить', icon: 'v_delete' }] : [])
+		...(isOwnDtf && controls?.editEntry ? [{ value: 'copy_to_draft' as const, label: copyingToDraft ? 'Копирование…' : 'Скопировать в черновики', icon: 'v_pen' }] : []),
+		...(isOwnDtf && controls?.remove ? [{ value: 'delete_post' as const, label: 'Удалить', icon: 'v_delete' }] : [])
 	]);
 	let showMenu = $derived(menuItems.length > 0);
 
@@ -93,7 +100,21 @@
 		}
 	}
 
-	function selectMenuItem(item: 'open_dtf' | 'copy' | 'hide_post' | 'complain' | 'delete_post' | AuthorAction) {
+	async function copyToDraft() {
+		if (copyingToDraft) return;
+		copyingToDraft = true;
+		try {
+			const postId = await api.copyPostToDraft(post.id);
+			notify.success('Черновик создан');
+			openOverlay({ type: 'editor', data: { postId } });
+		} catch (e) {
+			notify.error(e instanceof Error ? e.message : 'Не удалось создать черновик');
+		} finally {
+			copyingToDraft = false;
+		}
+	}
+
+	function selectMenuItem(item: 'open_dtf' | 'copy' | 'hide_post' | 'complain' | 'copy_to_draft' | 'delete_post' | AuthorAction) {
 		if (item.endsWith('_author')) {
 			runAuthorAction(item as AuthorAction, post.author);
 		} else if (item === 'open_dtf') {
@@ -104,6 +125,8 @@
 			hidePost(post);
 		} else if (item === 'complain') {
 			setComplaining(ensureLogin());
+		} else if (item === 'copy_to_draft') {
+			copyToDraft();
 		} else if (item === 'delete_post') {
 			setConfirmingDelete(true);
 		}

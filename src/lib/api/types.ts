@@ -594,6 +594,7 @@ export interface ApiProvider {
 	// Редактор
 	getEditorEntry?(postId: number): Promise<DtfEditorEntry>;
 	saveDraft?(entry: DtfEditorEntry): Promise<DtfEditorEntry>;
+	copyPostToDraft?(postId: number): Promise<number>;
 	getContentControls?(postId: number): Promise<ContentControls>;
 	deletePost?(postId: number): Promise<void>;
 	uploadMedia?(file: File, options?: UploadOptions): Promise<UploadResult>;

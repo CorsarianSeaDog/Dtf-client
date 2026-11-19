@@ -39,7 +39,7 @@ import type {
 	UploadOptions,
 	UploadResult
 } from '../../types';
-import { getLeonardoUrl } from '../../utils';
+import { buildEditorEntry, getLeonardoUrl } from '../../utils';
 import { API_URL, COMMENTS_API_URL, UPLOAD_URL, apiV, fetchSearch, fetchWithAuth, requireAuth, uploadWithAuth } from './client';
 import { untrack } from 'svelte';
 import { authStorage } from '$lib/storage/auth.svelte';
@@ -766,6 +766,21 @@ export const dtfApiProvider = {
 		const json = await response.json();
 		if (json.error) throw new Error(json.message?.text || 'Не удалось сохранить черновик');
 		return json.result?.entry;
+	},
+
+	async copyPostToDraft(postId: number): Promise<number> {
+		const original = await dtfApiProvider.getEditorEntry(postId);
+		if (original?.id !== postId || !Array.isArray(original.entry?.blocks)) {
+			throw new Error('DTF не вернул содержимое поста');
+		}
+
+		const draft = await dtfApiProvider.saveDraft(
+			buildEditorEntry(original.entry.blocks, { ...original, id: 0, user_id: undefined, is_published: false })
+		);
+		if (!draft || !Number.isSafeInteger(draft.id) || draft.id <= 0 || draft.id === postId || draft.is_published === true) {
+			throw new Error('DTF не подтвердил создание нового черновика');
+		}
+		return draft.id;
 	},
 
 	async uploadMedia(file: File, options?: UploadOptions): Promise<UploadResult> {

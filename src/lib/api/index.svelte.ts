@@ -397,6 +397,7 @@ export const api = {
 		await dtfApiProvider.deletePost(postId);
 		uncachePost(postId);
 	},
+	copyPostToDraft: dtfApiProvider.copyPostToDraft,
 	uploadMedia: dtfApiProvider.uploadMedia,
 	getSubsites: dtfApiProvider.getSubsites,
 	getCommentPermissions: dtfApiProvider.getCommentPermissions,

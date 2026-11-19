@@ -127,3 +127,51 @@ describe('getBookmarkedComments', () => {
 		expect(last.lastSortingValue).toBeUndefined();
 	});
 });
+
+describe('copyPostToDraft', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		authStorage.session = session;
+	});
+
+	afterEach(() => {
+		authStorage.session = null;
+	});
+
+	const blocks = [
+		{ type: 'text', anchor: 'intro', data: { text: 'Текст' } },
+		{ type: 'media', cover: true, data: { items: [{ image: { data: { uuid: 'test-media' } } }] } }
+	];
+	const original = {
+		id: 42, type: 1, subsite_id: 7, title: 'Пост', is_published: true, is_adult: true,
+		is_enabled_comments: false, currentVersionId: 12, entry: { blocks }
+	};
+
+	it('создаёт черновик с исходными блоками и не затрагивает оригинал', async () => {
+		vi.mocked(fetchWithAuth)
+			.mockResolvedValueOnce(Response.json({ result: { entry: original } }))
+			.mockResolvedValueOnce(Response.json({ result: { entry: { id: 55, is_published: false } } }));
+
+		await expect(dtfApiProvider.copyPostToDraft(42)).resolves.toBe(55);
+		expect(fetchWithAuth).toHaveBeenNthCalledWith(1, 'https://api.dtf.ru/v2.1/editor/42');
+		const [saveUrl, saveInit] = vi.mocked(fetchWithAuth).mock.calls[1];
+		expect(saveUrl).toBe('https://api.dtf.ru/v2.31/editor');
+		expect(saveInit?.method).toBe('POST');
+		const sentEntry = JSON.parse((saveInit?.body as FormData).get('entry') as string);
+		expect(sentEntry).toEqual({
+			id: 0, type: 1, subsite_id: 7, title: 'Пост', is_published: false, is_adult: true,
+			is_enabled_comments: false, is_enabled_likes: true, is_enabled_ad: true, entry: { blocks }
+		});
+	});
+
+	it('показывает ошибку, если DTF вернул ID оригинала или опубликованную запись', async () => {
+		vi.mocked(fetchWithAuth)
+			.mockResolvedValueOnce(Response.json({ result: { entry: original } }))
+			.mockResolvedValueOnce(Response.json({ result: { entry: { id: original.id, is_published: false } } }))
+			.mockResolvedValueOnce(Response.json({ result: { entry: original } }))
+			.mockResolvedValueOnce(Response.json({ result: { entry: { id: 56, is_published: true } } }));
+
+		await expect(dtfApiProvider.copyPostToDraft(42)).rejects.toThrow('DTF не подтвердил создание нового черновика');
+		await expect(dtfApiProvider.copyPostToDraft(42)).rejects.toThrow('DTF не подтвердил создание нового черновика');
+	});
+});

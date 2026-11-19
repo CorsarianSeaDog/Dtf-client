@@ -25,6 +25,15 @@ describe('PostHeader menu items', () => {
 		expect(svelteContent).toContain("notify.error('Не удалось скопировать ссылку')");
 	});
 
+	it('проверяет etcControls.editEntry и копирует пост в черновики', () => {
+		const svelteContent = fs.readFileSync(path.join(__dirname, 'PostHeader.svelte'), 'utf8');
+
+		expect(svelteContent).toContain('controls?.editEntry');
+		expect(svelteContent).toContain("value: 'copy_to_draft' as const");
+		expect(svelteContent).toContain('api.copyPostToDraft(post.id)');
+		expect(svelteContent).toContain("openOverlay({ type: 'editor', data: { postId } })");
+	});
+
 	it('проверяет etcControls.remove и подтверждает удаление своего поста', () => {
 		const svelteContent = fs.readFileSync(path.join(__dirname, 'PostHeader.svelte'), 'utf8');
 
