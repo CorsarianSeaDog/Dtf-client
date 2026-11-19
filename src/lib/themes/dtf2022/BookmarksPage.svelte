@@ -3,7 +3,7 @@
 	import { openOverlay } from '$lib/navigation';
 	import { authStorage } from '$lib/storage/auth.svelte';
 	import NetworkErrorState from '$lib/components/NetworkErrorState.svelte';
-	import type { BookmarksTab } from '../contract';
+	import type { BookmarkItem, BookmarksTab } from '../contract';
 	import PostCard from './post/PostCard.svelte';
 	import ProfileComment from './ProfileComment.svelte';
 	import { isPostHidden } from './actions.svelte';
@@ -19,6 +19,7 @@
 	let {
 		tab,
 		onTabChange,
+		items,
 		posts,
 		comments,
 		loaded,
@@ -31,6 +32,7 @@
 	}: {
 		tab: BookmarksTab;
 		onTabChange: (tab: BookmarksTab) => void;
+		items: BookmarkItem[];
 		posts: Post[];
 		comments: Comment[];
 		loaded: boolean;
@@ -44,11 +46,18 @@
 	} = $props();
 
 	const TABS: { value: BookmarksTab; label: string }[] = [
+		{ value: 'all', label: 'Все' },
 		{ value: 'posts', label: 'Статьи' },
 		{ value: 'comments', label: 'Комментарии' }
 	];
 
-	let empty = $derived(tab === 'posts' ? posts.length === 0 : comments.length === 0);
+	const EMPTY_TEXT: Record<BookmarksTab, string> = {
+		all: 'В закладках ничего нет',
+		posts: 'В закладках нет статей',
+		comments: 'В закладках нет комментариев'
+	};
+
+	let empty = $derived(tab === 'all' ? items.length === 0 : tab === 'posts' ? posts.length === 0 : comments.length === 0);
 </script>
 
 <div class="bookmarks-page">
@@ -63,7 +72,21 @@
 		{#if error && empty}
 			<NetworkErrorState {error} title="Не удалось загрузить закладки" {onretry} />
 		{:else}
-			{#if tab === 'posts'}
+			{#if tab === 'all'}
+				{#if items.length > 0}
+					<div class={['bookmarks-all', { 'bookmarks-all--cards': CommentCard !== ProfileComment }]}>
+						{#each items as entry (entry.kind === 'post' ? `p:${entry.item.id}` : `c:${entry.item.id}`)}
+							{#if entry.kind === 'post'}
+								{#if !isPostHidden(entry.item)}
+									<PostCard post={entry.item} />
+								{/if}
+							{:else}
+								<CommentCard comment={entry.item} />
+							{/if}
+						{/each}
+					</div>
+				{/if}
+			{:else if tab === 'posts'}
 				{#each posts as post (post.id)}
 					{#if !isPostHidden(post)}
 						<PostCard {post} />
@@ -78,7 +101,7 @@
 			{/if}
 
 			{#if loaded && !loading && empty}
-				<p class="bookmarks-empty">{tab === 'posts' ? 'В закладках нет статей' : 'В закладках нет комментариев'}</p>
+				<p class="bookmarks-empty">{EMPTY_TEXT[tab]}</p>
 			{/if}
 
 			{#if hasMore}
@@ -96,6 +119,21 @@
 		max-width: var(--content-width);
 		padding-bottom: 16px;
 		color: var(--text-primary);
+	}
+
+	.bookmarks-all {
+		display: flex;
+		flex-direction: column;
+		gap: 28px;
+	}
+
+	.bookmarks-all--cards {
+		gap: 16px;
+	}
+
+	.bookmarks-all > :global(.feed-item),
+	.bookmarks-all > :global(.profile-comment) {
+		margin: 0;
 	}
 
 	.bookmarks-comments--cards {
@@ -122,6 +160,11 @@
 	}
 
 	@media (max-width: 859px) {
+		.bookmarks-all {
+			gap: 20px;
+		}
+
+		.bookmarks-all--cards,
 		.bookmarks-comments--cards {
 			gap: 12px;
 		}

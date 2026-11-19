@@ -3,7 +3,8 @@ import type { Comment, CommentEditorState, Post, Profile, ProfileListItem, Profi
 import type { FeedName, FeedSorting } from '$lib/feed.svelte';
 
 export type SearchTab = 'posts' | 'comments' | 'blogs' | 'topics';
-export type BookmarksTab = 'posts' | 'comments';
+export type BookmarksTab = 'all' | 'posts' | 'comments';
+export type BookmarkItem = { kind: 'post'; item: Post } | { kind: 'comment'; item: Comment };
 
 /**
  * Какие компоненты есть у темы и какие пропсы им передают.
@@ -139,10 +140,11 @@ export interface ThemeComponents {
 		onedit: (post: Post) => void;
 		ondelete: (post: Post) => Promise<void>;
 	};
-	/** Закладки вошедшего пользователя: записи или комментарии (вкладка `tab`), каждая со своей подгрузкой */
+	/** Закладки вошедшего пользователя: всё вместе или отдельно записи и комментарии (вкладка `tab`) */
 	BookmarksPage: {
 		tab: BookmarksTab;
 		onTabChange: (tab: BookmarksTab) => void;
+		items: BookmarkItem[];
 		posts: Post[];
 		comments: Comment[];
 		/** Первая страница выбранной вкладки уже пришла */
