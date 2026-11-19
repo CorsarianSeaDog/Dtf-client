@@ -288,6 +288,7 @@ export async function incomingReady(layerId: string, incomingScreen: HTMLElement
 
 		incomingScreen.style.zIndex = '30';
 		incomingScreen.style.position = 'relative';
+		incomingScreen.style.minHeight = `${visibleHeight}px`;
 		incomingScreen.style.transformOrigin = `50% ${originY}px`;
 		incomingScreen.style.willChange = 'transform, opacity';
 
@@ -310,7 +311,7 @@ export async function incomingReady(layerId: string, incomingScreen: HTMLElement
 		// Сбрасывает и cleanup: отклонённый позже `finished` затёр бы стили, которые экрану выставил следующий переход
 		restoreIncoming = () => {
 			restoreIncoming = null;
-			for (const p of ['z-index', 'position', 'transform-origin', 'will-change', 'filter']) incomingScreen.style.removeProperty(p);
+			for (const p of ['z-index', 'position', 'min-height', 'transform-origin', 'will-change', 'filter']) incomingScreen.style.removeProperty(p);
 		};
 		if (currentIncomingAnim) promises.push(currentIncomingAnim.finished.then(() => restoreIncoming?.(), () => {}));
 	}

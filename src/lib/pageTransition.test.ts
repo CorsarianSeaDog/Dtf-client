@@ -131,6 +131,7 @@ describe('pageTransition', () => {
 			const style = Object.assign({} as Record<string, string>, {
 				removeProperty: vi.fn((prop: string) => {
 					delete style[prop];
+					delete style[prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase())];
 				})
 			});
 			const layer = withLayer ? { style: {} as Record<string, string>, toggleAttribute: vi.fn() } : null;
@@ -271,6 +272,23 @@ describe('pageTransition', () => {
 			expect(pageTransition.active).toBe(true);
 			expect(pageTransition.incomingId).toBe('layer-6');
 			abortTransition();
+		});
+
+		it('incomingReady растягивает входящий экран до низа окна на время анимации и сбрасывает min-height после', async () => {
+			const outgoing = makeScreen(true, true);
+			const incoming = makeScreen(true, true);
+
+			startTransition('__feed__', 'layer-7', outgoing);
+			const readyPromise = incomingReady('layer-7', incoming);
+
+			expect(incoming.style.minHeight).toBe('844px');
+
+			outgoing.resolveAnims();
+			incoming.resolveAnims();
+			await readyPromise;
+
+			expect(incoming.style.removeProperty).toHaveBeenCalledWith('min-height');
+			expect(incoming.style.minHeight).toBeUndefined();
 		});
 	});
 });
