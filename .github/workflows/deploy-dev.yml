@@ -4,10 +4,11 @@ on:
   push:
     branches:
       - dev
+      - experimental
   workflow_dispatch:
 
 concurrency:
-  group: "pages-dev"
+  group: "pages-${{ github.ref }}"
   cancel-in-progress: true
 
 jobs:
