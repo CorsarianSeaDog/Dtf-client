@@ -5,6 +5,7 @@
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import ProfileSearch from './ProfileSearch.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
+	import { pinnedSubsites, pinSubsite, unpinSubsite } from '$lib/storage/pinnedSubsites.svelte';
 	import { resolve } from '$app/paths';
 	import { getProfilePath, isNewTabClick, openLightbox, openOverlay, openProfile, preloadLightbox } from '$lib/navigation';
 	import { authorMenuItems, isPostHidden, runAuthorAction, subscriptions } from './actions.svelte';
@@ -72,9 +73,25 @@
 	let wasNotified = $derived(!!currentUser.value && !!profile.isSubscribedToNewPosts);
 	let subscribed = $derived(subscriptions.isSubscribed(profile.id, wasSubscribed));
 	let notified = $derived(subscriptions.isNotified(profile.id, wasNotified));
-	// Меню «⋯» чужого профиля: скрыть у себя и заблокировать (флаг, как и подписка, верен только после входа)
+	// Меню «⋯» чужого профиля: закрепление, скрыть у себя и заблокировать (флаг, как и подписка, верен только после входа)
 	let menuOpen = $state(false);
 	let blocked = $derived(!!currentUser.value && !!profile.isMuted);
+	let pinned = $derived(pinnedSubsites.value.items.some((item) => item.id === profile.id));
+	let profileMenuItems = $derived([
+		{ value: 'toggle_pin' as const, label: pinned ? 'Открепить' : 'Закрепить', icon: pinned ? 'ui_pin' : 'ui_pin_stroked' },
+		...authorMenuItems(profile, { noun: '', blocked })
+	]);
+
+	function togglePin() {
+		if (pinned) {
+			unpinSubsite(profile.id);
+			notify.success('Откреплено от бокового меню');
+		} else if (pinSubsite(profile)) {
+			notify.success('Закреплено в боковом меню');
+		} else {
+			notify.error('Открепите подсайт в настройках, чтобы добавить другой.');
+		}
+	}
 
 	/** Настройки аккаунта открываются окном re:DTF; Ctrl/Cmd-клик по ссылке открывает отдельную страницу настроек */
 	function openAccountSettings(e?: MouseEvent) {
@@ -422,8 +439,8 @@
 				{/if}
 				<Popover
 					bind:open={menuOpen}
-					items={authorMenuItems(profile, { noun: '', blocked: blocked })}
-					onselect={(action) => runAuthorAction(action, profile)}
+					items={profileMenuItems}
+					onselect={(action) => action === 'toggle_pin' ? togglePin() : runAuthorAction(action, profile)}
 					width="max-content"
 					label="Действия с профилем"
 				>

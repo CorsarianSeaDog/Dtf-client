@@ -20,11 +20,12 @@ export const pinnedSubsites = persistedState('redtf:settings:pinned-subsites', {
 	items: STANDARD_SUBSITES
 });
 
-export function pinSubsite({ id, name, avatarUrl }: PinnedSubsite) {
+export function pinSubsite({ id, name, avatarUrl }: PinnedSubsite): boolean {
 	const { items } = pinnedSubsites.value;
-	if (items.length >= PINNED_SUBSITES_LIMIT || items.some((item) => item.id === id)) return;
+	if (items.length >= PINNED_SUBSITES_LIMIT || items.some((item) => item.id === id)) return false;
 	const subsite = STANDARD_SUBSITES.find((item) => item.id === id) ?? { id, name, avatarUrl };
 	pinnedSubsites.patch({ items: [...items, subsite] });
+	return true;
 }
 
 export function unpinSubsite(id: number) {
