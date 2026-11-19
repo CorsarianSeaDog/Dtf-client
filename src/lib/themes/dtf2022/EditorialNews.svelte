@@ -1,28 +1,41 @@
 <script lang="ts">
+	import { SvelteSet } from 'svelte/reactivity';
 	import { resolve } from '$app/paths';
 	import { editorialNews } from '$lib/editorialNews.svelte';
 	import { getPostPath, openPost } from '$lib/navigation';
+	import { filterNewsItems } from '$lib/storage/filter.svelte';
 	import { clickOnKey } from './a11y';
+	import { isPostHidden } from './actions.svelte';
 	import { formatNumber } from './format';
 	import Preloader from './ui/Preloader.svelte';
+
+	const revealed = new SvelteSet<string>();
+	const rows = $derived(filterNewsItems(editorialNews.items, { revealed, isHidden: isPostHidden }));
 </script>
 
-{#if editorialNews.items.length > 0}
+{#if rows.length > 0}
 	<section class="news-widget" class:news-widget--loading={editorialNews.loading} aria-label="Новости">
-		{#each editorialNews.items as item (item.sourceId + '_' + item.id)}
-			{@const href = resolve(getPostPath(item) as any)}
-			{@const commentsHref = resolve(getPostPath(item, 'comments') as any)}
-			<div class="news-item">
-				<a {href} class="news-item__title" onclick={(e) => openPost(e, item)}>{item.title}</a>
-				{#if !item.commentsDisabled}
-					<a href={commentsHref} class="comments-counter" aria-label="Комментарии: {item.commentsCount}" onclick={(e) => openPost(e, item, { toComments: true })}>
-						<span class="comments-counter__icon">
-							<svg class="icon" width="16" height="16" aria-hidden="true">
-								<use href="#v_comments"></use>
-							</svg>
-						</span>
-						<span class="comments-counter__number">{formatNumber(item.commentsCount)}</span>
-					</a>
+		{#each rows as { item, key, match } (key)}
+			<div class={['news-item', { 'news-item--filtered': !!match }]}>
+				{#if match}
+					<span class="news-item__filtered-text">
+						{match.kind === 'user' ? 'Новость скрыта: вы скрыли автора' : `Новость скрыта фильтром (${match.rule})`}
+					</span>
+					<button type="button" class="news-item__reveal" onclick={() => revealed.add(key)}>Показать</button>
+				{:else}
+					{@const href = resolve(getPostPath(item) as any)}
+					{@const commentsHref = resolve(getPostPath(item, 'comments') as any)}
+					<a {href} class="news-item__title" onclick={(e) => openPost(e, item)}>{item.title}</a>
+					{#if !item.commentsDisabled}
+						<a href={commentsHref} class="comments-counter" aria-label="Комментарии: {item.commentsCount}" onclick={(e) => openPost(e, item, { toComments: true })}>
+							<span class="comments-counter__icon">
+								<svg class="icon" width="16" height="16" aria-hidden="true">
+									<use href="#v_comments"></use>
+								</svg>
+							</span>
+							<span class="comments-counter__number">{formatNumber(item.commentsCount)}</span>
+						</a>
+					{/if}
 				{/if}
 			</div>
 		{/each}
@@ -59,6 +72,32 @@
 
 	.news-item {
 		position: relative;
+	}
+
+	.news-item--filtered {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	.news-item__filtered-text {
+		min-width: 0;
+		color: var(--text-muted);
+		font-size: 14px;
+		line-height: 22px;
+	}
+
+	.news-item__reveal {
+		flex-shrink: 0;
+		padding: 0;
+		border: none;
+		background: none;
+		color: var(--color-blue);
+		font-size: 14px;
+		font-weight: 500;
+		line-height: 22px;
+		cursor: pointer;
 	}
 
 	.news-item__title {

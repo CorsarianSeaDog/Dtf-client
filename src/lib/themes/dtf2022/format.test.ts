@@ -145,7 +145,7 @@ describe('flattenComments', () => {
 	it('в жёстком режиме вырезает комментарии без ответов и сохраняет структуру веток', () => {
 		const hidden = (id: number, children: CommentTreeItem[] = []) => ({ ...node(id, children), content: 'Стоп-слово' });
 		const tree = [hidden(1), node(2, [hidden(3, [node(4), hidden(5)]), node(6)])];
-		const settings = { tags: [], keywords: ['стоп-слово'], users: [], filterPosts: true, filterComments: true };
+		const settings = { tags: [], keywords: ['стоп-слово'], users: [], filterPosts: true, filterNews: true, filterComments: true };
 
 		const rows = flattenComments(tree, 2, { ...settings, mode: 'hard' });
 		expect(rows.map((row) => [row.comment.id, row.level, row.parent?.id, row.owners])).toEqual([

@@ -278,6 +278,17 @@
 		/>
 	</SettingsRow>
 	<SettingsRow
+		title="Фильтровать новости"
+		subtitle="Скрывать редакторские новости в ленте по тегам и фразам"
+		tag="label"
+	>
+		<SettingsSwitch
+			checked={filterSettings.value.filterNews}
+			label="Фильтровать новости"
+			onchange={(filterNews) => filterSettings.patch({ filterNews })}
+		/>
+	</SettingsRow>
+	<SettingsRow
 		title="Фильтровать комментарии"
 		subtitle="Скрывать комментарии под постами по тегам и фразам"
 		tag="label"

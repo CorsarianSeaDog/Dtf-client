@@ -23,12 +23,14 @@ import {
 	addIgnoredKeyword,
 	addIgnoredKeywords,
 	addIgnoredTag,
+	filterNewsItems,
 	filterSettings,
 	hideUser,
 	isKeywordPresetActive,
 	isNotificationHidden,
 	KEYWORD_PRESETS,
 	matchCommentFilter,
+	matchNewsFilter,
 	matchPostFilter,
 	normalizeTag,
 	removeIgnoredKeyword,
@@ -47,6 +49,7 @@ describe('filter storage', () => {
 			users: [],
 			mode: 'soft',
 			filterPosts: true,
+			filterNews: true,
 			filterComments: true
 		});
 	});
@@ -231,5 +234,65 @@ describe('filter storage', () => {
 
 		unhideUser(10);
 		expect(matchPostFilter(post)).toBeNull();
+	});
+
+	it('фильтрует редакторские новости по флагу filterNews, режиму скрытия и раскрытым строкам', () => {
+		addIgnoredKeyword('спойлер');
+		hideUser(10, 'Editor');
+
+		const news1: Post = {
+			id: 1,
+			sourceId: 'dtf',
+			title: 'Новость со спойлером',
+			blocks: [],
+			author: { id: 11, name: 'Other' },
+			commentsCount: 0,
+			createdAt: '',
+			isEditorial: true
+		};
+		const news2: Post = {
+			id: 2,
+			sourceId: 'dtf',
+			title: 'Новость скрытого редактора',
+			blocks: [],
+			author: { id: 10, name: 'Editor' },
+			commentsCount: 0,
+			createdAt: '',
+			isEditorial: true
+		};
+		const news3: Post = {
+			id: 3,
+			sourceId: 'dtf',
+			title: 'Обычная новость',
+			blocks: [],
+			author: { id: 11, name: 'Other' },
+			commentsCount: 0,
+			createdAt: '',
+			isEditorial: true
+		};
+
+		// filterPosts не влияет на filterNews
+		filterSettings.patch({ filterPosts: false, filterNews: true });
+		expect(matchNewsFilter(news1)).toEqual({ matched: true, kind: 'keyword', rule: 'спойлер' });
+		expect(matchNewsFilter(news2)).toEqual({ matched: true, kind: 'user', rule: 'Editor' });
+		expect(matchNewsFilter(news3)).toBeNull();
+
+		// В мягком режиме возвращает плашку до раскрытия и скрывает вручную убранный пост
+		const revealed = new Set(['dtf_1']);
+		expect(filterNewsItems([news1, news2, news3], { revealed, isHidden: (p) => p.id === 3 })).toEqual([
+			{ item: news1, key: 'dtf_1', match: null },
+			{ item: news2, key: 'dtf_2', match: { matched: true, kind: 'user', rule: 'Editor' } }
+		]);
+
+		// В жёстком режиме вырезает совпавшие новости целиком
+		filterSettings.patch({ mode: 'hard' });
+		expect(filterNewsItems([news1, news2, news3])).toEqual([
+			{ item: news3, key: 'dtf_3', match: null }
+		]);
+
+		// Выключенная опция filterNews пропускает все новости
+		filterSettings.patch({ filterNews: false });
+		expect(matchNewsFilter(news1)).toBeNull();
+		expect(filterNewsItems([news1, news2, news3]).map((r) => r.item.id)).toEqual([1, 2, 3]);
 	});
 });

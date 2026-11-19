@@ -222,6 +222,15 @@ const CUSTOM_SEARCH_ITEMS: SettingsSearchItem[] = [
 		anchorText: 'Фильтровать посты'
 	},
 	{
+		id: 'ignored:news',
+		pageId: 'ignored',
+		icon: 'ignored',
+		path: 'Контент › Чёрный список',
+		title: 'Фильтровать новости',
+		subtitle: 'Скрывать редакторские новости в ленте по тегам и фразам',
+		anchorText: 'Фильтровать новости'
+	},
+	{
 		id: 'ignored:comments',
 		pageId: 'ignored',
 		icon: 'ignored',

@@ -26,6 +26,8 @@ export interface FilterSettings {
 	mode: FilterMode;
 	/** Фильтровать посты */
 	filterPosts: boolean;
+	/** Фильтровать редакторские новости */
+	filterNews: boolean;
 	/** Фильтровать комментарии */
 	filterComments: boolean;
 }
@@ -71,6 +73,7 @@ export const filterSettings = persistedState<FilterSettings>('redtf:settings:fil
 	users: [],
 	mode: 'soft',
 	filterPosts: true,
+	filterNews: true,
 	filterComments: true
 });
 
@@ -192,12 +195,7 @@ export function getPostSearchText(post: Post): string {
 	return parts.join(' ');
 }
 
-/** Проверяет, попадает ли пост под фильтр по тегам или ключевым словам */
-export function matchPostFilter(
-	post: Post,
-	settings: FilterSettings = filterSettings.value
-): FilterMatch | null {
-	if (!settings.filterPosts) return null;
+function matchEntryFilter(post: Post, settings: FilterSettings): FilterMatch | null {
 	const { tags, keywords, users } = settings;
 	if (tags.length === 0 && keywords.length === 0 && users.length === 0) return null;
 
@@ -231,6 +229,50 @@ export function matchPostFilter(
 	}
 
 	return null;
+}
+
+/** Проверяет, попадает ли пост под фильтр по тегам или ключевым словам */
+export function matchPostFilter(
+	post: Post,
+	settings: FilterSettings = filterSettings.value
+): FilterMatch | null {
+	return settings.filterPosts ? matchEntryFilter(post, settings) : null;
+}
+
+/** Проверяет, попадает ли редакторская новость под фильтр по тегам, ключевым словам или авторам */
+export function matchNewsFilter(
+	post: Post,
+	settings: FilterSettings = filterSettings.value
+): FilterMatch | null {
+	return settings.filterNews ? matchEntryFilter(post, settings) : null;
+}
+
+export interface FilteredNewsRow {
+	item: Post;
+	key: string;
+	match: FilterMatch | null;
+}
+
+/** Отбирает новости редакции для показа с учётом фильтра, режима скрытия и раскрытых вручную строк */
+export function filterNewsItems(
+	items: Post[],
+	options: {
+		revealed?: ReadonlySet<string>;
+		isHidden?: (post: Post) => boolean;
+		settings?: FilterSettings;
+	} = {}
+): FilteredNewsRow[] {
+	const settings = options.settings ?? filterSettings.value;
+	const hard = settings.mode === 'hard';
+	const rows: FilteredNewsRow[] = [];
+	for (const item of items) {
+		if (options.isHidden?.(item)) continue;
+		const key = `${item.sourceId}_${item.id}`;
+		const match = options.revealed?.has(key) ? null : matchNewsFilter(item, settings);
+		if (match && hard) continue;
+		rows.push({ item, key, match });
+	}
+	return rows;
 }
 
 /** Проверяет, попадает ли комментарий под фильтр по тегам или ключевым словам */
