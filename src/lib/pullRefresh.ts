@@ -139,13 +139,15 @@ export function pullRefresh(options: PullRefreshOptions): Attachment<HTMLElement
 		function onMove(e: TouchEvent) {
 			const t = touch(e);
 			if (!start || !t) return;
+			// Браузер уже ведёт прокрутку. Свой сдвиг поверх неё ускорил бы страницу при развороте пальца.
+			if (!e.cancelable) return finish(false);
 			const dx = t.clientX - start.x;
 			const dy = t.clientY - start.y;
 			if (!pulling) {
 				if (Math.abs(dx) < SLOP && Math.abs(dy) < SLOP) {
 					// Браузер начинает свою пружину раньше нашего порога, и потом её уже не отменить: движение вниз придерживаем сразу.
 					// Свайпу лент это не мешает, он ведётся pointer-событиями
-					if (dy > 0 && e.cancelable) e.preventDefault();
+					if (dy > 0) e.preventDefault();
 					return;
 				}
 				// Вверх — прокрутка, вбок — свайп лент: жест не наш
@@ -155,7 +157,7 @@ export function pullRefresh(options: PullRefreshOptions): Attachment<HTMLElement
 				// Страница трогается с места захвата, а не прыгает на величину порога; посреди доезда — с того места, где она сейчас
 				start.y = t.clientY - unresist(from);
 			}
-			if (e.cancelable) e.preventDefault();
+			e.preventDefault();
 			y = resist(t.clientY - start.y);
 			armed = tension.move(y, THRESHOLD);
 			frame ||= requestAnimationFrame(render);
@@ -172,7 +174,8 @@ export function pullRefresh(options: PullRefreshOptions): Attachment<HTMLElement
 			finish(e.type === 'touchend' && armed);
 		}
 
-		window.addEventListener('touchstart', onStart, { passive: true });
+		// Браузер должен дождаться установки отменяемого touchmove на элемент под пальцем.
+		window.addEventListener('touchstart', onStart, { passive: false });
 		return () => {
 			finish(false);
 			window.removeEventListener('touchstart', onStart);
