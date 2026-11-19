@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { api } from '$lib/api/index.svelte';
 	import { appendUnique } from '$lib/api/utils';
+	import { SEARCH_DEBOUNCE, SEARCH_MIN_LENGTH, searchableQuery } from '$lib/search';
 	import {
 		PINNED_SUBSITES_LIMIT,
 		STANDARD_SUBSITES,
@@ -9,6 +11,7 @@
 		unpinSubsite,
 		type PinnedSubsite
 	} from '$lib/storage/pinnedSubsites.svelte';
+	import { normalizeSearchText } from './settingsSearch';
 	import SettingsButton from './SettingsButton.svelte';
 	import SettingsGroup from './SettingsGroup.svelte';
 	import SettingsRow from './SettingsRow.svelte';
@@ -24,28 +27,78 @@
 	];
 	let query = $state('');
 	let scope = $state<SearchScope>('topics');
-	let search = $state.raw<SearchState | null>(null);
+	let topics = $state.raw<SearchState | null>(null);
+	let blogs = $state.raw<SearchState | null>(null);
+	let lastBlogQuery = '';
+	let blogTimer: ReturnType<typeof setTimeout> | undefined;
+	let needle = $derived(normalizeSearchText(query));
+	let search = $derived(scope === 'topics' ? (needle || topics?.status === 'error' ? topics : null) : blogs);
 	let items = $derived(pinnedSubsites.value.items);
 	let atLimit = $derived(items.length >= PINNED_SUBSITES_LIMIT);
 	let pinnedIds = $derived(new Set(items.map((item) => item.id)));
 	let available = $derived(STANDARD_SUBSITES.filter((item) => !pinnedIds.has(item.id)));
-	let results = $derived(search?.status === 'done' ? search.items.filter((item) => !pinnedIds.has(item.id)) : []);
+	let matches = $derived(search?.status === 'done'
+		? search.items.filter((item) => scope === 'blogs' || normalizeSearchText(item.name).includes(needle))
+		: []);
+	let results = $derived(matches.filter((item) => !pinnedIds.has(item.id)));
 
-	async function submitSearch(event: SubmitEvent) {
-		event.preventDefault();
-		const text = query.trim();
-		if (!text || search?.status === 'loading') return;
+	onDestroy(() => clearTimeout(blogTimer));
+
+	async function loadTopics(force = false) {
+		if (!force && (topics?.status === 'loading' || topics?.status === 'done')) return;
+		topics = { status: 'loading' };
+		try {
+			const items = await api.getTopics();
+			topics = { status: 'done', items: appendUnique([], items, (item) => item.id) };
+		} catch (error) {
+			topics = { status: 'error', message: error instanceof Error ? error.message : 'Не удалось загрузить темы DTF.' };
+		}
+	}
+
+	function scheduleBlogSearch(force = false) {
+		clearTimeout(blogTimer);
+		const text = searchableQuery(query);
+		if (scope !== 'blogs' || !text) {
+			lastBlogQuery = '';
+			blogs = null;
+			return;
+		}
+		if (!force && text === lastBlogQuery && blogs && blogs.status !== 'error') return;
+		lastBlogQuery = text;
 
 		const pending = { status: 'loading' } as const;
-		search = pending;
-		try {
-			const { items } = await api.searchSubsites(text, scope === 'topics');
-			if (search === pending) search = { status: 'done', items: appendUnique([], items, (item) => item.id) };
-		} catch (error) {
-			if (search === pending) {
-				search = { status: 'error', message: error instanceof Error ? error.message : 'Не удалось выполнить поиск.' };
+		blogs = pending;
+		const run = async () => {
+			try {
+				const { items } = await api.searchSubsites(text, false);
+				if (blogs === pending) blogs = { status: 'done', items: appendUnique([], items, (item) => item.id) };
+			} catch (error) {
+				if (blogs === pending) blogs = { status: 'error', message: error instanceof Error ? error.message : 'Не удалось выполнить поиск.' };
+			}
+		};
+		if (force) void run();
+		else blogTimer = setTimeout(run, SEARCH_DEBOUNCE);
+	}
+
+	function syncSearch() {
+		if (scope === 'topics') {
+			if (query.trim()) void loadTopics();
+		} else {
+			scheduleBlogSearch();
+		}
+	}
+
+	function setScope(value: SearchScope) {
+		if (scope === value) return;
+		if (scope === 'blogs') {
+			clearTimeout(blogTimer);
+			if (blogs?.status === 'loading') {
+				lastBlogQuery = '';
+				blogs = null;
 			}
 		}
+		scope = value;
+		syncSearch();
 	}
 </script>
 
@@ -90,34 +143,33 @@
 	</SettingsGroup>
 
 	<SettingsGroup title="Поиск подсайтов DTF">
-		<form onsubmit={submitSearch}>
-			<SettingsSegmented options={scopes} value={scope} label="Где искать" onchange={(value) => {
-				if (scope === value) return;
-				scope = value;
-				search = null;
-			}} />
-			<div class="search-field">
-				<input
-					type="search"
-					aria-label="Название подсайта"
-					placeholder="Название подсайта"
-					bind:value={() => query, (value) => {
-						query = value;
-						search = null;
-					}}
-				/>
-				<SettingsButton type="submit" variant="suggested" disabled={!query.trim() || search?.status === 'loading'}>Найти</SettingsButton>
-			</div>
-		</form>
-		{#if search?.status === 'loading'}
-			<p class="message" role="status">Ищем…</p>
+		<div class="search-field">
+			<SettingsSegmented options={scopes} value={scope} label="Где искать" onchange={setScope} />
+			<input
+				type="search"
+				aria-label="Название подсайта"
+				placeholder="Название подсайта"
+				onfocus={() => { if (scope === 'topics') void loadTopics(); }}
+				bind:value={() => query, (value) => {
+					query = value;
+					syncSearch();
+				}}
+			/>
+		</div>
+		{#if scope === 'blogs' && query.trim() && !searchableQuery(query)}
+			<p class="message" role="status">Введите минимум {SEARCH_MIN_LENGTH} символа</p>
+		{:else if search?.status === 'loading'}
+			<p class="message" role="status">{scope === 'topics' ? 'Загружаем темы…' : 'Ищем…'}</p>
 		{:else if search?.status === 'error'}
 			<p class="message" role="alert">{search.message}</p>
+			<SettingsRow title={scope === 'topics' ? 'Каталог тем' : 'Поиск блогов'}>
+				<SettingsButton onclick={() => scope === 'topics' ? void loadTopics(true) : scheduleBlogSearch(true)}>Повторить</SettingsButton>
+			</SettingsRow>
 		{:else if search?.status === 'done'}
 			{#each results as item (item.id)}
 				{@render subsiteRow(item)}
 			{:else}
-				<p class="message" role="status">{search.items.length ? 'Все найденные подсайты уже закреплены.' : 'Ничего не найдено.'}</p>
+				<p class="message" role="status">{matches.length ? 'Все найденные подсайты уже закреплены.' : 'Ничего не найдено.'}</p>
 			{/each}
 		{/if}
 	</SettingsGroup>
@@ -138,25 +190,16 @@
 		background: var(--st-track);
 	}
 
-	form,
 	.search-field {
 		display: flex;
 		align-items: center;
 		gap: 8px;
-	}
-
-	form {
 		flex-wrap: wrap;
 		padding: 12px 20px;
 	}
 
-	.search-field {
-		flex: 1 1 240px;
-		min-width: 0;
-	}
-
 	input {
-		flex: 1;
+		flex: 1 1 240px;
 		min-width: 0;
 		min-height: 38px;
 		padding: 0 12px;
