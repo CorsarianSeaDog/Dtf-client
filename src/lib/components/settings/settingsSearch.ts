@@ -180,32 +180,32 @@ const CUSTOM_SEARCH_ITEMS: SettingsSearchItem[] = [
 		anchorText: 'Забыть прочитанное'
 	},
 
-	// Чёрный список
+	// Фильтрация
 	{
-		id: 'ignored:tags',
-		pageId: 'ignored',
-		icon: 'ignored',
-		path: 'Контент › Чёрный список',
+		id: 'filters:tags',
+		pageId: 'filters',
+		icon: 'filters',
+		path: 'Контент › Фильтрация',
 		title: 'Скрытые теги',
 		subtitle: 'Скрытие контента в приложении по тегам',
-		keywords: 'чс бан мут игнор теги скрыть',
+		keywords: 'теги хэштеги скрыть фильтр',
 		anchorText: 'Скрытые теги'
 	},
 	{
-		id: 'ignored:keywords',
-		pageId: 'ignored',
-		icon: 'ignored',
-		path: 'Контент › Чёрный список',
+		id: 'filters:keywords',
+		pageId: 'filters',
+		icon: 'filters',
+		path: 'Контент › Фильтрация',
 		title: 'Скрытые ключевые слова и фразы',
 		subtitle: 'Фильтр по словам и готовые пресеты ключевых слов',
 		keywords: 'стоп-слова фразы пресеты спойлеры политота',
 		anchorText: 'Скрытые ключевые слова и фразы'
 	},
 	{
-		id: 'ignored:mode',
-		pageId: 'ignored',
-		icon: 'ignored',
-		path: 'Контент › Чёрный список',
+		id: 'filters:mode',
+		pageId: 'filters',
+		icon: 'filters',
+		path: 'Контент › Фильтрация',
 		title: 'Режим скрытия',
 		subtitle: 'Мягкий (плашка с кнопкой «Показать») или жёсткий',
 		options: ['Мягкий', 'Жёсткий'],
@@ -213,32 +213,34 @@ const CUSTOM_SEARCH_ITEMS: SettingsSearchItem[] = [
 		anchorText: 'Режим скрытия'
 	},
 	{
-		id: 'ignored:posts',
-		pageId: 'ignored',
-		icon: 'ignored',
-		path: 'Контент › Чёрный список',
+		id: 'filters:posts',
+		pageId: 'filters',
+		icon: 'filters',
+		path: 'Контент › Фильтрация',
 		title: 'Фильтровать посты',
 		subtitle: 'Скрывать посты в ленте по тегам и фразам',
 		anchorText: 'Фильтровать посты'
 	},
 	{
-		id: 'ignored:news',
-		pageId: 'ignored',
-		icon: 'ignored',
-		path: 'Контент › Чёрный список',
+		id: 'filters:news',
+		pageId: 'filters',
+		icon: 'filters',
+		path: 'Контент › Фильтрация',
 		title: 'Фильтровать новости',
 		subtitle: 'Скрывать редакторские новости в ленте по тегам и фразам',
 		anchorText: 'Фильтровать новости'
 	},
 	{
-		id: 'ignored:comments',
-		pageId: 'ignored',
-		icon: 'ignored',
-		path: 'Контент › Чёрный список',
+		id: 'filters:comments',
+		pageId: 'filters',
+		icon: 'filters',
+		path: 'Контент › Фильтрация',
 		title: 'Фильтровать комментарии',
 		subtitle: 'Скрывать комментарии под постами по тегам и фразам',
 		anchorText: 'Фильтровать комментарии'
 	},
+
+	// Чёрный список
 	{
 		id: 'ignored:users',
 		pageId: 'ignored',

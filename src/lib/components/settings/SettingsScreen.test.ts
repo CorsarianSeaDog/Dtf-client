@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { render } from 'svelte/server';
 import SettingsScreen from './SettingsScreen.svelte';
+import FilterSettings from './FilterSettings.svelte';
+import IgnoredSettings from './IgnoredSettings.svelte';
 import SupportersSettings from './SupportersSettings.svelte';
 import DebugSettings from './DebugSettings.svelte';
 import { authStorage } from '$lib/storage/auth.svelte';
@@ -29,6 +31,7 @@ describe('SettingsScreen', () => {
 		// Пункты меню первого уровня
 		expect(body).toContain('Мой профиль');
 		expect(body).toContain('Уведомления');
+		expect(body).toContain('Фильтрация');
 		expect(body).toContain('Чёрный список');
 		expect(body).toContain('Моя лента');
 		expect(body).toContain('Выбор темы');
@@ -343,7 +346,28 @@ describe('SettingsScreen', () => {
 		expect(body).toContain('Медиа в посте');
 		expect(body).toContain('Рекомендации под постом');
 		expect(body).toContain('Фильтрация контента');
-		expect(body).toContain('Чёрный список и стоп-слова');
+		expect(body).toContain('Фильтрация и стоп-слова');
+	});
+
+	it('разделяет страницы «Фильтрация» и «Чёрный список»', () => {
+		const filtersScreen = render(SettingsScreen, {
+			props: { onclose: () => {}, page: 'filters' }
+		}).body;
+		expect(filtersScreen).toContain('nav__item--active');
+
+		const filtersBody = render(FilterSettings).body;
+		expect(filtersBody).toContain('Скрытые теги');
+		expect(filtersBody).toContain('Скрытые ключевые слова и фразы');
+		expect(filtersBody).toContain('Режим скрытия');
+		expect(filtersBody).toContain('Фильтровать новости');
+		expect(filtersBody).not.toContain('Скрытые пользователи');
+		expect(filtersBody).not.toContain('Чёрный список на DTF');
+
+		const ignoredBody = render(IgnoredSettings).body;
+		expect(ignoredBody).toContain('Скрытые пользователи');
+		expect(ignoredBody).toContain('Чёрный список на DTF');
+		expect(ignoredBody).not.toContain('Скрытые теги');
+		expect(ignoredBody).not.toContain('Режим скрытия');
 	});
 
 	it('рендерит раздел Моя лента с рейтингом и заглушкой входа без сессии', () => {

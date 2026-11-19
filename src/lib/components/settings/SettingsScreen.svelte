@@ -558,6 +558,10 @@
 							<AccountSettings />
 						{:else if selectedPageId === 'notifications'}
 							<NotificationSettings />
+						{:else if selectedPageId === 'filters'}
+							{#await import('./FilterSettings.svelte') then { default: Page }}
+								<Page />
+							{/await}
 						{:else if selectedPageId === 'ignored'}
 							{#await import('./IgnoredSettings.svelte') then { default: Page }}
 								<Page />

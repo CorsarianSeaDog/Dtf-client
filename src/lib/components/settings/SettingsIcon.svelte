@@ -13,6 +13,8 @@
 	{:else if name === 'notifications' || name === 'dtf'}
 		<path d="M4 11V7a4 4 0 018 0v4l1 1.5H3z" />
 		<path d="M6.5 14.5h3" />
+	{:else if name === 'filters'}
+		<path d="M2.5 3.5h11l-4 5v4l-3 1.5V8.5z" />
 	{:else if name === 'ignored'}
 		<circle cx="8" cy="8" r="5.5" />
 		<path d="M4.1 11.9l7.8-7.8" />

@@ -95,6 +95,9 @@ describe('settingsSearch', () => {
 		const blackList = searchSettings(index, 'черный');
 		expect(blackList.some((m) => m.item.pageId === 'ignored')).toBe(true);
 
+		const filterHits = searchSettings(index, 'стоп-слова');
+		expect(filterHits.some((m) => m.item.pageId === 'filters')).toBe(true);
+
 		const multiWord = searchSettings(index, 'рейтинг комментарии');
 		expect(multiWord[0]?.item.id).toBe('feed:rank');
 	});

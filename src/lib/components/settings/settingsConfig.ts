@@ -86,6 +86,7 @@ const BASE_ROOT_NAVIGATION: RootNavSection[] = [
 		title: 'Контент',
 		items: [
 			{ id: 'feed', type: 'page', title: 'Моя лента', icon: 'feed' },
+			{ id: 'filters', type: 'page', title: 'Фильтрация', icon: 'filters' },
 			{ id: 'ignored', type: 'page', title: 'Чёрный список', icon: 'ignored' },
 			{ id: 'sources', type: 'page', title: 'Источники данных', icon: 'sources' }
 		]
@@ -133,6 +134,8 @@ export const INTERFACE_SUBNAV: SubNavGroup[] = [
 ];
 
 const PAGE_KEYWORDS: Record<string, string> = {
+	filters: 'теги ключевые слова стоп-слова пресеты скрытие мягкий жёсткий фильтр посты новости комментарии',
+	ignored: 'чс бан мут игнор скрытые пользователи авторы подсайты темы',
 	notifications: 'оповещения ответы комментарии лайки почта push',
 	pinned: 'подсайты показывать боковое меню панель сообщества блоги избранные',
 	'theme-select': 'оформление внешний вид скин палитра светлая тёмная amoled',
@@ -175,6 +178,9 @@ const PAGE_ALIASES: Record<string, { folderId: string | null; pageId: string; se
 	feed: { folderId: null, pageId: 'feed' },
 	'my-feed': { folderId: null, pageId: 'feed' },
 	'behavior-feed': { folderId: null, pageId: 'feed' },
+	filter: { folderId: null, pageId: 'filters' },
+	filtering: { folderId: null, pageId: 'filters' },
+	blacklist: { folderId: null, pageId: 'ignored' },
 	dtf: { folderId: null, pageId: 'notifications' },
 	legal: { folderId: null, pageId: 'about', section: 'documents' },
 	documents: { folderId: null, pageId: 'about', section: 'documents' },
@@ -600,10 +606,10 @@ export function buildDeclarativePages(
 			],
 			soloLink: {
 				groupTitle: 'Фильтрация контента',
-				title: 'Чёрный список и стоп-слова',
-				subtitle: 'Скрытие постов по тегам (#политика, #аниме), ключевым словам, а также авторов и сообществ DTF',
+				title: 'Фильтрация и стоп-слова',
+				subtitle: 'Скрытие постов, новостей и комментариев по тегам (#политика, #аниме) и ключевым словам',
 				buttonLabel: 'Настроить',
-				targetPageId: 'ignored',
+				targetPageId: 'filters',
 				targetFolderId: null,
 				backTarget: { folderId: 'interface', pageId: 'interface-content', title: 'Лента и контент' }
 			}
