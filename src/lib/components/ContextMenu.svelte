@@ -1,18 +1,17 @@
 <script lang="ts">
-	import { fade } from 'svelte/transition';
 	import {
 		clampMenuPosition,
 		contextMenuState,
 		type ContextMenuItem,
 		type ContextMenuState
 	} from '$lib/contextMenu.svelte';
-	import { reducedMotion } from '$lib/motion';
+	import { backdropShow, modalShow, modalHide } from '$lib/components/overlays/modalMotion';
 	import { appear, disappear } from '$lib/themes/appear';
+	import { sheetSwipe } from '$lib/swipe';
+	import { activeTheme } from '$lib/themes/index.svelte';
 
 	const hasPopover = typeof HTMLElement !== 'undefined' && Object.hasOwn(HTMLElement.prototype, 'popover');
 	const canHover = typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia('(hover: hover)') : null;
-
-	const ms = (n: number) => (reducedMotion() ? 0 : n);
 
 	let active = $derived(contextMenuState.current);
 	let hasIcons = $derived(active?.items.some((item) => Boolean(item.icon)) ?? false);
@@ -133,27 +132,41 @@
 	function mountSheet(state: ContextMenuState) {
 		return (dialogEl: HTMLDialogElement) => {
 			dialogEl.showModal();
+			backdropShow(dialogEl);
+			modalShow(dialogEl);
 
 			const onKeyDown = (e: KeyboardEvent) => {
+				if (contextMenuState.current?.id !== state.id) return;
 				if (e.key === 'Escape') {
 					e.preventDefault();
 					e.stopPropagation();
 					contextMenuState.close(state.id);
 				}
 			};
-			const onPopState = () => contextMenuState.close(state.id);
+			const onPopState = () => {
+				if (contextMenuState.current?.id === state.id) contextMenuState.close(state.id);
+			};
 
 			window.addEventListener('keydown', onKeyDown, true);
 			window.addEventListener('popstate', onPopState);
 			return () => {
 				window.removeEventListener('keydown', onKeyDown, true);
 				window.removeEventListener('popstate', onPopState);
-				dialogEl.close();
+				if (dialogEl.open) dialogEl.close();
 				if (!contextMenuState.current && document.activeElement === document.body) {
 					restoreElementFocus(state.returnFocusTo, false);
 				}
 			};
 		};
+	}
+
+	function sheetHide(dialogEl: HTMLDialogElement, state: ContextMenuState) {
+		// Закрываем top-layer сразу при старте ухода, чтобы снять inert со страницы и вернуть фокус
+		if (dialogEl.open) dialogEl.close();
+		if (!contextMenuState.current && document.activeElement === document.body) {
+			restoreElementFocus(state.returnFocusTo, false);
+		}
+		return modalHide(dialogEl);
 	}
 </script>
 
@@ -220,15 +233,25 @@
 		{:else}
 			<dialog
 				class="context-menu-overlay"
+				data-sheet=""
 				aria-label={state.label}
 				{@attach mountSheet(state)}
 				oncancel={(e) => { e.preventDefault(); contextMenuState.close(state.id); }}
 				onclick={(e) => e.target === e.currentTarget && contextMenuState.close(state.id)}
 				oncontextmenu={(e) => e.preventDefault()}
-				in:fade={{ duration: ms(150) }}
-				out:fade={{ duration: ms(100) }}
+				out:sheetHide|global={state}
 			>
-				<div class="context-menu-sheet">
+				<div
+					class={['context-menu-sheet', { 'context-menu-sheet--handle': activeTheme.gestures }]}
+					{@attach sheetSwipe({
+						enabled: () => Boolean(activeTheme.gestures),
+						handleSelector: '.context-menu-sheet__handle, .context-menu-sheet__header',
+						onclose: () => contextMenuState.close(state.id)
+					})}
+				>
+					{#if activeTheme.gestures}
+						<div class="context-menu-sheet__handle" data-sheet-handle aria-hidden="true"></div>
+					{/if}
 					{#if state.title}
 						<div class="context-menu-sheet__header">
 							<span class="context-menu-sheet__title">{state.title}</span>
@@ -372,11 +395,50 @@
 		outline: 0;
 	}
 
+	.context-menu-sheet--handle {
+		padding-top: 0;
+	}
+
+	.context-menu-sheet__handle {
+		position: sticky;
+		top: 0;
+		z-index: 1;
+		display: flex;
+		justify-content: center;
+		margin: 0 -16px 4px;
+		padding: 8px 0 6px;
+		background-color: var(--bg-card, #ffffff);
+		touch-action: none;
+		cursor: grab;
+	}
+
+	.context-menu-sheet__handle:active {
+		cursor: grabbing;
+	}
+
+	.context-menu-sheet__handle::after {
+		content: '';
+		width: 36px;
+		height: 4px;
+		border-radius: 999px;
+		background-color: var(--text-placeholder, rgba(128, 128, 128, 0.35));
+	}
+
 	.context-menu-sheet__header {
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		padding: 8px 0 12px;
+	}
+
+	.context-menu-sheet--handle .context-menu-sheet__header {
+		padding-top: 2px;
+		touch-action: none;
+		cursor: grab;
+	}
+
+	.context-menu-sheet--handle .context-menu-sheet__header:active {
+		cursor: grabbing;
 	}
 
 	.context-menu-sheet__title {
