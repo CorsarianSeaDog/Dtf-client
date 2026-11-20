@@ -76,4 +76,19 @@ describe('CommentEditor', () => {
 
 		expect(withText.body).not.toContain('comment-editor-box--empty');
 	});
+
+	it('рендерит прикреплённую GIF как video в формате mp4, а картинку как img', () => {
+		const { body } = render(CommentEditor, {
+			props: {
+				text: '',
+				media: [
+					{ type: 'image', data: { uuid: 'gif-1', width: 200, height: 150, size: 2048, type: 'gif' } },
+					{ type: 'image', data: { uuid: 'img-2', width: 200, height: 150, size: 1024, type: 'jpg' } }
+				]
+			}
+		});
+
+		expect(body).toContain('<video src="https://leonardo.osnova.io/gif-1/-/format/mp4/"');
+		expect(body).toContain('<img src="https://leonardo.osnova.io/img-2/-/preview/160/-/format/webp/"');
+	});
 });

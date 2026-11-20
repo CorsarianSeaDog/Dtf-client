@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import type { Attachment } from 'svelte/attachments';
+	import { fromAction, type Attachment } from 'svelte/attachments';
 	import type { CommentMedia, GifResult, MentionUser, UploadResult } from '$lib/api/types';
 	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
+	import { lazyVideo } from '$lib/actions/lazyVideo';
 	import { api } from '$lib/api/index.svelte';
 	import { authStorage } from '$lib/storage/auth.svelte';
-	import { getLeonardoUrl } from '$lib/api/utils';
+	import { getLeonardoUrl, isAnimatedMedia } from '$lib/api/utils';
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { play } from '$lib/motion';
 	import { smartTypography } from '$lib/smartTypography';
@@ -334,7 +335,7 @@
 						const anim = overlay ? play(overlay, activeTheme.motion?.uploadOut, 'forwards') : undefined;
 						await Promise.all([
 							anim?.finished.catch(() => {}),
-							preloadImage(getLeonardoUrl(uploaded.data.uuid, { width: 160 }), item.controller.signal)
+							!isAnimatedMedia(uploaded) && preloadImage(getLeonardoUrl(uploaded.data.uuid, { width: 160 }), item.controller.signal)
 						]);
 						if (!item.controller.signal.aborted) {
 							media = [...media, uploaded];
@@ -550,7 +551,11 @@
 								style:aspect-ratio={item.data.width && item.data.height ? `${item.data.width} / ${item.data.height}` : undefined}
 								{@attach revealFreshMedia(item.data.uuid)}
 							>
-								<img src={getLeonardoUrl(item.data.uuid, { width: 160 })} alt="" />
+								{#if isAnimatedMedia(item)}
+									<video src={getLeonardoUrl(item.data.uuid, { format: 'mp4' })} muted loop playsinline {@attach fromAction(lazyVideo)}></video>
+								{:else}
+									<img src={getLeonardoUrl(item.data.uuid, { width: 160 })} alt="" />
+								{/if}
 								<button type="button" class="comment-editor-box__media-remove" aria-label="Убрать вложение" onclick={() => (media = media.filter((_, i) => i !== index))}>×</button>
 							</div>
 						{/each}
@@ -862,6 +867,7 @@
 
 	.comment-editor-box__media-item :is(img, video) {
 		display: block;
+		min-width: 100%;
 		height: 100%;
 		border-radius: 6px;
 		object-fit: cover;
