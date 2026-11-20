@@ -2,16 +2,38 @@
 	import { onMount } from 'svelte';
 	import { downloadImage, getLeonardoOriginalUrl, getLeonardoUrl, hasNativeDownload } from '$lib/api/utils';
 	import { haptics } from '$lib/haptics';
+	import { reducedMotion } from '$lib/motion';
 	import { closeOverlay, preloadLightbox, takeLightboxOrigins } from '$lib/navigation';
 	import { sanitizeHtml } from '$lib/sanitize';
+	import {
+		computeFramedZoom,
+		parseTranslateX,
+		readSafeAreaInsets,
+		slideDepthStyle,
+		ZERO_INSETS,
+		type LightboxIcons
+	} from './lightbox';
 
 	type DownloadState = 'idle' | 'loading' | 'done';
 
 	/** Просмотр медиа на весь экран через PhotoSwipe */
 	let {
 		images,
-		index
-	}: Extract<App.OverlayData, { type: 'lightbox' }>['data'] = $props();
+		index,
+		mainClass,
+		bgOpacity = 0.92,
+		framed = false,
+		animateSlides = false,
+		icons
+	}: Extract<App.OverlayData, { type: 'lightbox' }>['data'] & {
+		mainClass?: string;
+		bgOpacity?: number;
+		/** Отступы вокруг медиа в исходном состоянии; при приближении кадр занимает весь экран */
+		framed?: boolean;
+		/** Пружинное перелистывание по стрелкам/клавиатуре и эффект глубины при свайпе и смене кадра */
+		animateSlides?: boolean;
+		icons?: LightboxIcons;
+	} = $props();
 
 	const MAX_WIDTH = 2048;
 
@@ -25,6 +47,7 @@
 		'<path d="M5.5 12.5l4.2 4.2L18.5 7.5"/></svg>';
 
 	let statusText = $state('');
+	let barrierEl: HTMLDivElement | undefined;
 
 	onMount(() => {
 		let origins = takeLightboxOrigins();
@@ -32,8 +55,13 @@
 		let pswp: import('photoswipe').default | undefined;
 		let downloadBtn: HTMLButtonElement | undefined;
 		let announceFrame = 0;
+		let safeArea = ZERO_INSETS;
 
 		const downloads = new Map<string, { state: DownloadState; timer?: ReturnType<typeof setTimeout> }>();
+
+		const refreshSafeArea = () => {
+			safeArea = readSafeAreaInsets(barrierEl);
+		};
 
 		const clearTimers = () => {
 			for (const entry of downloads.values()) clearTimeout(entry.timer);
@@ -90,15 +118,29 @@
 				const [PhotoSwipeModule] = res;
 				const PhotoSwipe = PhotoSwipeModule.default;
 
+				if (framed) refreshSafeArea();
+
+				const downloadSvg = icons?.download ?? DEFAULT_DOWNLOAD_SVG;
+				const checkSvg = icons?.check ?? DEFAULT_CHECK_SVG;
+
 				pswp = new PhotoSwipe({
 					index,
 					// Стандартные 0.8 просвечивают страницу под просмотром
-					bgOpacity: 0.92,
+					bgOpacity,
+					...(mainClass && { mainClass }),
 					closeTitle: 'Закрыть',
 					zoomTitle: 'Увеличить',
 					arrowPrevTitle: 'Предыдущее',
 					arrowNextTitle: 'Следующее',
 					errorMsg: 'Не удалось загрузить изображение',
+					...(icons?.close && { closeSVG: icons.close }),
+					...(icons?.zoom && { zoomSVG: icons.zoom }),
+					...(icons?.arrowPrev && { arrowPrevSVG: icons.arrowPrev }),
+					...(icons?.arrowNext && { arrowNextSVG: icons.arrowNext }),
+					...(framed && {
+						spacing: 0.08,
+						initialZoomLevel: (z) => computeFramedZoom(z.elementSize, z.panAreaSize, z.fit, safeArea)
+					}),
 					dataSource: images.map(({ uuid, width, height, video }, i) => {
 						if (video) return { type: 'video', width, height };
 						// Картинка приходит не шире MAX_WIDTH, поэтому и размер заявляем такой, иначе приближение будет мыльным
@@ -116,6 +158,42 @@
 						};
 					})
 				});
+
+				const applySlideDepth = (scrollX: number) => {
+					if (!pswp) return;
+					const width = pswp.mainScroll.slideWidth;
+					const skip = !width || reducedMotion() || Boolean(pswp.opener?.isClosing);
+					for (const holder of pswp.mainScroll.itemHolders) {
+						// Ставим scale/opacity на сам контент, а не на holder.el:
+						// CSS-свойство scale применяется слева от transform: translate3d(holderX), иначе слайд съезжает на соседа
+						const target = holder.slide?.content?.element;
+						if (!target) continue;
+						if (skip) {
+							target.style.scale = '';
+							target.style.opacity = '';
+							continue;
+						}
+						const holderX = parseTranslateX(holder.el.style.transform);
+						const { scale, opacity } = slideDepthStyle((holderX + scrollX) / width);
+						target.style.scale = scale === 1 ? '' : String(scale);
+						target.style.opacity = opacity === 1 ? '' : String(opacity);
+					}
+				};
+
+				if (animateSlides) {
+					// В PhotoSwipe 5 goTo/next/prev переключают слайд мгновенно; включаем штатную пружину mainScroll
+					pswp.goTo = (targetIndex: number) => {
+						pswp!.mainScroll.moveIndexBy(
+							pswp!.getLoopedIndex(targetIndex) - pswp!.potentialIndex,
+							!reducedMotion()
+						);
+					};
+					pswp.on('moveMainScroll', ({ x }) => applySlideDepth(x));
+					// mainScroll.resize() шлёт moveMainScroll до обновления transform у itemHolders — пересчитываем после ресайза
+					pswp.on('resize', () => pswp && applySlideDepth(pswp.mainScroll.x));
+				}
+
+				if (framed) pswp.on('beforeResize', refreshSafeArea);
 
 				pswp.on('contentLoad', (e) => {
 					if (e.content.type !== 'video') return;
@@ -160,9 +238,9 @@
 						order: 15,
 						isButton: true,
 						html:
-							`<span class="pswp__download-icon pswp__download-icon--idle" aria-hidden="true">${DEFAULT_DOWNLOAD_SVG}</span>` +
+							`<span class="pswp__download-icon pswp__download-icon--idle" aria-hidden="true">${downloadSvg}</span>` +
 							'<span class="pswp__download-icon pswp__download-icon--loading" aria-hidden="true"></span>' +
-							`<span class="pswp__download-icon pswp__download-icon--done" aria-hidden="true">${DEFAULT_CHECK_SVG}</span>`,
+							`<span class="pswp__download-icon pswp__download-icon--done" aria-hidden="true">${checkSvg}</span>`,
 						onInit: (el) => {
 							downloadBtn = el as HTMLButtonElement;
 							updateButtonState();
@@ -202,6 +280,7 @@
 				let lastIndex = index;
 				pswp.on('change', () => {
 					updateButtonState();
+					if (animateSlides && pswp) applySlideDepth(pswp.mainScroll.x);
 					if (pswp && pswp.currIndex !== lastIndex) {
 						lastIndex = pswp.currIndex;
 						haptics.tick();
@@ -238,8 +317,8 @@
 	});
 </script>
 
-<!-- Невидимый барьер, пока PhotoSwipe инициализируется: блокирует повторные клики сквозь оверлей -->
-<div class="pswp-barrier" aria-hidden="true"></div>
+<!-- Невидимый барьер, пока PhotoSwipe инициализируется: блокирует клики сквозь оверлей и отдаёт safe-area в px -->
+<div class="pswp-barrier" aria-hidden="true" bind:this={barrierEl}></div>
 <!-- Скрытая живая область: скринридер озвучивает результат скачивания, визуально достаточно самой кнопки -->
 <div class="pswp-status" role="status" aria-live="polite" aria-atomic="true">{statusText}</div>
 
@@ -339,6 +418,8 @@
 		position: fixed;
 		inset: 0;
 		z-index: 99999;
+		padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+			env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
 		pointer-events: auto;
 	}
 </style>

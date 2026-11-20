@@ -441,7 +441,7 @@
 
 		// Пока пользователь смотрит ленту, догружаем то, что откроется следующим: пост не должен начинаться со спиннера компонента
 		const idle = (window.requestIdleCallback ?? setTimeout)(() => {
-			for (const name of ['Post', 'Comments', 'Profile', 'Notifications', 'AccountPage', 'PagePeek'] as const) preloadThemeComponent(activeTheme.chain, name);
+			for (const name of ['Post', 'Comments', 'Profile', 'Notifications', 'AccountPage', 'PagePeek', 'Lightbox'] as const) preloadThemeComponent(activeTheme.chain, name);
 			preloadLightbox();
 			loadSettings();
 		});
@@ -489,7 +489,9 @@
 	{:else if overlay.type === 'editor'}
 		<EditorOverlay {...overlay.data} />
 	{:else if overlay.type === 'lightbox'}
-		<LightboxOverlay {...overlay.data} />
+		<ThemeLoader componentName="Lightbox" {...overlay.data}>
+			<LightboxOverlay {...overlay.data} />
+		</ThemeLoader>
 	{/if}
 {/snippet}
 
