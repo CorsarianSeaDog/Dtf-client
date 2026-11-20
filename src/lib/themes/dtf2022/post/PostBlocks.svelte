@@ -55,6 +55,7 @@
 
 	const HEADINGS = ['h2', 'h3', 'h4'];
 	const GALLERY_LIMIT = 5;
+	const thumbEls: Record<string, HTMLImageElement | undefined> = {};
 
 	// Галочка липнет к последнему слову, чтобы не оказаться на строке одна (как .content-title__last-word)
 	let titleParts = $derived.by(() => {
@@ -201,10 +202,15 @@
 							style:background-color={image.data.color ? `#${image.data.color}` : undefined}
 							aria-label={more ? `Открыть кадр ${i + 1} из ${items.length}, ещё ${more}` : `Открыть кадр ${i + 1} из ${items.length}`}
 							onpointerenter={preloadLightbox}
-							onclick={() => openLightbox(items.map(({ image, title }: any) => ({ ...image.data, video: isAnimatedMedia(image), caption: title })), i)}
+							onclick={() =>
+								openLightbox(
+									items.map(({ image, title }: any) => ({ ...image.data, video: isAnimatedMedia(image), caption: title })),
+									i,
+									tiles.map(({ image }: any) => thumbEls[image.data.uuid] ?? null)
+								)}
 						>
 							{#if !evictMedia}
-								<img src={getLeonardoUrl(image.data.uuid, { width: 680, format: video ? 'jpg' : undefined })} alt="" loading="lazy" />
+								<img bind:this={thumbEls[image.data.uuid]} src={getLeonardoUrl(image.data.uuid, { width: 680, format: video ? 'jpg' : undefined })} alt="" loading="lazy" />
 							{/if}
 							{#if more}
 								<span class="media-gallery__more" aria-hidden="true">+{more}</span>

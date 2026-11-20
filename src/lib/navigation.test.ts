@@ -18,7 +18,7 @@ vi.mock('$app/navigation', () => ({
 
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
-import { getPostPath, getPostShareUrl, getSettingsPath, getSidebarActive, pushSubstate, popSubstate, closeOverlay, resetSubstates, clearSubstates, openOverlay, openPost, openSearch, openDtfUrl, openDtfLink, openLightbox, takeLightboxOrigin, overlayReuser, isOnTop } from './navigation';
+import { getPostPath, getPostShareUrl, getSettingsPath, getSidebarActive, pushSubstate, popSubstate, closeOverlay, resetSubstates, clearSubstates, openOverlay, openPost, openSearch, openDtfUrl, openDtfLink, openLightbox, takeLightboxOrigins, overlayReuser, isOnTop } from './navigation';
 import { settings } from './storage/settings.svelte';
 import { embedToPost } from './api/embed';
 import { clearPostCache, peekPost } from './postCache';
@@ -307,7 +307,7 @@ describe('navigation', () => {
 			expect(peekPost(5404140)).toBeUndefined();
 		});
 
-		it('closeOverlay очищает невостребованный lightboxOrigin', async () => {
+		it('closeOverlay очищает невостребованные lightboxOrigins', async () => {
 			vi.stubGlobal('location', { href: 'http://localhost/' });
 			vi.stubGlobal('window', {});
 			vi.stubGlobal('history', { back: vi.fn(), go: vi.fn() });
@@ -315,7 +315,30 @@ describe('navigation', () => {
 				const img = { isConnected: true } as unknown as HTMLImageElement;
 				await openLightbox([{ uuid: 'u1', width: 100, height: 100 }], 0, img);
 				closeOverlay();
-				expect(takeLightboxOrigin()).toBeUndefined();
+				expect(takeLightboxOrigins()).toBeUndefined();
+			} finally {
+				vi.unstubAllGlobals();
+			}
+		});
+
+		it('openLightbox хранит список миниатюр галереи и отбрасывает отсоединённые узлы', async () => {
+			vi.stubGlobal('location', { href: 'http://localhost/' });
+			vi.stubGlobal('window', {});
+			try {
+				const a = { isConnected: true } as unknown as HTMLImageElement;
+				const detached = { isConnected: false } as unknown as HTMLImageElement;
+				const b = { isConnected: true } as unknown as HTMLImageElement;
+				await openLightbox(
+					[
+						{ uuid: 'u1', width: 100, height: 100 },
+						{ uuid: 'u2', width: 100, height: 100 },
+						{ uuid: 'u3', width: 100, height: 100 }
+					],
+					1,
+					[a, detached, b]
+				);
+				expect(takeLightboxOrigins()).toEqual([a, undefined, b]);
+				expect(takeLightboxOrigins()).toBeUndefined();
 			} finally {
 				vi.unstubAllGlobals();
 			}

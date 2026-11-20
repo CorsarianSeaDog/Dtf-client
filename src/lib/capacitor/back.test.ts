@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { backHandlers, type BackDriver } from './back';
+import { backHandlers, getBackDriver, pushBackDriver, type BackDriver } from './back';
 
 function setup(start = true) {
 	const driver: BackDriver = { start: vi.fn(() => start), move: vi.fn(), end: vi.fn() };
@@ -46,5 +46,58 @@ describe('системный жест «Назад»', () => {
 		const button = setup();
 		button.h.invoked();
 		expect(button.fallback).toHaveBeenCalledTimes(1);
+	});
+
+	it('pushBackDriver складывает драйверы в стек и возвращает предыдущий при снятии', () => {
+		const base: BackDriver = { start: vi.fn(() => true), move: vi.fn(), end: vi.fn() };
+		const overlay: BackDriver = { start: vi.fn(() => true), move: vi.fn(), end: vi.fn() };
+		const releaseBase = pushBackDriver(base);
+		try {
+			expect(getBackDriver()).toBe(base);
+			const releaseOverlay = pushBackDriver(overlay);
+			expect(getBackDriver()).toBe(overlay);
+			releaseOverlay();
+			expect(getBackDriver()).toBe(base);
+		} finally {
+			releaseBase();
+		}
+		expect(getBackDriver()).toBeUndefined();
+	});
+
+	it('схлопывает частые progressed в один кадр и сбрасывает или применяет хвост в конце жеста', () => {
+		const driver: BackDriver = { start: vi.fn(() => true), move: vi.fn(), end: vi.fn() };
+		let queued: (() => void) | undefined;
+		const cancel = vi.fn(() => (queued = undefined));
+		const h = backHandlers(
+			() => driver,
+			vi.fn(),
+			() => 2,
+			(cb) => {
+				queued = cb;
+				return cancel;
+			}
+		);
+
+		h.started({ edge: 'left', touchX: 0 });
+		h.progressed({ edge: 'left', touchX: 40 });
+		h.progressed({ edge: 'left', touchX: 120 });
+		expect(driver.move).not.toHaveBeenCalled();
+
+		queued?.();
+		expect(driver.move).toHaveBeenCalledTimes(1);
+		expect(driver.move).toHaveBeenLastCalledWith(60);
+
+		h.progressed({ edge: 'left', touchX: 200 });
+		h.invoked();
+		expect(cancel).toHaveBeenCalledTimes(1);
+		expect(driver.move).toHaveBeenLastCalledWith(100);
+		expect(driver.end).toHaveBeenLastCalledWith(true);
+
+		h.started({ edge: 'left', touchX: 0 });
+		h.progressed({ edge: 'left', touchX: 80 });
+		h.cancelled();
+		expect(cancel).toHaveBeenCalledTimes(2);
+		expect(driver.move).toHaveBeenCalledTimes(2);
+		expect(driver.end).toHaveBeenLastCalledWith(false);
 	});
 });

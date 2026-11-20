@@ -11,7 +11,7 @@ export type BookmarkItem = { kind: 'post'; item: Post } | { kind: 'comment'; ite
  * Каждый лежит в корне папки темы: `<тема>/<Имя>.svelte`.
  *
  * Обязательные: Header, EditorialNews, FeedTabs, Post, Comments, Profile, Notifications, TagPage, RepostsPage, SearchPage, DraftsPage, BookmarksPage, LoginModal, NetworkErrorModal, EditorScreen, Spinner, ReloadPrompt.
- * Необязательные (если нет, ядро обходится без них): MainLayout.
+ * Необязательные (если нет, ядро обходится без них): MainLayout, Lightbox.
  * Необязательные, которых без темы просто нет на экране: FeedNotice, Recommendations, AccountPage, ScreenBar, PagePeek.
  * Форк темы (`extends`) может не иметь ничего из этого и взять недостающее у основы.
  */
@@ -166,6 +166,8 @@ export interface ThemeComponents {
 		onclose?: () => void;
 	};
 	EditorScreen: { session: any };
+	/** Просмотрщик медиа на весь экран; без него ядро показывает базовый `LightboxOverlay` */
+	Lightbox: Extract<App.OverlayData, { type: 'lightbox' }>['data'];
 	/** `inline` — маленький, в потоке; `block` — заглушка на месте содержимого экрана (если тема так умеет); без них — обычный на своём месте */
 	Spinner: { inline?: boolean; block?: boolean };
 	/**

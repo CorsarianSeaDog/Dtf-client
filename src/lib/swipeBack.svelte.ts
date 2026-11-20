@@ -1,7 +1,7 @@
 import { flushSync } from 'svelte';
 import type { Attachment } from 'svelte/attachments';
 import { page } from '$app/state';
-import { setBackDriver, type BackDriver, type BackSide } from './capacitor/back';
+import { pushBackDriver, type BackDriver, type BackSide } from './capacitor/back';
 import { closeOverlay } from './navigation';
 import { freeze, pageTransition } from './pageTransition.svelte';
 import { createTension, haptics } from './haptics';
@@ -228,40 +228,31 @@ export function swipeBackGesture(options: SwipeBackOptions): Attachment<HTMLElem
 		}
 	});
 
-	// Системный жест. Ход приходит чаще кадров, поэтому рисуем по кадру последнее положение
-	let distance = 0;
-	let frame = 0;
+	// Системный жест: события уже схлопнуты по кадру в `capacitor/back.ts`
 	const system: BackDriver = {
 		start(dir) {
 			if (!settings.value.predictiveBack || touching) return false;
 			flight?.finish();
 			touchFlight = false;
 			from = layers();
-			distance = 0;
 			return systemDragging = open(dir);
 		},
 		move(d) {
-			distance = Math.min(width, d);
-			frame ||= requestAnimationFrame(() => {
-				frame = 0;
-				move(distance);
-				tension.move(distance, width * DISTANCE);
-			});
+			const x = Math.min(width, d);
+			move(x);
+			tension.move(x, width * DISTANCE);
 		},
 		end(commit) {
-			cancelAnimationFrame(frame);
-			frame = 0;
 			systemDragging = false;
-			finish(distance, commit, commit ? COMMIT_SPEED : 0);
+			finish(position, commit, commit ? COMMIT_SPEED : 0);
 		}
 	};
 
 	return (node) => {
-		setBackDriver(system);
+		const releaseBack = pushBackDriver(system);
 		const stop = touch(node);
 		return () => {
-			setBackDriver(undefined);
-			cancelAnimationFrame(frame);
+			releaseBack();
 			if (typeof stop === 'function') stop();
 		};
 	};

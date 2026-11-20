@@ -31,36 +31,67 @@ interface NativeBackPlugin {
 
 const NativeBack = registerPlugin<NativeBackPlugin>('NativeBack');
 
-let driver: BackDriver | undefined;
+const drivers: BackDriver[] = [];
 
-/** Подключить того, кто рисует ход жеста; `undefined` отключает */
-export function setBackDriver(next: BackDriver | undefined) {
-	driver = next;
+/** Подключить драйвер хода жеста поверх предыдущих (страница, просмотрщик, модалка). Возвращает функцию снятия */
+export function pushBackDriver(next: BackDriver): () => void {
+	drivers.push(next);
+	return () => {
+		const i = drivers.lastIndexOf(next);
+		if (i >= 0) drivers.splice(i, 1);
+	};
+}
+
+/** Верхний активный драйвер системного жеста «Назад» */
+export function getBackDriver(): BackDriver | undefined {
+	return drivers.at(-1);
 }
 
 /**
  * Обработчики событий плагина. Палец ведёт сдвиг по `touchX`, а не по `progress`: система нормирует его по своему
  * расстоянию, и страница не шла бы за пальцем. Без хода (3 кнопки, старый Android, нечего рисовать) `fallback` закрывает сразу.
+ * Необязательный `schedule` схлопывает частые `progressed` в один вызов `move` на кадр и применяет последний сдвиг перед `invoked`.
  */
-export function backHandlers(getDriver: () => BackDriver | undefined, fallback: () => void, pixelRatio: () => number) {
-	let live: { driver: BackDriver; side: BackSide; from: number } | undefined;
+export function backHandlers(
+	getDriver: () => BackDriver | undefined,
+	fallback: () => void,
+	pixelRatio: () => number,
+	schedule?: (cb: () => void) => () => void
+) {
+	let live: { driver: BackDriver; side: BackSide; from: number; distance: number; cancel?: () => void } | undefined;
 	return {
 		started(e: BackEvent) {
+			live?.cancel?.();
 			const target = getDriver();
 			const side = e.edge === 'right' ? -1 : 1;
-			live = target?.start(side) ? { driver: target, side, from: e.touchX } : undefined;
+			live = target?.start(side) ? { driver: target, side, from: e.touchX, distance: 0 } : undefined;
 		},
 		progressed(e: BackEvent) {
-			if (live) live.driver.move(Math.max(0, ((e.touchX - live.from) * live.side) / pixelRatio()));
+			if (!live) return;
+			live.distance = Math.max(0, ((e.touchX - live.from) * live.side) / pixelRatio());
+			if (!schedule) return live.driver.move(live.distance);
+			live.cancel ??= schedule(() => {
+				if (!live) return;
+				live.cancel = undefined;
+				live.driver.move(live.distance);
+			});
 		},
 		cancelled() {
-			live?.driver.end(false);
+			if (!live) return;
+			const current = live;
 			live = undefined;
+			current.cancel?.();
+			current.driver.end(false);
 		},
 		invoked() {
-			if (live) live.driver.end(true);
-			else fallback();
+			if (!live) return fallback();
+			const current = live;
 			live = undefined;
+			if (current.cancel) {
+				current.cancel();
+				current.driver.move(current.distance);
+			}
+			current.driver.end(true);
 		}
 	};
 }
@@ -70,7 +101,11 @@ const available = () => Capacitor.isPluginAvailable('NativeBack');
 
 export function initNativeBack(fallback: () => void) {
 	if (!available()) return;
-	const h = backHandlers(() => driver, fallback, () => window.devicePixelRatio || 1);
+	const raf = (cb: () => void) => {
+		const id = requestAnimationFrame(cb);
+		return () => cancelAnimationFrame(id);
+	};
+	const h = backHandlers(getBackDriver, fallback, () => window.devicePixelRatio || 1, raf);
 	NativeBack.addListener('backStarted', h.started);
 	NativeBack.addListener('backProgressed', h.progressed);
 	NativeBack.addListener('backCancelled', h.cancelled);
