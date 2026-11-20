@@ -1,16 +1,17 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import type { CommentUpdate, CommentEditorState, CommentMedia, CommentTreeItem } from '$lib/api/types';
+	import type { CommentUpdate, CommentMedia, CommentTreeItem } from '$lib/api/types';
 	import { api } from '$lib/api/index.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
 	import { CommentsLogic } from '$lib/components/Comments/commentsLogic.svelte';
+	import type { ThemeComponents } from '../contract';
 	import { ensureLogin } from './actions.svelte';
 	import { formatNumber, plural } from './format';
 	import { notify } from './ui/notify.svelte';
 	import Popover from './ui/Popover.svelte';
 	import Preloader from './ui/Preloader.svelte';
 	import CommentEditor from './comments/CommentEditor.svelte';
+	import CommentFocusBanner from './comments/CommentFocusBanner.svelte';
 	import CommentItem from './comments/CommentItem.svelte';
 	import CommentRestriction from './comments/CommentRestriction.svelte';
 	import { commentKey, flattenComments, patchCommentRow } from './comments/flatten';
@@ -28,24 +29,12 @@
 		commentEditor,
 		focusCommentId,
 		focusNonce,
+		active = true,
 		onfocused,
 		onCountChange,
 		onReconnect,
 		onRefreshReady
-	}: {
-		postId: number;
-		sourceId?: string;
-		commentsCount?: number;
-		subscribed?: boolean;
-		postAuthorId?: number;
-		commentEditor?: CommentEditorState;
-		focusCommentId?: number;
-		focusNonce?: number;
-		onfocused?: () => void;
-		onCountChange?: (delta: number) => void;
-		onReconnect?: () => void;
-		onRefreshReady?: (refresh: (() => Promise<void>) | undefined) => void;
-	} = $props();
+	}: ThemeComponents['Comments'] = $props();
 
 	let sortings = $derived([
 		{ value: 'hotness', label: 'Лучшие' },
@@ -82,12 +71,15 @@
 	/** В DOM только строки около экрана (решение 0015); строка с открытым редактором остаётся */
 	const virtual = new VirtualRows(() => shown, () => replyTo);
 
-	bindCommentsView({
+	const focus = bindCommentsView({
 		logic,
 		virtual,
 		collapsed,
 		getPost: () => ({ postId, sourceId }),
+		getFocus: () => ({ commentId: focusCommentId, nonce: focusNonce, active }),
+		hasRow: (key) => rows.some((row) => row.key === key),
 		onPatchRow: updateRow,
+		onFocused: () => onfocused?.(),
 		onCountChange: (delta) => onCountChange?.(delta),
 		onReconnect: () => onReconnect?.(),
 		onRefreshReady: (fn) => onRefreshReady?.(fn)
@@ -206,44 +198,6 @@
 		}
 	}
 
-	/** Комментарий из уведомления: догружаем страницы, пока он не найдётся, затем прокручиваем и подсвечиваем */
-	let lastFocusKey: string | undefined;
-	let lastScrolledKey: string | undefined;
-	let refetchAttempted = false;
-
-	$effect(() => {
-		if (!focusCommentId) return;
-
-		const currentFocusKey = `${focusCommentId}_${focusNonce ?? 0}`;
-		if (currentFocusKey !== lastFocusKey) {
-			lastFocusKey = currentFocusKey;
-			refetchAttempted = false;
-		}
-
-		if (lastScrolledKey === currentFocusKey) return;
-
-		const key = commentKey({ sourceId, id: focusCommentId });
-		if (logic.allCommentsMap.has(key)) {
-			lastScrolledKey = currentFocusKey;
-			const path = logic.pathTo(key);
-			if (path) {
-				for (const item of path) collapsed.delete(commentKey(item));
-			}
-
-			onfocused?.();
-			virtual.focus(key);
-		} else if (!logic.loading && logic.hasMore && !logic.error) {
-			untrack(() => logic.loadComments());
-		} else if (!logic.loading && !refetchAttempted && !logic.error) {
-			refetchAttempted = true;
-			untrack(() => logic.loadComments(true, { bypassCache: true }));
-		} else if (!logic.loading) {
-			// Комментарий удалён или не найден: дальше искать негде
-			lastScrolledKey = currentFocusKey;
-			onfocused?.();
-		}
-	});
-
 	function highlightBranch(index: number, line: number | null) {
 		if (line === null) {
 			highlight = null;
@@ -326,9 +280,11 @@
 			{/if}
 		</div>
 
+		<CommentFocusBanner {focus} />
+
 		{#if logic.comments.length === 0 && logic.loading}
 			<div class="comments-status"><Preloader /></div>
-		{:else if logic.comments.length === 0 && !logic.error}
+		{:else if logic.comments.length === 0 && !logic.error && focus.status !== 'waiting'}
 			<p class="comments-status">Комментариев пока нет</p>
 		{/if}
 

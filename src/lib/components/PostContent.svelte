@@ -121,32 +121,43 @@
 			post = pendingRefresh;
 			pendingRefresh = undefined;
 		}
-		if (toComments || commentId !== undefined) {
-			if (post?.isDraft || post?.commentsDisabled) return;
-			commentsTurn.then(tick).then(() => {
-				requestAnimationFrame(() => {
-					commentsBox?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
-				});
-			});
-		} else if (anchor) {
-			tick().then(() => {
-				requestAnimationFrame(() => {
-					scrollToAnchor(anchor);
-				});
-			});
-		}
 	}
 
-	let lastScrollNonce = 0;
+	let commentsTarget = $derived(
+		commentId !== undefined
+			? `c:${commentId}:${focusNonce ?? 0}`
+			: toComments
+				? `all:${focusNonce ?? 0}`
+				: ''
+	);
+	let lastCommentsTarget = '';
+	let focusedCommentTarget = '';
+
+	/** Пост виден сверху (и в оверлее, и на прямом маршруте /post/[id]) */
+	let isActive = $derived.by(() => {
+		if (depth > 0) return false;
+		const top = page.state.overlays?.findLast((o) => o.presentation === 'page');
+		if (!top) return true;
+		return top.type === 'post' && top.data.postId === postId && (top.data.sourceId ?? 'dtf') === sourceId;
+	});
+
 	$effect(() => {
-		if (toComments && postShown && !post?.isDraft && !post?.commentsDisabled && focusNonce && focusNonce !== lastScrollNonce) {
-			lastScrollNonce = focusNonce;
-			tick().then(() => {
-				requestAnimationFrame(() => {
-					commentsBox?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
-				});
-			});
+		const target = commentsTarget;
+		if (!target) {
+			lastCommentsTarget = '';
+			return;
 		}
+		if (!postShown || !commentsBox || post?.isDraft || post?.commentsDisabled) return;
+		if (target === lastCommentsTarget) return;
+		lastCommentsTarget = target;
+		const box = commentsBox;
+		tick().then(() => {
+			requestAnimationFrame(() => {
+				// Если Comments уже нашёл комментарий (например, из кэша) и запустил переход, не перебиваем его прокруткой к шапке
+				if (commentsTarget !== target || focusedCommentTarget === target) return;
+				box.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
+			});
+		});
 	});
 
 	let lastAnchorNonce = 0;
@@ -243,6 +254,10 @@
 							commentEditor={loaded.commentEditor}
 							focusCommentId={commentId}
 							{focusNonce}
+							active={isActive}
+							onfocused={() => {
+								if (commentId !== undefined) focusedCommentTarget = commentsTarget;
+							}}
 							onCountChange={(delta) => {
 								if (post && post.id === postId && post.sourceId === sourceId) {
 									post = { ...post, commentsCount: Math.max(0, (post.commentsCount ?? 0) + delta) };

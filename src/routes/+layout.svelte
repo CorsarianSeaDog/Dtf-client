@@ -19,6 +19,7 @@
 	import ModalShell from '$lib/components/overlays/ModalShell.svelte';
 	import { dotsAtRest, hideSplash, holdSplash, introDone, showWelcomeBackdrop } from '$lib/splash';
 	import { pageReady } from '$lib/ready';
+	import { watchUserScroll } from '$lib/watchUserScroll';
 	import { setupCompleted } from '$lib/storage/setup.svelte';
 	import { page } from '$app/state';
 	import { onMount, tick, untrack } from 'svelte';
@@ -136,6 +137,8 @@
 	
 	// Scroll Restoration Stack
 	let scrollPositions = new Map<string, number>();
+	/** Последний обработанный focusNonce открытого поста: смена nonce означает явный переход к комментарию/якорю, а не возврат «Назад» */
+	let lastFocusNonces = new Map<string, number>();
 
 	$effect(() => {
 		// Очищаем сохранённый скролл для закрытых оверлеев
@@ -143,6 +146,11 @@
 		for (const key of scrollPositions.keys()) {
 			if (key !== '__feed__' && !activeIds.has(key)) {
 				scrollPositions.delete(key);
+			}
+		}
+		for (const key of lastFocusNonces.keys()) {
+			if (!activeIds.has(key)) {
+				lastFocusNonces.delete(key);
 			}
 		}
 	});
@@ -158,6 +166,7 @@
 	let scrollObserver: ResizeObserver | undefined;
 	let cancelPendingTimeout: ReturnType<typeof setTimeout> | undefined;
 	let pendingScrollRaf: number | undefined;
+	let stopPendingUserScroll: (() => void) | undefined;
 
 	function stopPendingScroll() {
 		pendingScroll = undefined;
@@ -171,21 +180,8 @@
 			clearTimeout(cancelPendingTimeout);
 			cancelPendingTimeout = undefined;
 		}
-		if (typeof window !== 'undefined') {
-			window.removeEventListener('wheel', onUserScroll);
-			window.removeEventListener('touchmove', onUserScroll);
-			window.removeEventListener('keydown', onKeyDown);
-		}
-	}
-
-	function onUserScroll() {
-		stopPendingScroll();
-	}
-
-	function onKeyDown(e: KeyboardEvent) {
-		if (['PageUp', 'PageDown', 'Space', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.code)) {
-			stopPendingScroll();
-		}
+		stopPendingUserScroll?.();
+		stopPendingUserScroll = undefined;
 	}
 
 	function startPendingScroll(layer: string, target: number) {
@@ -195,9 +191,7 @@
 		pendingScroll = { layer, target };
 
 		// Пользователь крутит колесо, свайпает или нажимает клавиши прокрутки — отменяем, чтобы не бороться с жестами
-		window.addEventListener('wheel', onUserScroll, { passive: true, once: true });
-		window.addEventListener('touchmove', onUserScroll, { passive: true, once: true });
-		window.addEventListener('keydown', onKeyDown, { passive: true, once: true });
+		stopPendingUserScroll = watchUserScroll(stopPendingScroll);
 
 		cancelPendingTimeout = setTimeout(stopPendingScroll, 10_000);
 
@@ -247,15 +241,23 @@
 	});
 
 	$effect(() => {
+		const activeOverlay = topmostPageOverlayIndex >= 0 ? overlays[topmostPageOverlayIndex] : undefined;
+		const activeFocusNonce = activeOverlay?.type === 'post' ? activeOverlay.data.focusNonce : undefined;
+		const jumpedToTarget = activeFocusNonce !== undefined && lastFocusNonces.get(activeScrollId) !== activeFocusNonce;
+		if (activeFocusNonce !== undefined) lastFocusNonces.set(activeScrollId, activeFocusNonce);
+
 		// Restore scroll of the incoming layer after DOM shows it
 		if (activeScrollId !== previousScrollId) {
 			// Ленту выбрали из-под страницы: у неё своя прокрутка (или начало, если это была та же лента)
 			const feedScroll = activeScrollId === '__feed__' ? feed.consumeScrollTarget() : undefined;
 			if (feedScroll !== undefined) scrollPositions.set('__feed__', feedScroll);
 			const closing = overlays.length < previousDepth;
-			// Пост открыли на комментарии: прокрутку к ним ставит сам пост. При возврате на него — его прокрутка
-			const activeOverlay = topmostPageOverlayIndex >= 0 ? overlays[topmostPageOverlayIndex] : undefined;
-			if (!closing && activeOverlay?.type === 'post' && (activeOverlay.data.commentId !== undefined || activeOverlay.data.toComments)) {
+			// Пост открыли (или повторно перешли из уведомлений) на комментарий/якорь: прокрутку ставит сам пост.
+			// При обычном возврате «Назад» focusNonce не меняется — сохраняем позицию чтения
+			const hasPostTarget =
+				activeOverlay?.type === 'post' &&
+				(activeOverlay.data.commentId !== undefined || activeOverlay.data.toComments || activeOverlay.data.anchor !== undefined);
+			if (hasPostTarget && (!closing || jumpedToTarget)) {
 				scrollPositions.delete(activeScrollId);
 			}
 			const savedScroll = scrollPositions.get(activeScrollId) || 0;
@@ -303,6 +305,8 @@
 				const target = document.querySelector(`[data-layer="${layer}"]`);
 				if (target) playChildren(target, anim);
 			});
+		} else if (jumpedToTarget) {
+			stopPendingScroll();
 		}
 		previousDepth = overlays.length;
 	});

@@ -1,6 +1,7 @@
 import { tick } from 'svelte';
 import { scrollBehavior } from '$lib/motion';
 import { shouldVirtualizeComments } from '$lib/storage/settings.svelte';
+import { watchUserScroll } from '$lib/watchUserScroll';
 import type { CommentRow } from './flatten';
 
 /** Высота строки, пока ни одна не измерена */
@@ -167,20 +168,25 @@ export class VirtualRows {
 		}
 	}
 
-	/** Запомнить верхний видимый комментарий для компенсации сдвига при внешней вставке */
-	captureAnchor(): { key: string; top: number } | null {
+	private anchorList(): HTMLElement | null {
 		if (
 			!this.list ||
 			this.touchActive ||
 			this.scrolling ||
+			this.target ||
 			this.list.checkVisibility?.() === false ||
-			typeof window === 'undefined' ||
-			window.scrollY <= 0 ||
-			this.viewTop <= 0
+			typeof window === 'undefined'
 		) {
 			return null;
 		}
-		for (const el of this.list.children) {
+		return this.list;
+	}
+
+	/** Запомнить верхний видимый комментарий для компенсации сдвига при внешней вставке */
+	captureAnchor(): { key: string; top: number } | null {
+		const list = this.anchorList();
+		if (!list || window.scrollY <= 0 || this.viewTop <= 0) return null;
+		for (const el of list.children) {
 			if (!el.id.startsWith(PREFIX)) continue;
 			const rect = el.getBoundingClientRect();
 			if (rect.bottom > 0) {
@@ -192,19 +198,11 @@ export class VirtualRows {
 
 	/** Скомпенсировать сдвиг прокрутки после внешней вставки по сохранённому якорю */
 	restoreAnchor(anchor: { key: string; top: number } | null): void {
-		if (
-			!anchor ||
-			!this.list ||
-			this.touchActive ||
-			this.scrolling ||
-			this.list.checkVisibility?.() === false ||
-			typeof window === 'undefined'
-		) {
-			return;
-		}
+		const list = anchor && this.anchorList();
+		if (!list) return;
 		const targetId = `${PREFIX}${anchor.key}`;
 		let node: Element | null = null;
-		for (const el of this.list.children) {
+		for (const el of list.children) {
 			if (el.id === targetId) {
 				node = el;
 				break;
@@ -332,16 +330,14 @@ export class VirtualRows {
 		// Строки вокруг цели измеряются по кадрам, и оценка над ней сдвигается: доводим, пока позиция не устоится.
 		// Пользователь начал прокручивать сам — отпускаем
 		let taken = false;
-		const take = () => (taken = true);
-		const inputs = ['wheel', 'touchstart', 'keydown'];
-		for (const type of inputs) addEventListener(type, take, { passive: true });
+		const stopInputs = watchUserScroll(() => (taken = true), { touch: 'touchstart' });
 		for (let still = 0, frames = 0; still < STILL_FRAMES && frames < SETTLE_FRAMES && !taken && node.isConnected; frames++) {
 			const before = node.getBoundingClientRect().top;
 			node.scrollIntoView({ block, behavior: 'instant' });
 			await frame();
 			still = Math.abs(node.getBoundingClientRect().top - before) < 1 ? still + 1 : 0;
 		}
-		for (const type of inputs) removeEventListener(type, take);
+		stopInputs();
 		if (this.target === key) this.target = null;
 		list.style.removeProperty('visibility');
 		if (highlight) {

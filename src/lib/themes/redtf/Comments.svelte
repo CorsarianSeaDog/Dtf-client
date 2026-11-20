@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import type { Comment, CommentUpdate, CommentMedia, CommentTreeItem } from '$lib/api/types';
 	import { api } from '$lib/api/index.svelte';
@@ -12,6 +11,7 @@
 	import Popover from '../dtf2022/ui/Popover.svelte';
 	import Preloader from '../dtf2022/ui/Preloader.svelte';
 	import CommentEditor from '../dtf2022/comments/CommentEditor.svelte';
+	import CommentFocusBanner from '../dtf2022/comments/CommentFocusBanner.svelte';
 	import CommentItem from '../dtf2022/comments/CommentItem.svelte';
 	import CommentRestriction from '../dtf2022/comments/CommentRestriction.svelte';
 	import { commentKey, flattenComments, patchCommentRow } from '../dtf2022/comments/flatten';
@@ -39,6 +39,7 @@
 		commentEditor,
 		focusCommentId,
 		focusNonce,
+		active = true,
 		onfocused,
 		onCountChange,
 		onReconnect,
@@ -87,12 +88,15 @@
 	/** В DOM только строки около экрана (решение 0015); строка с открытым редактором остаётся */
 	const virtual = new VirtualRows(() => shown, () => replyTo);
 
-	bindCommentsView({
+	const focus = bindCommentsView({
 		logic,
 		virtual,
 		collapsed,
 		getPost: () => ({ postId, sourceId }),
+		getFocus: () => ({ commentId: focusCommentId, nonce: focusNonce, active }),
+		hasRow: (key) => rows.some((row) => row.key === key),
 		onPatchRow: updateRow,
+		onFocused: () => onfocused?.(),
 		onCountChange: (delta) => onCountChange?.(delta),
 		onReconnect: () => onReconnect?.(),
 		onRefreshReady: (fn) => onRefreshReady?.(fn)
@@ -211,42 +215,6 @@
 			subscriptionPending = false;
 		}
 	}
-
-	/** Комментарий из уведомления: догружаем страницы, пока он не найдётся, затем прокручиваем и подсвечиваем */
-	let lastFocusKey: string | undefined;
-	let lastScrolledKey: string | undefined;
-	let refetchAttempted = false;
-
-	$effect(() => {
-		if (!focusCommentId) return;
-
-		const currentFocusKey = `${focusCommentId}_${focusNonce ?? 0}`;
-		if (currentFocusKey !== lastFocusKey) {
-			lastFocusKey = currentFocusKey;
-			refetchAttempted = false;
-		}
-
-		if (lastScrolledKey === currentFocusKey) return;
-
-		const key = commentKey({ sourceId, id: focusCommentId });
-		if (logic.allCommentsMap.has(key)) {
-			lastScrolledKey = currentFocusKey;
-			const path = logic.pathTo(key);
-			if (path) {
-				for (const item of path) collapsed.delete(commentKey(item));
-			}
-			onfocused?.();
-			virtual.focus(key);
-		} else if (!logic.loading && logic.hasMore && !logic.error) {
-			untrack(() => logic.loadComments());
-		} else if (!logic.loading && !refetchAttempted && !logic.error) {
-			refetchAttempted = true;
-			untrack(() => logic.loadComments(true, { bypassCache: true }));
-		} else if (!logic.loading) {
-			lastScrolledKey = currentFocusKey;
-			onfocused?.();
-		}
-	});
 
 	function highlightBranch(index: number, line: number | null) {
 		if (line === null) {
@@ -381,9 +349,11 @@
 			{/if}
 		</div>
 
+		<CommentFocusBanner {focus} />
+
 		{#if logic.comments.length === 0 && logic.loading}
 			<div class="comments-status"><Preloader /></div>
-		{:else if logic.comments.length === 0 && !logic.error}
+		{:else if logic.comments.length === 0 && !logic.error && focus.status !== 'waiting'}
 			<p class="comments-status">Комментариев пока нет</p>
 		{/if}
 
