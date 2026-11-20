@@ -168,20 +168,25 @@ export class VirtualRows {
 		}
 	}
 
-	/** Запомнить верхний видимый комментарий для компенсации сдвига при внешней вставке */
-	captureAnchor(): { key: string; top: number } | null {
+	private anchorList(): HTMLElement | null {
 		if (
 			!this.list ||
 			this.touchActive ||
 			this.scrolling ||
+			this.target ||
 			this.list.checkVisibility?.() === false ||
-			typeof window === 'undefined' ||
-			window.scrollY <= 0 ||
-			this.viewTop <= 0
+			typeof window === 'undefined'
 		) {
 			return null;
 		}
-		for (const el of this.list.children) {
+		return this.list;
+	}
+
+	/** Запомнить верхний видимый комментарий для компенсации сдвига при внешней вставке */
+	captureAnchor(): { key: string; top: number } | null {
+		const list = this.anchorList();
+		if (!list || window.scrollY <= 0 || this.viewTop <= 0) return null;
+		for (const el of list.children) {
 			if (!el.id.startsWith(PREFIX)) continue;
 			const rect = el.getBoundingClientRect();
 			if (rect.bottom > 0) {
@@ -193,19 +198,11 @@ export class VirtualRows {
 
 	/** Скомпенсировать сдвиг прокрутки после внешней вставки по сохранённому якорю */
 	restoreAnchor(anchor: { key: string; top: number } | null): void {
-		if (
-			!anchor ||
-			!this.list ||
-			this.touchActive ||
-			this.scrolling ||
-			this.list.checkVisibility?.() === false ||
-			typeof window === 'undefined'
-		) {
-			return;
-		}
+		const list = anchor && this.anchorList();
+		if (!list) return;
 		const targetId = `${PREFIX}${anchor.key}`;
 		let node: Element | null = null;
-		for (const el of this.list.children) {
+		for (const el of list.children) {
 			if (el.id === targetId) {
 				node = el;
 				break;

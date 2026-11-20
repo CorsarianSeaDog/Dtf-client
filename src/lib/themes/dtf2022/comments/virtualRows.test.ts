@@ -57,6 +57,7 @@ describe('VirtualRows heights and scroll anchor', () => {
 		const list = {
 			parentElement: null,
 			children,
+			style: { visibility: '', removeProperty: vi.fn() },
 			checkVisibility: () => true,
 			getBoundingClientRect: () => ({ top: listTop })
 		} as unknown as HTMLElement;
@@ -134,6 +135,45 @@ describe('VirtualRows heights and scroll anchor', () => {
 		expect(ctx.vr.captureAnchor()).toBeNull();
 		await vi.advanceTimersByTimeAsync(170);
 		expect(ctx.vr.captureAnchor()).toEqual({ key: '1', top: 40 });
+		ctx.detach();
+	});
+
+	it('пропускает якорь и компенсацию во время активного focus()', async () => {
+		const ctx = setupVirtual({ scrollY: 300, listTop: -120, childTops: { '1': -10, '2': 90 } });
+		const anchor = ctx.vr.captureAnchor();
+		expect(anchor).toEqual({ key: '1', top: -10 });
+
+		let releaseFrame!: () => void;
+		vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+			releaseFrame = () => cb(0);
+			return 1;
+		});
+		const node = {
+			isConnected: true,
+			style: { backgroundColor: '', removeProperty: vi.fn() },
+			scrollIntoView: vi.fn(),
+			getBoundingClientRect: () => ({ top: 40 }),
+			animate: vi.fn()
+		};
+		vi.stubGlobal('document', { getElementById: () => node });
+		vi.stubGlobal('scrollBy', vi.fn());
+
+		const focusPromise = ctx.vr.focus('2', { highlight: false, behavior: 'instant' });
+		await Promise.resolve();
+		await Promise.resolve();
+
+		// Пока focus() доводит позицию (target установлен), якорь и компенсация не вмешиваются
+		expect(ctx.vr.captureAnchor()).toBeNull();
+		ctx.setChildTop('1', 60);
+		ctx.vr.restoreAnchor(anchor);
+		expect(ctx.scrollBy).not.toHaveBeenCalled();
+
+		// Отпускаем focus() жестом и проверяем, что якорь снова активен
+		for (const fn of ctx.listeners.get('wheel') ?? []) fn(new Event('wheel'));
+		releaseFrame();
+		await focusPromise;
+
+		expect(ctx.vr.captureAnchor()).toEqual({ key: '1', top: 60 });
 		ctx.detach();
 	});
 });
