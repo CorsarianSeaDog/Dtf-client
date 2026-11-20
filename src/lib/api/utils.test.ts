@@ -220,8 +220,9 @@ describe('api/utils', () => {
 			const downloadMock = vi.fn().mockReturnValue(true);
 			(window as any).AndroidBridge = { download: downloadMock };
 
-			await downloadImage('https://leonardo.osnova.io/test-gif/', 'test-gif', 'gif');
+			const started = await downloadImage('https://leonardo.osnova.io/test-gif/', 'test-gif', 'gif');
 
+			expect(started).toBe(true);
 			expect(downloadMock).toHaveBeenCalledWith(
 				'https://leonardo.osnova.io/test-gif/',
 				'test-gif.gif',
@@ -230,6 +231,27 @@ describe('api/utils', () => {
 			expect(clickedLinks.length).toBe(0);
 
 			delete (window as any).AndroidBridge;
+		});
+
+		it('возвращает false при отмене системного окна «Поделиться»', async () => {
+			const mockBlob = { type: 'image/jpeg' };
+			vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				blob: vi.fn().mockResolvedValue(mockBlob)
+			}));
+			vi.stubGlobal('File', class MockFile {
+				constructor(public parts: any[], public name: string, public options?: any) {}
+			});
+			vi.stubGlobal('navigator', {
+				canShare: vi.fn(() => true),
+				share: vi.fn().mockRejectedValue(Object.assign(new Error('Cancelled'), { name: 'AbortError' }))
+			});
+
+			const started = await downloadImage('https://leonardo.osnova.io/image-abort/', 'image-abort');
+
+			expect(started).toBe(false);
+			expect(clickedLinks.length).toBe(0);
 		});
 	});
 });

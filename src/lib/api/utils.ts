@@ -134,18 +134,23 @@ export function getDownloadFilename(uuid: string, ext: string): string {
 	return `${uuid}.${ext}`;
 }
 
-/** Скачать файл изображения по прямой ссылке в полном качестве */
-export async function downloadImage(url: string, uuid: string, fallbackType?: string): Promise<void> {
-	if (typeof window === 'undefined') return;
+/** Доступен ли системный загрузчик Android (DownloadManager через мост оболочки) */
+export function hasNativeDownload(): boolean {
+	return typeof window !== 'undefined' && typeof (window as any).AndroidBridge?.download === 'function';
+}
+
+/** Скачать файл изображения по прямой ссылке в полном качестве. Возвращает `false`, если пользователь отменил сохранение */
+export async function downloadImage(url: string, uuid: string, fallbackType?: string): Promise<boolean> {
+	if (typeof window === 'undefined') return false;
 
 	const ext = resolveImageExtension(undefined, fallbackType);
 	const filename = getDownloadFilename(uuid, ext);
 	const mime = ext === 'mp4' ? 'video/mp4' : ext === 'gif' ? 'image/gif' : `image/${ext}`;
 
 	// В нативном приложении Capacitor (Android) передаём загрузку системному DownloadManager
-	if (typeof (window as any).AndroidBridge?.download === 'function') {
+	if (hasNativeDownload()) {
 		const queued = (window as any).AndroidBridge.download(url, filename, mime);
-		if (queued) return;
+		if (queued) return true;
 	}
 
 	try {
@@ -160,10 +165,10 @@ export async function downloadImage(url: string, uuid: string, fallbackType?: st
 				const file = new File([blob], resolvedFilename, { type: blob.type });
 				if (navigator.canShare?.({ files: [file] })) {
 					await navigator.share({ files: [file], title: resolvedFilename });
-					return;
+					return true;
 				}
 			} catch (e: any) {
-				if (e?.name === 'AbortError') return;
+				if (e?.name === 'AbortError') return false;
 			}
 		}
 
@@ -175,6 +180,7 @@ export async function downloadImage(url: string, uuid: string, fallbackType?: st
 		link.click();
 		link.remove();
 		setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+		return true;
 	} catch {
 		const fallbackFilename = getDownloadFilename(uuid, ext);
 		const link = document.createElement('a');
@@ -185,6 +191,7 @@ export async function downloadImage(url: string, uuid: string, fallbackType?: st
 		document.body.appendChild(link);
 		link.click();
 		link.remove();
+		return true;
 	}
 }
 
