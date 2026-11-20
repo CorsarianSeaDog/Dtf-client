@@ -48,6 +48,9 @@ export class CommentsLogic {
 	flatComments = $state.raw<Comment[]>([]);
 	allCommentsMap = $state.raw(new Map<string, CommentTreeItem>());
 	loading = $state(false);
+	resyncing = $state(false);
+	/** Растёт после каждого свежего сетевого ответа первой страницы (не при чтении кэша и не при догрузке хвоста) */
+	networkSeq = $state(0);
 	error = $state<string | null>(null);
 
 	sorting = $state('hotness');
@@ -80,7 +83,6 @@ export class CommentsLogic {
 	private orphanReplies = new Map<number, Comment[]>();
 	private pendingEvents: RealtimeCommentEvent[] = [];
 	private resyncTimer: ReturnType<typeof setTimeout> | undefined;
-	private resyncInFlight = false;
 	private resyncQueued = false;
 	private resyncStartedAt = 0;
 	/** Когда по комментарию пришёл голос из сокета: REST его ещё не догнал, и досинхронизация такие счётчики не трогает */
@@ -422,15 +424,16 @@ export class CommentsLogic {
 		return this.upsertComment(comment, { own: true });
 	}
 
-	/** Узел комментария по id из события сокета (с учётом подмены источником) */
-	private targetKeyFor(commentId: number): string | undefined {
+	/** Ключ комментария в дереве по id (с учётом подмены внешним источником); реактивно следит за деревом */
+	resolveCommentKey(commentId: number): string | undefined {
+		void this.comments;
 		const rawKey = `${this.sourceId}_${commentId}`;
 		return this.allCommentsMap.has(rawKey) ? rawKey : this.replacedKeyMap.get(rawKey);
 	}
 
 	/** Применяет событие `comment voted` из realtime к одному узлу дерева */
 	applyVoteEvent(event: RealtimeCommentVotedEvent) {
-		const targetKey = this.targetKeyFor(event.commentId);
+		const targetKey = this.resolveCommentKey(event.commentId);
 		const target = targetKey && this.allCommentsMap.get(targetKey);
 		if (!targetKey || !target) return;
 
@@ -443,7 +446,7 @@ export class CommentsLogic {
 
 	/** Применяет событие `change_donation_amount_for_comment`: сумма донатов комментария */
 	applyDonationEvent(event: RealtimeCommentDonationEvent) {
-		const targetKey = this.targetKeyFor(event.commentId);
+		const targetKey = this.resolveCommentKey(event.commentId);
 		const target = targetKey && this.allCommentsMap.get(targetKey);
 		if (!targetKey || !target || (target.donation ?? 0) === event.amount) return;
 
@@ -499,6 +502,7 @@ export class CommentsLogic {
 
 		this.loading = true;
 		this.error = null;
+		const isFirstPage = reset || !this.cursor;
 
 		try {
 			const postId = this.postId;
@@ -525,6 +529,7 @@ export class CommentsLogic {
 				cursor: this.cursor,
 				hasMore: this.hasMore
 			});
+			if (isFirstPage) this.networkSeq++;
 
 			// События, пришедшие во время загрузки снимка, применяются поверх готового дерева
 			if (this.pendingEvents.length > 0) {
@@ -550,7 +555,7 @@ export class CommentsLogic {
 	}
 
 	scheduleResync(delayMs = RESYNC_DELAY_MS) {
-		if (this.resyncInFlight) {
+		if (this.resyncing) {
 			this.resyncQueued = true;
 			return;
 		}
@@ -564,16 +569,17 @@ export class CommentsLogic {
 	}
 
 	async resyncFromServer(): Promise<void> {
-		if (this.loading || this.resyncInFlight) {
+		if (this.loading || this.resyncing) {
 			this.resyncQueued = true;
 			return;
 		}
 
+		this.clearResyncTimer();
 		const seq = this.loadSeq;
 		const postId = this.postId;
 		const sourceId = this.sourceId;
 		const sorting = this.sorting;
-		this.resyncInFlight = true;
+		this.resyncing = true;
 		this.resyncStartedAt = Date.now();
 
 		try {
@@ -605,10 +611,11 @@ export class CommentsLogic {
 				cursor: this.cursor,
 				hasMore: this.hasMore
 			});
+			this.networkSeq++;
 		} catch {
 			// Фоновый добор не сбрасывает уже показанные комментарии
 		} finally {
-			this.resyncInFlight = false;
+			this.resyncing = false;
 			// Следующая досинхронизация начнётся не раньше задержки: к ней REST уже догонит эти голоса
 			this.votedAt.clear();
 			if (this.resyncQueued && seq === this.loadSeq) {

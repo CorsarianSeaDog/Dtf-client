@@ -495,4 +495,56 @@ describe('CommentsLogic ($state.raw)', () => {
 		await logic.loadComments(true, { bypassCache: true });
 		expect(logic.allCommentsMap.has('dtf_88')).toBe(true);
 	});
+
+	it('networkSeq растёт только на свежих сетевых ответах первой страницы, а прямой resyncFromServer гасит таймер и не обнуляет список', async () => {
+		vi.useFakeTimers();
+		const seqBeforeCache = logic.networkSeq;
+
+		// Кэш не увеличивает networkSeq и ставит таймер resync(0)
+		peekComments.mockReturnValueOnce({
+			flatComments: [makeComment(1)],
+			cursor: { dtf: { lastId: 1, lastSortingValue: 1 } },
+			hasMore: true
+		});
+		await logic.loadComments(true);
+		expect(logic.networkSeq).toBe(seqBeforeCache);
+
+		// Догрузка второй страницы не увеличивает networkSeq
+		getComments.mockResolvedValueOnce({ items: [makeComment(2)], cursors: undefined });
+		await logic.loadComments();
+		expect(logic.networkSeq).toBe(seqBeforeCache);
+
+		// Прямой resyncFromServer отменяет отложенный таймер, не обнуляет comments и поднимает networkSeq
+		const pendingResync = deferred<{ items: Comment[]; cursors: undefined }>();
+		getComments.mockReturnValueOnce(pendingResync.promise);
+		const resyncPromise = logic.resyncFromServer();
+		expect(logic.resyncing).toBe(true);
+		expect(logic.comments.map((c) => c.id)).toEqual([1, 2]);
+
+		// Отложенный таймер уже снят — повторного запроса не происходит
+		await vi.advanceTimersByTimeAsync(100);
+		expect(getComments).toHaveBeenCalledTimes(3);
+
+		pendingResync.resolve({ items: [makeComment(1), makeComment(2), makeComment(99)], cursors: undefined });
+		await resyncPromise;
+		expect(logic.resyncing).toBe(false);
+		expect(logic.networkSeq).toBe(seqBeforeCache + 1);
+		expect(logic.resolveCommentKey(99)).toBe('dtf_99');
+	});
+
+	it('resolveCommentKey находит комментарий, подменённый внешним источником', async () => {
+		getComments.mockResolvedValueOnce({
+			items: [
+				makeComment(42, {
+					sourceId: 'archive',
+					isReplaced: true,
+					originalSourceId: 'dtf',
+					content: 'из архива'
+				})
+			],
+			cursors: undefined
+		});
+		await logic.loadComments(true);
+		expect(logic.resolveCommentKey(42)).toBe('archive_42');
+	});
 });
