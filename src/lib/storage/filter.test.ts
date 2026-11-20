@@ -236,6 +236,23 @@ describe('filter storage', () => {
 		expect(matchPostFilter(post)).toBeNull();
 	});
 
+	it('не читает блоки поста, если активен только фильтр по пользователям', () => {
+		hideUser(10, 'User');
+		const getBlocks = vi.fn(() => []);
+		const post = {
+			id: 1,
+			sourceId: 'dtf',
+			title: 'Обычный пост',
+			author: { id: 11, name: 'Other' },
+			commentsCount: 0,
+			createdAt: ''
+		} as unknown as Post;
+		Object.defineProperty(post, 'blocks', { get: getBlocks });
+
+		expect(matchPostFilter(post)).toBeNull();
+		expect(getBlocks).not.toHaveBeenCalled();
+	});
+
 	it('фильтрует редакторские новости по флагу filterNews, режиму скрытия и раскрытым строкам', () => {
 		addIgnoredKeyword('спойлер');
 		hideUser(10, 'Editor');

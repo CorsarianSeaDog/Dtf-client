@@ -169,8 +169,19 @@ export function isKeywordPresetActive(
 	return preset.keywords.every((kw) => current.has(kw.trim().toLowerCase()));
 }
 
+const tagRegexCache = new Map<string, RegExp>();
+
 function escapeRegex(str: string): string {
 	return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getTagRegex(tag: string): RegExp {
+	let re = tagRegexCache.get(tag);
+	if (!re) {
+		re = new RegExp('#' + escapeRegex(tag) + '(?![-_a-zA-Z0-9а-яА-ЯёЁ])', 'i');
+		tagRegexCache.set(tag, re);
+	}
+	return re;
 }
 
 /** Извлекает весь текст из заголовка, подсайта, автора и блоков поста для поиска */
@@ -202,29 +213,35 @@ function matchEntryFilter(post: Post, settings: FilterSettings): FilterMatch | n
 	const author = post.sourceId === 'dtf' && post.author ? users.find((u) => u.id === post.author.id) : undefined;
 	if (author) return { matched: true, kind: 'user', rule: author.name };
 
+	if (tags.length === 0 && keywords.length === 0) return null;
+
 	const subsiteName = post.subsite?.name ? normalizeTag(post.subsite.name) : '';
 	const fullText = getPostSearchText(post);
-	const lowerText = fullText.toLowerCase();
 
 	// 1. Проверяем теги
-	for (const tag of tags) {
-		if (!tag) continue;
-		// Совпадение с названием подсайта (на DTF подсайты часто выступают тегами категорий)
-		if (subsiteName && subsiteName === tag) {
-			return { matched: true, kind: 'tag', rule: `#${tag}` };
-		}
-		// Хэштег в тексте: #тег с границей слова (не буква, не цифра, не подчеркивание)
-		const tagRegex = new RegExp('#' + escapeRegex(tag) + '(?![-_a-zA-Z0-9а-яА-ЯёЁ])', 'i');
-		if (tagRegex.test(fullText)) {
-			return { matched: true, kind: 'tag', rule: `#${tag}` };
+	if (tags.length > 0) {
+		const hasHash = fullText.includes('#');
+		for (const tag of tags) {
+			if (!tag) continue;
+			// Совпадение с названием подсайта (на DTF подсайты часто выступают тегами категорий)
+			if (subsiteName && subsiteName === tag) {
+				return { matched: true, kind: 'tag', rule: `#${tag}` };
+			}
+			// Хэштег в тексте: #тег с границей слова (не буква, не цифра, не подчеркивание)
+			if (hasHash && getTagRegex(tag).test(fullText)) {
+				return { matched: true, kind: 'tag', rule: `#${tag}` };
+			}
 		}
 	}
 
 	// 2. Проверяем ключевые слова
-	for (const kw of keywords) {
-		if (!kw) continue;
-		if (lowerText.includes(kw)) {
-			return { matched: true, kind: 'keyword', rule: kw };
+	if (keywords.length > 0) {
+		const lowerText = fullText.toLowerCase();
+		for (const kw of keywords) {
+			if (!kw) continue;
+			if (lowerText.includes(kw)) {
+				return { matched: true, kind: 'keyword', rule: kw };
+			}
 		}
 	}
 
@@ -287,23 +304,28 @@ export function matchCommentFilter(
 	const author = comment.sourceId === 'dtf' ? users.find((u) => u.id === comment.author.id) : undefined;
 	if (author) return { matched: true, kind: 'user', rule: author.name };
 
+	if (tags.length === 0 && keywords.length === 0) return null;
+
 	const content = comment.content || '';
-	const lowerContent = content.toLowerCase();
 
 	// 1. Проверяем теги (#тег в тексте комментария)
-	for (const tag of tags) {
-		if (!tag) continue;
-		const tagRegex = new RegExp('#' + escapeRegex(tag) + '(?![-_a-zA-Z0-9а-яА-ЯёЁ])', 'i');
-		if (tagRegex.test(content)) {
-			return { matched: true, kind: 'tag', rule: `#${tag}` };
+	if (tags.length > 0 && content.includes('#')) {
+		for (const tag of tags) {
+			if (!tag) continue;
+			if (getTagRegex(tag).test(content)) {
+				return { matched: true, kind: 'tag', rule: `#${tag}` };
+			}
 		}
 	}
 
 	// 2. Проверяем ключевые слова
-	for (const kw of keywords) {
-		if (!kw) continue;
-		if (lowerContent.includes(kw)) {
-			return { matched: true, kind: 'keyword', rule: kw };
+	if (keywords.length > 0) {
+		const lowerContent = content.toLowerCase();
+		for (const kw of keywords) {
+			if (!kw) continue;
+			if (lowerContent.includes(kw)) {
+				return { matched: true, kind: 'keyword', rule: kw };
+			}
 		}
 	}
 
