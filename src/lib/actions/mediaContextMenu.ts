@@ -1,34 +1,62 @@
+import { api } from '$lib/api/index.svelte';
 import { getLeonardoOriginalUrl, downloadImage } from '$lib/api/utils';
 import { isNative } from '$lib/capacitor';
 import { contextMenu, type ContextMenuItem, type ContextMenuPayload } from '$lib/contextMenu.svelte';
+import { openOverlay } from '$lib/navigation';
+import { authStorage } from '$lib/storage/auth.svelte';
 import { notify } from '$lib/themes/dtf2022/ui/notify.svelte';
 
 export interface MediaContextOptions {
 	uuid: string;
+	width?: number;
+	height?: number;
+	size?: number;
 	isGif?: boolean;
+	/** Если задан, вместо «Добавить в избранное» показывается «Удалить из избранного» */
+	onRemoveFavorite?: () => void | Promise<void>;
 }
 
 /** Формирует пункты контекстного меню для GIF и видео */
-export function buildMediaContextMenu({ uuid, isGif = false }: MediaContextOptions): ContextMenuPayload {
+export function buildMediaContextMenu({ uuid, width, height, size, isGif = false, onRemoveFavorite }: MediaContextOptions): ContextMenuPayload {
 	const originalUrl = getLeonardoOriginalUrl(uuid);
 	const title = isGif ? 'GIF' : 'Видео';
 
-	const items: ContextMenuItem[] = [
-		{
-			id: 'download',
-			label: isGif ? 'Сохранить GIF' : 'Сохранить видео',
-			icon: 'ui_download',
+	const items: ContextMenuItem[] = [];
+
+	if (isGif && !onRemoveFavorite) {
+		items.push({
+			id: 'favorite',
+			label: 'Добавить в мои GIF',
+			icon: 'v_star',
 			async action() {
+				if (!authStorage.isAuthenticated) {
+					openOverlay({ type: 'login' });
+					return;
+				}
 				try {
-					// Оригинал на Leonardo для гифок и видео отдаётся как video/mp4
-					await downloadImage(originalUrl, uuid, 'mp4');
-					notify.success('Загрузка началась');
-				} catch {
-					notify.error('Не удалось скачать файл');
+					await api.addFavoriteGif({ uuid, width, height, size });
+					notify.success('GIF добавлена в избранное');
+				} catch (e) {
+					notify.error((e as Error).message || 'Не удалось добавить гифку в избранное');
 				}
 			}
+		});
+	}
+
+	items.push({
+		id: 'download',
+		label: isGif ? 'Сохранить GIF' : 'Сохранить видео',
+		icon: 'ui_download',
+		async action() {
+			try {
+				// Оригинал на Leonardo для гифок и видео отдаётся как video/mp4
+				await downloadImage(originalUrl, uuid, 'mp4');
+				notify.success('Загрузка началась');
+			} catch {
+				notify.error('Не удалось скачать файл');
+			}
 		}
-	];
+	});
 
 	if (!isNative()) {
 		items.push({
@@ -68,6 +96,19 @@ export function buildMediaContextMenu({ uuid, isGif = false }: MediaContextOptio
 						notify.error('Не удалось поделиться');
 					}
 				}
+			}
+		});
+	}
+
+	if (isGif && onRemoveFavorite) {
+		items.push({
+			id: 'unfavorite',
+			label: 'Удалить из избранного',
+			icon: 'v_delete',
+			danger: true,
+			separatorBefore: true,
+			async action() {
+				await onRemoveFavorite();
 			}
 		});
 	}

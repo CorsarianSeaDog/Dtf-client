@@ -141,7 +141,7 @@
 			{#if isAnimatedMedia(image)}
 				{#if !evictMedia}
 					{@const gif = isGifMedia(image)}
-					{@const menu = mediaContextMenu({ uuid: image.data.uuid, isGif: gif })}
+					{@const menu = mediaContextMenu({ ...image.data, isGif: gif })}
 					<video
 						src={getLeonardoUrl(image.data.uuid, { format: 'mp4' })}
 						muted

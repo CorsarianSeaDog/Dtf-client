@@ -34,7 +34,7 @@
 			{#each block.data.items as item}
 				{#if item.image}
 					{#if isAnimatedMedia(item.image)}
-						<video use:lazyVideo {@attach mediaContextMenu({ uuid: item.image.data.uuid, isGif: isGifMedia(item.image) })} src={getLeonardoUrl(item.image.data.uuid, { format: 'mp4' })} controls={!!item.image.data.has_audio} loop muted playsinline></video>
+						<video use:lazyVideo {@attach mediaContextMenu({ ...item.image.data, isGif: isGifMedia(item.image) })} src={getLeonardoUrl(item.image.data.uuid, { format: 'mp4' })} controls={!!item.image.data.has_audio} loop muted playsinline></video>
 					{:else}
 						<LazyImage
 							src={getLeonardoUrl(item.image.data.uuid, { width: 800, format: 'webp' })}

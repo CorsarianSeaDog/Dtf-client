@@ -167,7 +167,7 @@
 		<div class="profile-comment__media">
 			{#each comment.media as media}
 				{#if isAnimatedMedia(media)}
-					<video src={getLeonardoUrl(media.data.uuid, { format: 'mp4' })} muted loop playsinline controls={!!media.data.has_audio} {@attach fromAction(lazyVideo)} {@attach mediaContextMenu({ uuid: media.data.uuid, isGif: isGifMedia(media) })}></video>
+					<video src={getLeonardoUrl(media.data.uuid, { format: 'mp4' })} muted loop playsinline controls={!!media.data.has_audio} {@attach fromAction(lazyVideo)} {@attach mediaContextMenu({ ...media.data, isGif: isGifMedia(media) })}></video>
 				{:else if media.type === 'image'}
 					<button
 						type="button"

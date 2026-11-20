@@ -517,7 +517,7 @@
 											playsinline
 											controls={!!media.data.has_audio}
 											{@attach fromAction(lazyVideo)}
-											{@attach mediaContextMenu({ uuid: media.data.uuid, isGif: isGifMedia(media) })}
+											{@attach mediaContextMenu({ ...media.data, isGif: isGifMedia(media) })}
 										></video>
 									{:else}
 										<img bind:this={thumbEls[media.data.uuid]} src={getLeonardoUrl(media.data.uuid, { width: 800 })} alt="" loading="lazy" />

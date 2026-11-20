@@ -195,7 +195,7 @@
 							playsinline
 							controls={!!media.data.has_audio}
 							{@attach fromAction(lazyVideo)}
-							{@attach mediaContextMenu({ uuid: media.data.uuid, isGif: isGifMedia(media) })}
+							{@attach mediaContextMenu({ ...media.data, isGif: isGifMedia(media) })}
 						></video>
 					{:else if media.type === 'image'}
 						<button

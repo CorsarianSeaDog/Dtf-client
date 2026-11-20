@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fromAction } from 'svelte/attachments';
 	import type { GifResult } from '$lib/api/types';
 	import { api } from '$lib/api/index.svelte';
+	import { lazyVideo } from '$lib/actions/lazyVideo';
+	import { mediaContextMenu } from '$lib/actions/mediaContextMenu';
 	import { loadOnVisible } from '../loadOnVisible';
 	import Popup from '../ui/Popup.svelte';
 	import Preloader from '../ui/Preloader.svelte';
@@ -22,7 +25,7 @@
 	let loading = $state(false);
 	let loaded = $state(false);
 	let timer: ReturnType<typeof setTimeout> | undefined;
-	let searchedQuery = '';
+	let searchedQuery = $state('');
 
 	async function load(more = false) {
 		if (loading) return;
@@ -46,8 +49,24 @@
 		}
 	}
 
+	async function removeFavorite(uuid: string) {
+		const prev = gifs;
+		gifs = gifs.filter((item) => item.media.data.uuid !== uuid);
+		try {
+			await api.removeFavoriteGif(uuid);
+			notify.success('GIF удалена из избранного');
+		} catch (e) {
+			gifs = prev;
+			notify.error((e as Error).message || 'Не удалось удалить гифку из избранного');
+		}
+	}
+
 	function onInput() {
 		clearTimeout(timer);
+		if (!query.trim()) {
+			if (searchedQuery) void load();
+			return;
+		}
 		timer = setTimeout(() => query.trim() !== searchedQuery && load(), 750);
 	}
 
@@ -67,14 +86,27 @@
 			<input type="search" placeholder="Поиск гифок" aria-label="Поиск гифок" bind:value={query} oninput={onInput} />
 		</label>
 
-		{#if !query.trim() && gifs.length > 0}
+		{#if !searchedQuery && gifs.length > 0}
 			<p class="gif-picker__title">Избранное</p>
 		{/if}
 
 		<div class="gif-picker__grid">
 			{#each gifs as gif (gif.media.data.uuid)}
-				<button type="button" class="gif-picker__item" onclick={() => onpick(gif)}>
-					<img src={gif.previewUrl} alt="" loading="lazy" />
+				<button
+					type="button"
+					class="gif-picker__item"
+					onclick={() => onpick(gif)}
+					{@attach mediaContextMenu({
+						...gif.media.data,
+						isGif: true,
+						onRemoveFavorite: searchedQuery ? undefined : () => removeFavorite(gif.media.data.uuid)
+					})}
+				>
+					{#if gif.previewUrl.includes('/format/mp4')}
+						<video src={gif.previewUrl} muted loop playsinline {@attach fromAction(lazyVideo)}></video>
+					{:else}
+						<img src={gif.previewUrl} alt="" loading="lazy" />
+					{/if}
 				</button>
 			{/each}
 		</div>
@@ -82,7 +114,7 @@
 		{#if loading}
 			<div class="gif-picker__status"><Preloader /></div>
 		{:else if loaded && gifs.length === 0}
-			<p class="gif-picker__status">{query.trim() ? 'Ничего не найдено' : 'В избранном пока ничего нет'}</p>
+			<p class="gif-picker__status">{searchedQuery ? 'Ничего не найдено' : 'В избранном пока ничего нет'}</p>
 		{:else if cursor}
 			<div class="gif-picker__more" {@attach loadOnVisible(() => load(true))}></div>
 		{/if}
@@ -157,7 +189,7 @@
 		cursor: pointer;
 	}
 
-	.gif-picker__item img {
+	.gif-picker__item :is(img, video) {
 		display: block;
 		width: 100%;
 		height: 100%;
