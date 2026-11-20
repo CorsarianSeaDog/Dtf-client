@@ -18,6 +18,7 @@
 	import QuizBlock from './QuizBlock.svelte';
 	import SpotifyBlock from './SpotifyBlock.svelte';
 	import { spotifyEmbedSrc } from './spotify';
+	import { videoEmbedSrc } from './videoEmbed';
 	import { FEED_MEDIA_MAX_HEIGHT, isWideMedia, mediaMaxWidth, mediaPreviewUrl } from '../media';
 	import { themeSettings } from '../themeSettings.svelte';
 
@@ -77,7 +78,7 @@
 		if (href) openDtfLink(e, href);
 	}
 
-	// YouTube подгружаем только по клику
+	// Внешние плееры (YouTube, Coub) подгружаем только по клику; ключ — адрес плеера
 	let playingVideos = $state<Record<string, boolean>>({});
 
 	/*
@@ -234,12 +235,12 @@
 		{/if}
 	{:else if block.type === 'video' && block.data.video?.data}
 		{@const video = block.data.video.data}
-		{@const youtubeId = video.external_service?.name === 'youtube' ? video.external_service.id : null}
+		{@const embedSrc = videoEmbedSrc(video.external_service)}
 		<figure class={figureClass(video.thumbnail?.data ?? video)} id={anchorId}>
 			{#snippet content()}
-				{#if youtubeId && playingVideos[youtubeId]}
+				{#if embedSrc && playingVideos[embedSrc]}
 					<iframe
-						src="https://www.youtube-nocookie.com/embed/{youtubeId}?autoplay=1"
+						src={embedSrc}
 						title={block.data.title || 'Видео'}
 						allow="autoplay; encrypted-media; picture-in-picture"
 						allowfullscreen
@@ -251,7 +252,7 @@
 					<button
 						class="media-placeholder__play"
 						aria-label="Смотреть: {block.data.title || 'видео'}"
-						onclick={() => youtubeId && (playingVideos[youtubeId] = true)}
+						onclick={() => embedSrc && (playingVideos[embedSrc] = true)}
 					>
 						<svg class="icon-play" width="48" height="48" aria-hidden="true">
 							<use href="#andropov_play_default"></use>
