@@ -50,7 +50,13 @@ describe('filter storage', () => {
 			mode: 'soft',
 			filterPosts: true,
 			filterNews: true,
-			filterComments: true
+			filterComments: true,
+			filterPostRating: false,
+			postRatingMinVotes: 5,
+			postRatingMode: 'soft',
+			filterCommentRating: false,
+			commentRatingMinVotes: 5,
+			commentRatingMode: 'soft'
 		});
 	});
 
@@ -311,5 +317,60 @@ describe('filter storage', () => {
 		filterSettings.patch({ filterNews: false });
 		expect(matchNewsFilter(news1)).toBeNull();
 		expect(filterNewsItems([news1, news2, news3]).map((r) => r.item.id)).toEqual([1, 2, 3]);
+	});
+
+	it('фильтрует посты и комментарии по негативному рейтингу, порогам 5/15/50 и приоритету жёсткого режима', () => {
+		const makePost = (counters: { id: number; count: number }[], title = 'Пост'): Post => ({
+			id: 1,
+			sourceId: 'dtf',
+			title,
+			blocks: [],
+			author: { id: 10, name: 'User' },
+			commentsCount: 0,
+			createdAt: '',
+			reactions: { counters, reactionId: 0 }
+		});
+		const makeComment = (count: number, dislikes: number, content = 'Текст'): Comment => ({
+			id: 2,
+			sourceId: 'dtf',
+			postId: 1,
+			author: { id: 10, name: 'User' },
+			content,
+			createdAt: '',
+			likes: { count, dislikes, myVote: 0 }
+		});
+
+		// По умолчанию фильтр по рейтингу выключен
+		const bad5 = makePost([{ id: 1, count: 2 }, { id: 23, count: 3 }, { id: 4, count: 100 }]);
+		const comment15 = makeComment(5, 10);
+		expect(matchPostFilter(bad5)).toBeNull();
+		expect(matchCommentFilter(comment15)).toBeNull();
+
+		// Включаем для постов (порог 5): нейтральная реакция (id 4) не учитывается в сумме голосов
+		filterSettings.patch({ filterPostRating: true, postRatingMinVotes: 5, postRatingMode: 'soft' });
+		expect(matchPostFilter(makePost([{ id: 1, count: 1 }, { id: 23, count: 3 }, { id: 4, count: 100 }]))).toBeNull();
+		expect(matchPostFilter(makePost([{ id: 1, count: 3 }, { id: 23, count: 3 }]))).toBeNull();
+		expect(matchPostFilter(bad5)).toEqual({ matched: true, kind: 'rating', rule: 'негативный рейтинг', mode: 'soft' });
+		// Настройки постов не влияют на комментарии
+		expect(matchCommentFilter(comment15)).toBeNull();
+
+		// Проверяем пороги 15 и 50 на комментариях независимо от постов
+		filterSettings.patch({ filterPostRating: false, filterCommentRating: true, commentRatingMinVotes: 15, commentRatingMode: 'hard' });
+		expect(matchPostFilter(bad5)).toBeNull();
+		expect(matchCommentFilter(makeComment(5, 9))).toBeNull();
+		expect(matchCommentFilter(comment15)).toEqual({ matched: true, kind: 'rating', rule: 'негативный рейтинг', mode: 'hard' });
+
+		filterSettings.patch({ commentRatingMinVotes: 50 });
+		expect(matchCommentFilter(makeComment(20, 29))).toBeNull();
+		expect(matchCommentFilter(makeComment(20, 30))).toEqual({ matched: true, kind: 'rating', rule: 'негативный рейтинг', mode: 'hard' });
+
+		// При совпадении двух фильтров приоритет у жёсткого режима
+		addIgnoredKeyword('спойлер');
+		const bothPost = makePost([{ id: 1, count: 2 }, { id: 23, count: 3 }], 'Тут спойлер');
+		filterSettings.patch({ filterPosts: true, mode: 'soft', filterPostRating: true, postRatingMinVotes: 5, postRatingMode: 'hard' });
+		expect(matchPostFilter(bothPost)).toEqual({ matched: true, kind: 'rating', rule: 'негативный рейтинг', mode: 'hard' });
+
+		filterSettings.patch({ mode: 'hard', postRatingMode: 'soft' });
+		expect(matchPostFilter(bothPost)).toEqual({ matched: true, kind: 'keyword', rule: 'спойлер' });
 	});
 });

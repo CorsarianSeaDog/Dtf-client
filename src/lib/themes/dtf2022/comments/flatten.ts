@@ -26,8 +26,13 @@ export const commentKey = (c: { sourceId: string; id: number }) => `${c.sourceId
 
 // У комментариев с ответами сохраняем строку, чтобы ветка не меняла структуру
 function isHiddenLeaf(comment: CommentTreeItem, settings: FilterSettings): boolean {
-	return comment.children.length === 0 && !!matchCommentFilter(comment, settings);
+	if (comment.children.length > 0) return false;
+	const match = matchCommentFilter(comment, settings);
+	return !!match && (match.mode ?? settings.mode) === 'hard';
 }
+
+const hasHardCommentFilter = (settings: FilterSettings) =>
+	settings.mode === 'hard' || (!!settings.filterCommentRating && settings.commentRatingMode === 'hard');
 
 /**
  * Дерево → плоский список, как рисует DTF: у комментария на уровне N есть N−1 линий.
@@ -35,11 +40,12 @@ function isHiddenLeaf(comment: CommentTreeItem, settings: FilterSettings): boole
  */
 export function flattenComments(roots: CommentTreeItem[], maxDepth: number, settings = filterSettings.value): CommentRow[] {
 	const rows: CommentRow[] = [];
+	const hasHard = hasHardCommentFilter(settings);
 
 	// chain[k] — есть ли у узла цепочки на глубине k следующие соседи (ветка его родителя идёт дальше);
 	// owners[i] — предок на глубине i
 	function walk(nodes: CommentTreeItem[], depth: number, continues: boolean[], owners: string[], parent?: CommentTreeItem) {
-		const visible = settings.mode === 'hard' ? nodes.filter((comment) => !isHiddenLeaf(comment, settings)) : nodes;
+		const visible = hasHard ? nodes.filter((comment) => !isHiddenLeaf(comment, settings)) : nodes;
 		visible.forEach((comment, index) => {
 			const key = commentKey(comment);
 			const chain = [...continues, index < visible.length - 1];
@@ -70,7 +76,7 @@ export function flattenComments(roots: CommentTreeItem[], maxDepth: number, sett
 /** Пересобирает ветки, только если правка добавила строку в фильтр или вернула её в список */
 export function patchCommentRow(rows: CommentRow[], key: string, next: CommentTreeItem, rebuild: () => CommentRow[]): CommentRow[] {
 	const settings = filterSettings.value;
-	if (settings.mode === 'hard') {
+	if (hasHardCommentFilter(settings)) {
 		const visible = rows.some((row) => row.key === key);
 		const hidden = isHiddenLeaf(next, settings);
 		if (visible === hidden) return rebuild();

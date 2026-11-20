@@ -14,13 +14,31 @@
 		KEYWORD_PRESETS,
 		removeIgnoredKeyword,
 		removeIgnoredKeywords,
-		removeIgnoredTag
+		removeIgnoredTag,
+		type FilterMode,
+		type RatingMinVotes
 	} from '$lib/storage/filter.svelte';
 
 	/*
 	 * Страница «Фильтрация»:
-	 * локальные фильтры по тегам и ключевым словам (включая пресеты), режим скрытия и выбор областей.
+	 * локальные фильтры по тегам и ключевым словам (включая пресеты), режим скрытия, области и фильтр по рейтингу.
 	 */
+	const MODE_OPTIONS: { value: FilterMode; title: string }[] = [
+		{ value: 'soft', title: 'Мягкий' },
+		{ value: 'hard', title: 'Жёсткий' }
+	];
+
+	const MIN_VOTES_OPTIONS: { value: RatingMinVotes; title: string }[] = [
+		{ value: 5, title: '5' },
+		{ value: 15, title: '15' },
+		{ value: 50, title: '50' }
+	];
+
+	const modeSubtitle = (mode: FilterMode = 'soft') =>
+		mode === 'soft'
+			? 'Мягкий: скрывает под плашку с кнопкой «Показать»'
+			: 'Жёсткий: полностью вырезает элементы из ленты';
+
 	let tagInput = $state('');
 	let keywordInput = $state('');
 
@@ -163,15 +181,10 @@
 <SettingsGroup title="Параметры фильтрации">
 	<SettingsRow
 		title="Режим скрытия"
-		subtitle={filterSettings.value.mode === 'soft'
-			? 'Мягкий: скрывает под плашку с кнопкой «Показать»'
-			: 'Жёсткий: полностью вырезает элементы из ленты'}
+		subtitle={modeSubtitle(filterSettings.value.mode)}
 	>
 		<SettingsSegmented
-			options={[
-				{ value: 'soft', title: 'Мягкий' },
-				{ value: 'hard', title: 'Жёсткий' }
-			]}
+			options={MODE_OPTIONS}
 			value={filterSettings.value.mode}
 			label="Режим скрытия"
 			onchange={(mode) => filterSettings.patch({ mode })}
@@ -210,6 +223,69 @@
 			onchange={(filterComments) => filterSettings.patch({ filterComments })}
 		/>
 	</SettingsRow>
+</SettingsGroup>
+
+{#snippet ratingSubgroup(
+	title: string,
+	switchTitle: string,
+	enabled: boolean,
+	minVotes: RatingMinVotes,
+	mode: FilterMode,
+	onEnabled: (value: boolean) => void,
+	onMinVotes: (value: RatingMinVotes) => void,
+	onMode: (value: FilterMode) => void
+)}
+	<SettingsGroup layout="subgroup" {title}>
+		<SettingsRow title={switchTitle} tag="label">
+			<SettingsSwitch checked={enabled} label={switchTitle} onchange={onEnabled} />
+		</SettingsRow>
+		<SettingsRow
+			title="Минимальное количество голосов"
+			subtitle="Положительных и отрицательных, без нейтральных"
+		>
+			<SettingsSegmented
+				options={MIN_VOTES_OPTIONS}
+				value={minVotes}
+				label="Минимальное количество голосов ({title})"
+				onchange={onMinVotes}
+			/>
+		</SettingsRow>
+		<SettingsRow title="Режим скрытия" subtitle={modeSubtitle(mode)}>
+			<SettingsSegmented
+				options={MODE_OPTIONS}
+				value={mode}
+				label="Режим скрытия ({title})"
+				onchange={onMode}
+			/>
+		</SettingsRow>
+	</SettingsGroup>
+{/snippet}
+
+<SettingsGroup
+	layout="subgroups"
+	title="Фильтрация по рейтингу"
+	description="Скрытие постов и комментариев с отрицательным рейтингом при достижении минимального числа общих голосов."
+>
+	{@render ratingSubgroup(
+		'Посты',
+		'Скрывать посты с негативным рейтингом',
+		!!filterSettings.value.filterPostRating,
+		filterSettings.value.postRatingMinVotes ?? 5,
+		filterSettings.value.postRatingMode ?? 'soft',
+		(filterPostRating) => filterSettings.patch({ filterPostRating }),
+		(postRatingMinVotes) => filterSettings.patch({ postRatingMinVotes }),
+		(postRatingMode) => filterSettings.patch({ postRatingMode })
+	)}
+	{@render ratingSubgroup(
+		'Комментарии',
+		'Скрывать комментарии с негативным рейтингом',
+		!!filterSettings.value.filterCommentRating,
+		filterSettings.value.commentRatingMinVotes ?? 5,
+		filterSettings.value.commentRatingMode ?? 'soft',
+		(filterCommentRating) => filterSettings.patch({ filterCommentRating }),
+		(commentRatingMinVotes) => filterSettings.patch({ commentRatingMinVotes }),
+		(commentRatingMode) => filterSettings.patch({ commentRatingMode })
+	)}
 </SettingsGroup>
 
 <style>

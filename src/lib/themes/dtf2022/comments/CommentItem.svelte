@@ -363,7 +363,7 @@
 					{/if}
 				</span>
 				<!-- У комментария заблокированного с сервера текста нет, показывать нечего -->
-				{#if muted ? !!comment.content : filterSettings.value.mode === 'soft'}
+				{#if muted ? !!comment.content : (filterMatch?.mode ?? filterSettings.value.mode) === 'soft'}
 					<button type="button" class="comment-item__reveal-btn" onclick={() => (revealed = true)}>Показать</button>
 				{/if}
 			</div>

@@ -1,4 +1,5 @@
 import { persistedState } from './persisted.svelte';
+import { votesOf } from '$lib/reactions';
 import type { Comment, Notification, Post } from '$lib/api/types';
 
 /*
@@ -8,6 +9,7 @@ import type { Comment, Notification, Post } from '$lib/api/types';
  */
 
 export type FilterMode = 'soft' | 'hard';
+export type RatingMinVotes = 5 | 15 | 50;
 
 /** Пользователь DTF, которого скрыли локально; имя хранится, чтобы показать его в настройках без запроса */
 export interface HiddenUser {
@@ -30,12 +32,25 @@ export interface FilterSettings {
 	filterNews: boolean;
 	/** Фильтровать комментарии */
 	filterComments: boolean;
+	/** Скрывать посты с негативным рейтингом */
+	filterPostRating?: boolean;
+	/** Минимальное число голосов (плюсы + минусы без нейтральных) для фильтрации постов */
+	postRatingMinVotes?: RatingMinVotes;
+	/** Режим скрытия постов по рейтингу */
+	postRatingMode?: FilterMode;
+	/** Скрывать комментарии с негативным рейтингом */
+	filterCommentRating?: boolean;
+	/** Минимальное число голосов (плюсы + минусы без нейтральных) для фильтрации комментариев */
+	commentRatingMinVotes?: RatingMinVotes;
+	/** Режим скрытия комментариев по рейтингу */
+	commentRatingMode?: FilterMode;
 }
 
 export interface FilterMatch {
 	matched: boolean;
-	kind: 'tag' | 'keyword' | 'user';
+	kind: 'tag' | 'keyword' | 'user' | 'rating';
 	rule: string;
+	mode?: FilterMode;
 }
 
 export interface KeywordPreset {
@@ -74,7 +89,13 @@ export const filterSettings = persistedState<FilterSettings>('redtf:settings:fil
 	mode: 'soft',
 	filterPosts: true,
 	filterNews: true,
-	filterComments: true
+	filterComments: true,
+	filterPostRating: false,
+	postRatingMinVotes: 5,
+	postRatingMode: 'soft',
+	filterCommentRating: false,
+	commentRatingMinVotes: 5,
+	commentRatingMode: 'soft'
 });
 
 /** Нормализует тег: убирает # в начале, пробелы и приводит к нижнему регистру */
@@ -248,12 +269,26 @@ function matchEntryFilter(post: Post, settings: FilterSettings): FilterMatch | n
 	return null;
 }
 
-/** Проверяет, попадает ли пост под фильтр по тегам или ключевым словам */
+function matchRatingFilter(
+	item: Post | Comment,
+	enabled?: boolean,
+	minVotes: RatingMinVotes = 5,
+	mode: FilterMode = 'soft'
+): FilterMatch | null {
+	if (!enabled) return null;
+	const { up, down } = votesOf(item);
+	if (up >= down || up + down < minVotes) return null;
+	return { matched: true, kind: 'rating', rule: 'негативный рейтинг', mode };
+}
+
+/** Проверяет, попадает ли пост под фильтр по тегам, ключевым словам или рейтингу */
 export function matchPostFilter(
 	post: Post,
 	settings: FilterSettings = filterSettings.value
 ): FilterMatch | null {
-	return settings.filterPosts ? matchEntryFilter(post, settings) : null;
+	const entry = settings.filterPosts ? matchEntryFilter(post, settings) : null;
+	const rating = matchRatingFilter(post, settings.filterPostRating, settings.postRatingMinVotes, settings.postRatingMode);
+	return entry && settings.mode === 'hard' ? entry : rating?.mode === 'hard' ? rating : entry ?? rating;
 }
 
 /** Проверяет, попадает ли редакторская новость под фильтр по тегам, ключевым словам или авторам */
@@ -292,12 +327,7 @@ export function filterNewsItems(
 	return rows;
 }
 
-/** Проверяет, попадает ли комментарий под фильтр по тегам или ключевым словам */
-export function matchCommentFilter(
-	comment: Comment,
-	settings: FilterSettings = filterSettings.value
-): FilterMatch | null {
-	if (!settings.filterComments) return null;
+function matchCommentEntryFilter(comment: Comment, settings: FilterSettings): FilterMatch | null {
 	const { tags, keywords, users } = settings;
 	if (tags.length === 0 && keywords.length === 0 && users.length === 0) return null;
 
@@ -330,4 +360,14 @@ export function matchCommentFilter(
 	}
 
 	return null;
+}
+
+/** Проверяет, попадает ли комментарий под фильтр по тегам, ключевым словам или рейтингу */
+export function matchCommentFilter(
+	comment: Comment,
+	settings: FilterSettings = filterSettings.value
+): FilterMatch | null {
+	const entry = settings.filterComments ? matchCommentEntryFilter(comment, settings) : null;
+	const rating = matchRatingFilter(comment, settings.filterCommentRating, settings.commentRatingMinVotes, settings.commentRatingMode);
+	return entry && settings.mode === 'hard' ? entry : rating?.mode === 'hard' ? rating : entry ?? rating;
 }

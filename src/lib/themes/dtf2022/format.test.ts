@@ -157,6 +157,28 @@ describe('flattenComments', () => {
 		expect(flattenComments(tree, 2, { ...settings, mode: 'hard', filterComments: false }).map((row) => row.comment.id))
 			.toEqual([1, 2, 3, 4, 5, 6]);
 	});
+
+	it('вырезает листовой комментарий по жёсткому фильтру рейтинга даже при мягком общем режиме', () => {
+		const rated = (id: number, count: number, dislikes: number, children: CommentTreeItem[] = []): CommentTreeItem => ({
+			...node(id, children),
+			likes: { count, dislikes, myVote: 0 }
+		});
+		const tree = [rated(1, 1, 4), rated(2, 1, 4, [rated(3, 5, 1)]), rated(4, 5, 1)];
+		const settings = {
+			tags: [],
+			keywords: [],
+			users: [],
+			mode: 'soft' as const,
+			filterPosts: true,
+			filterNews: true,
+			filterComments: true,
+			filterCommentRating: true,
+			commentRatingMinVotes: 5 as const,
+			commentRatingMode: 'hard' as const
+		};
+
+		expect(flattenComments(tree, 2, settings).map((row) => row.comment.id)).toEqual([2, 3, 4]);
+	});
 });
 
 describe('donationsNote', () => {

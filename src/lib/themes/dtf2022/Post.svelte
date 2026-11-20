@@ -16,7 +16,7 @@
 	{#if isPostHidden(post)}
 		<!-- скрыто через меню «⋯» -->
 	{:else if filterMatch && !revealed}
-		{#if filterSettings.value.mode === 'soft'}
+		{#if (filterMatch.mode ?? filterSettings.value.mode) === 'soft'}
 			<FilteredCard {post} match={filterMatch} onreveal={() => (revealed = true)} />
 		{/if}
 	{:else}

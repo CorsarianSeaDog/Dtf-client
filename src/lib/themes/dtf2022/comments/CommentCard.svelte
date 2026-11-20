@@ -115,7 +115,7 @@
 {/if}
 
 {#if isFiltered}
-	{#if filterSettings.value.mode === 'soft'}
+	{#if (filterMatch?.mode ?? filterSettings.value.mode) === 'soft'}
 		<article class="comment-card comment-card--filtered">
 			<span class="comment-card__filtered-text">Комментарий скрыт фильтром ({filterMatch?.rule})</span>
 			<button type="button" class="comment-card__reveal-btn" onclick={() => (revealed = true)}>Показать</button>

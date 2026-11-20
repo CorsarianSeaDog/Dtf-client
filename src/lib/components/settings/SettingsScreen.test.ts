@@ -360,6 +360,7 @@ describe('SettingsScreen', () => {
 		expect(filtersBody).toContain('Скрытые ключевые слова и фразы');
 		expect(filtersBody).toContain('Режим скрытия');
 		expect(filtersBody).toContain('Фильтровать новости');
+		expect(filtersBody).toContain('Фильтрация по рейтингу');
 		expect(filtersBody).not.toContain('Скрытые пользователи');
 		expect(filtersBody).not.toContain('Чёрный список на DTF');
 
