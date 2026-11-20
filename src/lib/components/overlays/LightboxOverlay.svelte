@@ -299,7 +299,10 @@
 
 				// Прерываем доезд отмены predictive back, если пользователь снова коснулся экрана или начал закрытие
 				pswp.on('pointerDown', back.finishFlight);
-				pswp.on('close', () => back.stop(true));
+				pswp.on('close', () => {
+					back.stop(true);
+					if (animateSlides && pswp) applySlideDepth(pswp.mainScroll.x);
+				});
 
 				// Закрыли крестиком, Esc или свайпом: шаг истории назад
 				pswp.on('destroy', () => {
