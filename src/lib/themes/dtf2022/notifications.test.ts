@@ -70,12 +70,14 @@ describe('NotificationsPanel: плавная смена заголовка пр�
 
 		expect(body).toContain('notifications__footer');
 		expect(body).toContain('Все уведомления');
+		expect(body).not.toContain('data-notifications-body');
 	});
 
-	it('на странице уведомлений не показывает ссылку на все уведомления', () => {
+	it('на странице уведомлений размещает область обновления под шапкой', () => {
 		const { body } = render(NotificationsPanel, { props: { page: true } });
 
 		expect(body).toContain('notifications--page');
+		expect(body).toMatch(/<\/header>\s*<div[^>]*data-notifications-body/);
 		expect(body).not.toContain('notifications__footer');
 	});
 });

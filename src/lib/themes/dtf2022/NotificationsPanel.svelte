@@ -94,6 +94,7 @@
 		<button type="button" class="notifications__mark-all" onclick={() => notifications.markRead()}>Пометить все как прочитанные</button>
 	{/if}
 </header>
+<div data-notifications-body={page || undefined}>
 {#if !authStorage.isAuthenticated}
 	<p class="notifications__status">Войдите, чтобы видеть уведомления</p>
 {:else if notifications.error && notifications.items.length === 0}
@@ -156,6 +157,7 @@
 		{/each}
 	</div>
 {/if}
+</div>
 {#if !page}
 	<footer class="notifications__footer">
 		<a

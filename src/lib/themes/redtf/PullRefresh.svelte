@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { providePuller, THRESHOLD } from '$lib/pullRefresh';
 	import { reducedMotion } from '$lib/motion';
+	import { isOnTop } from '$lib/navigation';
 	import Preloader from '../dtf2022/ui/Preloader.svelte';
 	import { sidebar } from '../dtf2022/sidebar.svelte';
 
@@ -20,35 +21,49 @@
 	let area = $state<HTMLElement>();
 	let inner = $state<HTMLElement>();
 	let loading = $state(false);
+	let notificationsPull = $state(false);
 	let y = 0;
 	let frame = 0;
 	// Страница, которая уезжает. Берётся на старте: страницы пересоздаются
 	let content: HTMLElement | null = null;
 	// Панель видимого экрана лежит внутри страницы, но при жесте стоит на месте: её сдвиг гасится, а щель открывается под ней
 	let bar: HTMLElement | null = null;
+	let headerResize: ResizeObserver | undefined;
 
 	function render(next: number) {
 		if (!area || !inner) return;
 		if (!y && next) {
-			content = document.getElementById('content');
-			bar = document.querySelector<HTMLElement>('[data-layer]:not([data-hidden]) .screen-bar:not(.screen-bar--bare)');
+			const body = isOnTop('notifications')
+				? document.querySelector<HTMLElement>('[data-layer]:not([data-hidden]) .notifications-screen:not([data-leaving]) [data-notifications-body]')
+				: null;
+			notificationsPull = !!body;
+			content = body ?? document.getElementById('content');
+			bar = body ? null : document.querySelector<HTMLElement>('[data-layer]:not([data-hidden]) .screen-bar:not(.screen-bar--bare)');
+			const header = body?.previousElementSibling;
 			if (!bar?.offsetHeight) bar = null;
 			area.style.visibility = 'visible';
-			if (bar) {
+			if (header) {
+				// Щель едет со списком при прокрутке к началу, в том числе при повторном нажатии на вкладку.
+				const gap = area;
+				const placeGap = () => (gap.style.top = `${header.getBoundingClientRect().bottom + scrollY}px`);
+				Object.assign(gap.style, { bottom: 'auto', zIndex: '3' });
+				placeGap();
+				// Кнопка «Пометить все» может появиться или исчезнуть во время обновления.
+				headerResize = new ResizeObserver(placeGap);
+				headerResize.observe(header);
+			} else if (bar) {
 				// Щель — слой над страницей между низом панели и верхом страницы: под ним скрыто место, где панель стояла в потоке
 				Object.assign(area.style, { top: `${Math.round(bar.getBoundingClientRect().bottom)}px`, bottom: 'auto', zIndex: '3' });
 				bar.style.transition = 'none';
 			}
 			// Страница ложится поверх щели своим фоном, без тени: граница — только разница фонов
-			if (content) Object.assign(content.style, { position: 'relative', zIndex: '2', background: 'var(--bg-main)', willChange: 'transform' });
+			if (content && !body) Object.assign(content.style, { position: 'relative', zIndex: '2', background: 'var(--bg-main)', willChange: 'transform' });
 		}
 		y = next;
 		if (!y) return clear();
 		if (content) content.style.transform = `translate3d(0, ${y}px, 0)`;
-		if (bar) {
-			bar.style.transform = `translate3d(0, ${-y}px, 0)`;
-			area.style.height = `${y}px`;
-		}
+		if (bar) bar.style.transform = `translate3d(0, ${-y}px, 0)`;
+		if (bar || notificationsPull) area.style.height = `${y}px`;
 		// Подсказка стоит посередине щели и выходит из глубины к порогу; загрузка — к своей щели
 		const q = Math.min(1, y / (loading ? LOADING : THRESHOLD));
 		inner.style.transform = `translate3d(0, ${y / 2}px, 0) scale(${DEPTH + (1 - DEPTH) * q})`;
@@ -56,6 +71,8 @@
 	}
 
 	function clear() {
+		headerResize?.disconnect();
+		headerResize = undefined;
 		if (content) Object.assign(content.style, { position: '', zIndex: '', background: '', willChange: '', transform: '' });
 		if (bar) Object.assign(bar.style, { transform: '', transition: '' });
 		if (area) Object.assign(area.style, { visibility: '', top: '', bottom: '', zIndex: '', height: '' });
@@ -63,6 +80,7 @@
 		if (inner) inner.style.transform = inner.style.opacity = '';
 		content = null;
 		loading = false;
+		notificationsPull = false;
 	}
 
 	function animate(to: number) {
@@ -103,7 +121,7 @@
 	});
 </script>
 
-<div class="pull" bind:this={area} aria-hidden="true">
+<div class={['pull', { 'pull--notifications': notificationsPull }]} hidden={notificationsPull && !isOnTop('notifications')} bind:this={area} aria-hidden="true">
 	<div class="pull__inner" bind:this={inner}>
 		<span class={['pull__hint', { 'pull__hint--hidden': loading }]}>Отпустите, чтобы перезагрузить</span>
 		{#if loading}
@@ -130,6 +148,14 @@
 			visibility: hidden;
 			background: var(--bg-sidebar-deep);
 			pointer-events: none;
+		}
+
+		.pull--notifications {
+			position: absolute;
+		}
+
+		.pull[hidden] {
+			display: none;
 		}
 	}
 
