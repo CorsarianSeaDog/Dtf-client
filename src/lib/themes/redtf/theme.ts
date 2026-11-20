@@ -19,7 +19,7 @@ function isTransparencyEnabled(): boolean {
 export const PEEK = 0.25;
 
 /** Переход между страницами: на телефоне его вид выбирается настройкой `mobileTransition` */
-type PageMotion = Pick<ThemeMotion, 'recede' | 'wait' | 'breathe' | 'depart' | 'approach' | 'fastDepart' | 'fastApproach' | 'peek' | 'pageOut' | 'pageBack' | 'pageIn'>;
+type PageMotion = Pick<ThemeMotion, 'recede' | 'wait' | 'breathe' | 'depart' | 'approach' | 'fastDepart' | 'fastApproach' | 'peek' | 'pageOut' | 'pageBack' | 'pageIn' | 'backPreview'>;
 
 // «Слайд»: движение как у свайпа «назад», только в обратную сторону. Новая страница выезжает справа с кривой броска
 // (сразу на скорости и плавно тормозит), старая отъезжает на треть влево и затемняется, но не размывается: размытие,
@@ -59,7 +59,11 @@ function slide(blur: boolean, speed: SettingValue | undefined): PageMotion {
 		depart: { keyframes: [{ transform: 'translateX(-30%)' }], ...timing },
 		approach: { keyframes: [{ transform: peeked }, { transform: 'none' }], ...timing },
 		pageOut: { keyframes: [{ transform: 'none' }, { transform: 'translateX(100%)' }], ...timing },
-		pageBack: { keyframes: [shift('-30%'), still], ...timing }
+		pageBack: { keyframes: [shift('-30%'), still], ...timing },
+		backPreview: {
+			kind: 'slide',
+			commit: { duration: Math.round(timing.duration * 0.72), easing: timing.easing }
+		}
 	};
 }
 
@@ -98,7 +102,11 @@ function material(speed: SettingValue | undefined): PageMotion {
 		},
 		pageBack: { keyframes: [{ transform: 'translateX(-30px)' }, { transform: 'none' }], ...timing },
 		// Слой под закрытой страницей (и прокрученная лента) не проявляется из пустоты: он уже стоит под гаснущей страницей
-		pageIn: undefined
+		pageIn: undefined,
+		backPreview: {
+			kind: 'material',
+			commit: { duration: Math.round(timing.duration * 0.7), easing: timing.easing }
+		}
 	};
 }
 
@@ -284,7 +292,12 @@ function getMotion(values: Record<string, SettingValue>): ThemeMotion {
 					],
 					duration: 400,
 					easing: ease.smooth
-			  }
+			  },
+		backPreview: {
+			kind: 'zoom',
+			commit: { duration: blur ? 320 : 220, easing: ease.standard },
+			blur
+		}
 	};
 	if (getCurrentDevice() !== 'mobile' || values.mobileTransition === 'zoom') return motion;
 	return { ...motion, ...(values.mobileTransition === 'material' ? material(values.transitionSpeed) : slide(blur, values.transitionSpeed)) };

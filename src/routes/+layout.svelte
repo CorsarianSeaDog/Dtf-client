@@ -499,7 +499,7 @@
 	{/if}
 {/snippet}
 
-<div class="app" inert={showWelcome} data-gestures={activeTheme.gestures || undefined} {@attach activeTheme.gestures ? backSwipe : undefined}>
+<div class="app" inert={showWelcome} data-gestures={activeTheme.gestures || undefined} {@attach backSwipe}>
 	<ThemeLoader componentName="Header" />
 
 	<ThemeLoader componentName="MainLayout">

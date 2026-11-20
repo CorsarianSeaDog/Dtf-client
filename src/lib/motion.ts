@@ -16,6 +16,16 @@ export interface Anim extends Timing {
 	direction?: PlaybackDirection;
 }
 
+export type BackPreviewKind = 'slide' | 'material' | 'zoom';
+
+export interface BackPreview {
+	kind: BackPreviewKind;
+	/** Длительность и кривая доезда закрытия после отпускания */
+	commit: Timing;
+	/** Разрешено ли размытие (зависит от настройки прозрачности темы) */
+	blur?: boolean;
+}
+
 /** Какие анимации есть у темы; чего нет, того не анимируем */
 export interface ThemeMotion {
 	/** Блок-заглушка загрузки заменяется содержимым: высота переезжает от заглушки к содержимому (см. Reveal) */
@@ -68,6 +78,8 @@ export interface ThemeMotion {
 	 * Анимация двигает обёртку на весь экран; когда страница готова, она выезжает с позиции панели (время из `approach`)
 	 */
 	peek?: Anim;
+	/** Вид превью и доезда при системном жесте «Назад» (Android Predictive Back) */
+	backPreview?: BackPreview;
 }
 
 /** Поля ThemeMotion, которые являются анимациями (их проигрывает `play`) */
@@ -229,6 +241,10 @@ export const fluent: ThemeMotion = {
 		],
 		duration: 400,
 		easing: ease.smooth
+	},
+	backPreview: {
+		kind: 'zoom',
+		commit: { duration: 260, easing: ease.out }
 	}
 };
 

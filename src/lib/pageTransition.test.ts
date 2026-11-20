@@ -35,19 +35,34 @@ describe('pageTransition', () => {
 	it('redtf на телефоне берёт переход из настройки, на компьютере — глубину', () => {
 		const motion = getTheme('redtf')?.motion;
 		if (typeof motion !== 'function') throw new Error('motion redtf должен зависеть от настроек');
-		const device = (mobile: boolean) => vi.stubGlobal('window', { matchMedia: (q: string) => ({ matches: mobile && q.includes('max-width') }) });
+		const device = (mobile: boolean, reducedTransparency = false) =>
+			vi.stubGlobal('window', {
+				matchMedia: (q: string) => ({
+					matches: (mobile && q.includes('max-width')) || (reducedTransparency && q.includes('prefers-reduced-transparency'))
+				})
+			});
 
 		device(true);
 		expect(motion({})?.peek).toBeDefined();
+		expect(motion({})?.backPreview).toMatchObject({ kind: 'slide' });
 		expect(motion({ mobileTransition: 'material' })?.peek).toBeUndefined();
+		expect(motion({ mobileTransition: 'material' })?.backPreview).toMatchObject({ kind: 'material' });
 		// Старая страница уходит под новую, не погаснув: иначе между ними виден фон приложения
 		expect(motion({ mobileTransition: 'material' })!.fastDepart!.keyframes.every((k) => (k.opacity ?? 1) === 1)).toBe(true);
 		expect(motion({ mobileTransition: 'zoom' })?.recede).toEqual(fluent.recede);
 		expect(motion({ transitionSpeed: 'fast' })!.fastApproach!.duration).toBeLessThan(motion({ transitionSpeed: 'smooth' })!.fastApproach!.duration);
+		expect(motion({ transitionSpeed: 'fast' })!.backPreview!.commit.duration).toBeLessThan(motion({ transitionSpeed: 'smooth' })!.backPreview!.commit.duration);
 		const materialAt = (transitionSpeed: string) => motion({ mobileTransition: 'material', transitionSpeed })!.fastApproach!.duration;
 		expect(materialAt('fast')).toBeLessThan(materialAt('smooth'));
+		expect(motion({ mobileTransition: 'material', transitionSpeed: 'fast' })!.backPreview!.commit.duration).toBeLessThan(
+			motion({ mobileTransition: 'material', transitionSpeed: 'smooth' })!.backPreview!.commit.duration
+		);
+		device(true, true);
+		expect(motion({ mobileTransition: 'zoom' })?.backPreview).toMatchObject({ kind: 'zoom', blur: false });
 		device(false);
 		expect(motion({ mobileTransition: 'slide' })?.peek).toBeUndefined();
+		expect(motion({ mobileTransition: 'slide' })?.backPreview).toMatchObject({ kind: 'zoom', blur: true });
+		expect(getTheme('dtf2022')?.motion && typeof getTheme('dtf2022')?.motion === 'object' ? getTheme('dtf2022')!.motion : undefined).not.toHaveProperty('backPreview');
 		vi.unstubAllGlobals();
 	});
 
