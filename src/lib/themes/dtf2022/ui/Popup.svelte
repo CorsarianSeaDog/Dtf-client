@@ -1,7 +1,10 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import type { Attachment } from 'svelte/attachments';
+	import { MediaQuery } from 'svelte/reactivity';
 	import { backdropShow, modalShow, modalHide } from '$lib/components/overlays/modalMotion';
+	import { sheetSwipe } from '$lib/swipe';
+	import { activeTheme } from '$lib/themes/index.svelte';
 
 	/**
 	 * Окно поверх страницы, как v-popup у DTF: заголовок с крестиком, тело и подвал с кнопками.
@@ -10,16 +13,21 @@
 	let {
 		title,
 		width = 480,
+		closable = true,
 		onclose,
 		children,
 		footer
 	}: {
 		title: string;
 		width?: number;
+		closable?: boolean;
 		onclose: () => void;
 		children: Snippet;
 		footer?: Snippet;
 	} = $props();
+
+	const sheet = new MediaQuery('max-width: 859px');
+	let canSwipeSheet = $derived(Boolean(activeTheme.gestures) && sheet.current && closable);
 
 	/** Переносим подложку в <body>, чтобы предки с content-visibility / transform / containment не обрезали модалку */
 	const portal: Attachment<HTMLElement> = (node) => {
@@ -32,15 +40,35 @@
 	};
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />
+<svelte:window onkeydown={(e) => e.key === 'Escape' && closable && onclose()} />
 
 <!-- Закрытие кликом по фону; с клавиатуры закрывает Escape -->
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div class="popup-overlay" out:modalHide|global {@attach portal} onclick={(e) => e.target === e.currentTarget && onclose()}>
-	<div class="popup" role="dialog" aria-modal="true" aria-label={title} style:max-width="{width}px">
-		<div class="popup__header">
+<div
+	class="popup-overlay"
+	data-sheet={sheet.current ? '' : undefined}
+	out:modalHide|global
+	{@attach portal}
+	onclick={(e) => e.target === e.currentTarget && closable && onclose()}
+>
+	<div
+		class="popup"
+		role="dialog"
+		aria-modal="true"
+		aria-label={title}
+		style:max-width="{width}px"
+		{@attach sheetSwipe({
+			enabled: () => canSwipeSheet,
+			handleSelector: '.popup__header, [data-sheet-handle]',
+			onclose
+		})}
+	>
+		<div class={['popup__header', { 'popup__header--handle': activeTheme.gestures }]}>
+			{#if activeTheme.gestures}
+				<span class="popup__handle" data-sheet-handle aria-hidden="true"></span>
+			{/if}
 			{title}
-			<button type="button" class="popup__close" aria-label="Закрыть" onclick={onclose}>
+			<button type="button" class="popup__close" aria-label="Закрыть" disabled={!closable} onclick={() => closable && onclose()}>
 				<svg class="icon" width="24" height="24" aria-hidden="true">
 					<use href="#v_close"></use>
 				</svg>
@@ -104,6 +132,10 @@
 		cursor: pointer;
 	}
 
+	.popup__handle {
+		display: none;
+	}
+
 	.popup__close:hover {
 		opacity: 1;
 	}
@@ -161,6 +193,10 @@
 			border-radius: 12px 12px 0 0;
 		}
 
+		.popup:has(.popup__handle) {
+			border-radius: 16px 16px 0 0;
+		}
+
 		.popup__header {
 			min-height: 56px;
 			padding-top: 16px;
@@ -168,12 +204,42 @@
 			border-radius: 12px 12px 0 0;
 		}
 
+		.popup__header--handle {
+			padding-top: 20px;
+			padding-bottom: 12px;
+			border-radius: 16px 16px 0 0;
+			touch-action: none;
+			user-select: none;
+			cursor: grab;
+		}
+
+		.popup__header--handle:active {
+			cursor: grabbing;
+		}
+
+		.popup__handle {
+			position: absolute;
+			top: 8px;
+			left: 50%;
+			display: block;
+			width: 36px;
+			height: 4px;
+			border-radius: 999px;
+			background-color: var(--text-placeholder);
+			transform: translateX(-50%);
+			pointer-events: none;
+		}
+
 		.popup__close {
 			top: 18px;
 		}
 
+		.popup__header--handle .popup__close {
+			top: 22px;
+		}
+
 		.popup__body {
-			padding: 16px 16px 20px;
+			padding: 16px 16px calc(20px + env(safe-area-inset-bottom, 0px));
 		}
 
 		.popup__body--with-footer {
@@ -182,7 +248,7 @@
 
 		.popup__footer {
 			flex-direction: column-reverse;
-			padding: 24px 16px;
+			padding: 24px 16px calc(24px + env(safe-area-inset-bottom, 0px));
 		}
 
 		.popup__footer :global(.btn) {

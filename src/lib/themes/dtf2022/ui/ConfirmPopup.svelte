@@ -38,7 +38,7 @@
 	}
 </script>
 
-<Popup {title} onclose={() => { if (!busy) onclose(); }}>
+<Popup {title} closable={!busy} onclose={() => { if (!busy) onclose(); }}>
 	<p class="confirm-popup__text">{message}</p>
 	{#snippet footer()}
 		<Button label="Отмена" disabled={busy} onclick={onclose} />
