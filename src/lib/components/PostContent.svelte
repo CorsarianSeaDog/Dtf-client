@@ -99,32 +99,33 @@
 			post = pendingRefresh;
 			pendingRefresh = undefined;
 		}
-		if (toComments || commentId !== undefined) {
-			if (post?.isDraft || post?.commentsDisabled) return;
-			commentsTurn.then(tick).then(() => {
-				requestAnimationFrame(() => {
-					commentsBox?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
-				});
-			});
-		} else if (anchor) {
-			tick().then(() => {
-				requestAnimationFrame(() => {
-					scrollToAnchor(anchor);
-				});
-			});
-		}
 	}
 
-	let lastScrollNonce = 0;
+	let commentsTarget = $derived(
+		commentId !== undefined
+			? `c:${commentId}:${focusNonce ?? 0}`
+			: toComments
+				? `all:${focusNonce ?? 0}`
+				: ''
+	);
+	let lastCommentsTarget = '';
+
 	$effect(() => {
-		if (toComments && postShown && !post?.isDraft && !post?.commentsDisabled && focusNonce && focusNonce !== lastScrollNonce) {
-			lastScrollNonce = focusNonce;
-			tick().then(() => {
-				requestAnimationFrame(() => {
-					commentsBox?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
-				});
-			});
+		const target = commentsTarget;
+		if (!target) {
+			lastCommentsTarget = '';
+			return;
 		}
+		if (!postShown || !commentsBox || post?.isDraft || post?.commentsDisabled) return;
+		if (target === lastCommentsTarget) return;
+		lastCommentsTarget = target;
+		const box = commentsBox;
+		tick().then(() => {
+			requestAnimationFrame(() => {
+				if (commentsTarget !== target) return;
+				box.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
+			});
+		});
 	});
 
 	let lastAnchorNonce = 0;

@@ -137,6 +137,8 @@
 	
 	// Scroll Restoration Stack
 	let scrollPositions = new Map<string, number>();
+	/** Последний обработанный focusNonce открытого поста: смена nonce означает явный переход к комментарию/якорю, а не возврат «Назад» */
+	let lastFocusNonces = new Map<string, number>();
 
 	$effect(() => {
 		// Очищаем сохранённый скролл для закрытых оверлеев
@@ -144,6 +146,11 @@
 		for (const key of scrollPositions.keys()) {
 			if (key !== '__feed__' && !activeIds.has(key)) {
 				scrollPositions.delete(key);
+			}
+		}
+		for (const key of lastFocusNonces.keys()) {
+			if (!activeIds.has(key)) {
+				lastFocusNonces.delete(key);
 			}
 		}
 	});
@@ -234,15 +241,23 @@
 	});
 
 	$effect(() => {
+		const activeOverlay = topmostPageOverlayIndex >= 0 ? overlays[topmostPageOverlayIndex] : undefined;
+		const activeFocusNonce = activeOverlay?.type === 'post' ? activeOverlay.data.focusNonce : undefined;
+		const jumpedToTarget = activeFocusNonce !== undefined && lastFocusNonces.get(activeScrollId) !== activeFocusNonce;
+		if (activeFocusNonce !== undefined) lastFocusNonces.set(activeScrollId, activeFocusNonce);
+
 		// Restore scroll of the incoming layer after DOM shows it
 		if (activeScrollId !== previousScrollId) {
 			// Ленту выбрали из-под страницы: у неё своя прокрутка (или начало, если это была та же лента)
 			const feedScroll = activeScrollId === '__feed__' ? feed.consumeScrollTarget() : undefined;
 			if (feedScroll !== undefined) scrollPositions.set('__feed__', feedScroll);
 			const closing = overlays.length < previousDepth;
-			// Пост открыли на комментарии: прокрутку к ним ставит сам пост. При возврате на него — его прокрутка
-			const activeOverlay = topmostPageOverlayIndex >= 0 ? overlays[topmostPageOverlayIndex] : undefined;
-			if (!closing && activeOverlay?.type === 'post' && (activeOverlay.data.commentId !== undefined || activeOverlay.data.toComments)) {
+			// Пост открыли (или повторно перешли из уведомлений) на комментарий/якорь: прокрутку ставит сам пост.
+			// При обычном возврате «Назад» focusNonce не меняется — сохраняем позицию чтения
+			const hasPostTarget =
+				activeOverlay?.type === 'post' &&
+				(activeOverlay.data.commentId !== undefined || activeOverlay.data.toComments || activeOverlay.data.anchor !== undefined);
+			if (hasPostTarget && (!closing || jumpedToTarget)) {
 				scrollPositions.delete(activeScrollId);
 			}
 			const savedScroll = scrollPositions.get(activeScrollId) || 0;
@@ -290,6 +305,8 @@
 				const target = document.querySelector(`[data-layer="${layer}"]`);
 				if (target) playChildren(target, anim);
 			});
+		} else if (jumpedToTarget) {
+			stopPendingScroll();
 		}
 		previousDepth = overlays.length;
 	});
