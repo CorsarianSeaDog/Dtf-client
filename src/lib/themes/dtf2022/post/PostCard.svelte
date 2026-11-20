@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Attachment } from 'svelte/attachments';
 	import type { Post } from '$lib/api/types';
 	import { resolve } from '$app/paths';
 	import { getPostPath, openOverlay, openPost } from '$lib/navigation';
@@ -84,6 +85,18 @@
 	}
 </script>
 
+{#snippet postLink(menu?: Attachment<HTMLElement>)}
+	<a
+		class={['post-link', { 'post-link--gif': menu }]}
+		href={postPath}
+		aria-label={post.title || undefined}
+		tabindex={menu ? -1 : undefined}
+		onclick={(e) => openPost(e, post)}
+		use:preloadIntent={post}
+		{@attach menu}
+	></a>
+{/snippet}
+
 <article
 	class={['feed-item', { 'feed-item--embed': embed, 'feed-item--elevated': !embed && (headerOverlay || pickerOpen || embedOverlay || showReposts) }]}
 	{@attach embed ? undefined : nearViewport((value) => (near = value))}
@@ -96,7 +109,7 @@
 		<PostHeader {post} variant="card" subscribe={subscribe && !draft} onoverlaychange={(v) => { headerOverlay = v; if (embed) onoverlaychange?.(v); }} />
 
 		<div class={['post-content', { 'post-content--blur': blurred }]}>
-			<PostBlocks title={post.title} editorial={post.isEditorial} {blocks} variant={embed ? 'embed' : 'card'} postId={post.id} sourceId={post.sourceId} evictMedia={!near} />
+			<PostBlocks title={post.title} editorial={post.isEditorial} {blocks} variant={embed ? 'embed' : 'card'} postId={post.id} sourceId={post.sourceId} evictMedia={!near} gifLink={draft ? undefined : postLink} />
 			{#if blurred}
 				<div class="post-adult">
 					<div class="post-adult__text">
@@ -117,7 +130,7 @@
 			{#if draft}
 				<div class="post-link"></div>
 			{:else}
-				<a class="post-link" href={postPath} aria-label={post.title || undefined} onclick={(e) => openPost(e, post)} use:preloadIntent={post}></a>
+				{@render postLink()}
 			{/if}
 		</div>
 
@@ -254,6 +267,10 @@
 	.post-link {
 		position: absolute;
 		inset: 0;
+	}
+
+	.post-link--gif {
+		z-index: 2;
 	}
 
 	/* Запись 18+ (.content--is-visible-blur из архива): содержимое размыто, поверх — вопрос о возрасте */

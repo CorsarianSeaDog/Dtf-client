@@ -4,9 +4,9 @@
 	import { embedToPost } from '$lib/api/embed';
 	import { sanitizeHtml } from '$lib/sanitize';
 	import { linkifyHashtags } from '$lib/hashtags';
-	import { fromAction } from 'svelte/attachments';
+	import { fromAction, type Attachment } from 'svelte/attachments';
 	import { lazyVideo } from '$lib/actions/lazyVideo';
-	import { mediaHold } from '$lib/actions/mediaHold';
+	import { mediaContextMenu } from '$lib/actions/mediaContextMenu';
 	import { getLeonardoUrl, isAnimatedMedia, isGifMedia } from '$lib/api/utils';
 	import { resolve } from '$app/paths';
 	import { openDtfLink, openLightbox, preloadLightbox } from '$lib/navigation';
@@ -36,7 +36,8 @@
 		variant,
 		postId,
 		sourceId,
-		evictMedia = false
+		evictMedia = false,
+		gifLink
 	}: {
 		blocks: Block[];
 		/** Заголовок поста — первым блоком */
@@ -51,6 +52,7 @@
 		postId?: number | string;
 		sourceId?: string;
 		evictMedia?: boolean;
+		gifLink?: Snippet<[Attachment<HTMLElement>]>;
 	} = $props();
 
 	const HEADINGS = ['h2', 'h3', 'h4'];
@@ -138,6 +140,8 @@
 		{#snippet content()}
 			{#if isAnimatedMedia(image)}
 				{#if !evictMedia}
+					{@const gif = isGifMedia(image)}
+					{@const menu = mediaContextMenu({ uuid: image.data.uuid, isGif: gif })}
 					<video
 						src={getLeonardoUrl(image.data.uuid, { format: 'mp4' })}
 						muted
@@ -146,8 +150,9 @@
 						preload="metadata"
 						controls={!!image.data.has_audio}
 						{@attach fromAction(lazyVideo)}
-						use:mediaHold={{ uuid: image.data.uuid, isGif: isGifMedia(image) }}
+						{@attach gif && gifLink ? undefined : menu}
 					></video>
+					{#if gif && gifLink}{@render gifLink(menu)}{/if}
 				{/if}
 			{:else}
 				{#if !evictMedia}

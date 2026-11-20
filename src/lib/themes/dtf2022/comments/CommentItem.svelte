@@ -7,7 +7,7 @@
 	import { openExternalUrl } from '$lib/capacitor';
 	import { lazyVideo } from '$lib/actions/lazyVideo';
 	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
-	import { mediaHold } from '$lib/actions/mediaHold';
+	import { mediaContextMenu } from '$lib/actions/mediaContextMenu';
 	import { api } from '$lib/api/index.svelte';
 	import { getLeonardoUrl, isAnimatedMedia, isGifMedia } from '$lib/api/utils';
 	import { getPostPath, getPostShareUrl, getProfilePath, openDtfLink, openLightbox, openProfile, preloadLightbox } from '$lib/navigation';
@@ -517,7 +517,7 @@
 											playsinline
 											controls={!!media.data.has_audio}
 											{@attach fromAction(lazyVideo)}
-											use:mediaHold={{ uuid: media.data.uuid, isGif: isGifMedia(media) }}
+											{@attach mediaContextMenu({ uuid: media.data.uuid, isGif: isGifMedia(media) })}
 										></video>
 									{:else}
 										<img bind:this={thumbEls[media.data.uuid]} src={getLeonardoUrl(media.data.uuid, { width: 800 })} alt="" loading="lazy" />

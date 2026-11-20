@@ -4,7 +4,7 @@
 	import { openExternalUrl } from '$lib/capacitor';
 	import { animatedAvatar } from '$lib/actions/animatedAvatar.svelte';
 	import { lazyVideo } from '$lib/actions/lazyVideo';
-	import { mediaHold } from '$lib/actions/mediaHold';
+	import { mediaContextMenu } from '$lib/actions/mediaContextMenu';
 	import { preloadIntent } from '$lib/actions/preloadIntent';
 	import { api } from '$lib/api/index.svelte';
 	import { currentUser } from '$lib/api/currentUser.svelte';
@@ -195,7 +195,7 @@
 							playsinline
 							controls={!!media.data.has_audio}
 							{@attach fromAction(lazyVideo)}
-							use:mediaHold={{ uuid: media.data.uuid, isGif: isGifMedia(media) }}
+							{@attach mediaContextMenu({ uuid: media.data.uuid, isGif: isGifMedia(media) })}
 						></video>
 					{:else if media.type === 'image'}
 						<button
