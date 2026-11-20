@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
+import { rampUp } from '../swipe';
 
 /*
  * Системный жест «Назад» (Android). Плагин NativeBack шлёт ход жеста, а страница по нему рисует свой переход:
@@ -50,31 +51,46 @@ export function getBackDriver(): BackDriver | undefined {
 /**
  * Обработчики событий плагина. Палец ведёт сдвиг по `touchX`, а не по `progress`: система нормирует его по своему
  * расстоянию, и страница не шла бы за пальцем. Без хода (3 кнопки, старый Android, нечего рисовать) `fallback` закрывает сразу.
- * Необязательный `schedule` схлопывает частые `progressed` в один вызов `move` на кадр и применяет последний сдвиг перед `invoked`.
+ * Необязательный `schedule` схлопывает частые `progressed` в один вызов `move` на кадр, плавно разгоняет старт через `rampUp`
+ * и не прыгает на неотрисованный сдвиг при `invoked` / `cancelled`.
  */
 export function backHandlers(
 	getDriver: () => BackDriver | undefined,
 	fallback: () => void,
 	pixelRatio: () => number,
-	schedule?: (cb: () => void) => () => void
+	schedule?: (cb: () => void) => () => void,
+	now: () => number = () => performance.now()
 ) {
-	let live: { driver: BackDriver; side: BackSide; from: number; distance: number; cancel?: () => void } | undefined;
+	let live: { driver: BackDriver; side: BackSide; from: number; distance: number; ramp: 'pending' | number | undefined; cancel?: () => void } | undefined;
+
+	function flush() {
+		if (!live) return;
+		live.cancel = undefined;
+		if (live.ramp === 'pending') {
+			if (live.distance <= 0) return;
+			live.ramp = now();
+		}
+		let k = 1;
+		if (live.ramp !== undefined) {
+			k = rampUp(now() - live.ramp);
+			if (k === 1) live.ramp = undefined;
+			else live.cancel = schedule!(flush);
+		}
+		live.driver.move(live.distance * k);
+	}
+
 	return {
 		started(e: BackEvent) {
 			live?.cancel?.();
 			const target = getDriver();
 			const side = e.edge === 'right' ? -1 : 1;
-			live = target?.start(side) ? { driver: target, side, from: e.touchX, distance: 0 } : undefined;
+			live = target?.start(side) ? { driver: target, side, from: e.touchX, distance: 0, ramp: schedule ? 'pending' : undefined } : undefined;
 		},
 		progressed(e: BackEvent) {
 			if (!live) return;
 			live.distance = Math.max(0, ((e.touchX - live.from) * live.side) / pixelRatio());
 			if (!schedule) return live.driver.move(live.distance);
-			live.cancel ??= schedule(() => {
-				if (!live) return;
-				live.cancel = undefined;
-				live.driver.move(live.distance);
-			});
+			live.cancel ??= schedule(flush);
 		},
 		cancelled() {
 			if (!live) return;
@@ -87,10 +103,7 @@ export function backHandlers(
 			if (!live) return fallback();
 			const current = live;
 			live = undefined;
-			if (current.cancel) {
-				current.cancel();
-				current.driver.move(current.distance);
-			}
+			current.cancel?.();
 			current.driver.end(true);
 		}
 	};

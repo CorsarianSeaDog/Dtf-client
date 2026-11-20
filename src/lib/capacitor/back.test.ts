@@ -64,9 +64,15 @@ describe('системный жест «Назад»', () => {
 		expect(getBackDriver()).toBeUndefined();
 	});
 
-	it('схлопывает частые progressed в один кадр и сбрасывает или применяет хвост в конце жеста', () => {
+	it('схлопывает частые progressed в один кадр, разгоняет старт через rampUp и не прыгает на invoked / cancelled', () => {
 		const driver: BackDriver = { start: vi.fn(() => true), move: vi.fn(), end: vi.fn() };
 		let queued: (() => void) | undefined;
+		let time = 0;
+		const flushFrame = () => {
+			const fn = queued;
+			queued = undefined;
+			fn?.();
+		};
 		const cancel = vi.fn(() => (queued = undefined));
 		const h = backHandlers(
 			() => driver,
@@ -75,7 +81,8 @@ describe('системный жест «Назад»', () => {
 			(cb) => {
 				queued = cb;
 				return cancel;
-			}
+			},
+			() => time
 		);
 
 		h.started({ edge: 'left', touchX: 0 });
@@ -83,21 +90,37 @@ describe('системный жест «Назад»', () => {
 		h.progressed({ edge: 'left', touchX: 120 });
 		expect(driver.move).not.toHaveBeenCalled();
 
-		queued?.();
+		flushFrame();
 		expect(driver.move).toHaveBeenCalledTimes(1);
-		expect(driver.move).toHaveBeenLastCalledWith(60);
+		expect(driver.move).toHaveBeenLastCalledWith(0);
 
+		time = 60;
+		flushFrame();
+		const mid = (driver.move as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0];
+		expect(mid).toBeGreaterThan(0);
+		expect(mid).toBeLessThan(60);
+
+		time = 120;
+		flushFrame();
+		expect(driver.move).toHaveBeenLastCalledWith(60);
+		expect(queued).toBeUndefined();
+
+		h.progressed({ edge: 'left', touchX: 160 });
+		flushFrame();
+		expect(driver.move).toHaveBeenLastCalledWith(80);
+
+		const callsBeforeInvoke = (driver.move as ReturnType<typeof vi.fn>).mock.calls.length;
 		h.progressed({ edge: 'left', touchX: 200 });
 		h.invoked();
 		expect(cancel).toHaveBeenCalledTimes(1);
-		expect(driver.move).toHaveBeenLastCalledWith(100);
+		expect(driver.move).toHaveBeenCalledTimes(callsBeforeInvoke);
 		expect(driver.end).toHaveBeenLastCalledWith(true);
 
 		h.started({ edge: 'left', touchX: 0 });
 		h.progressed({ edge: 'left', touchX: 80 });
 		h.cancelled();
 		expect(cancel).toHaveBeenCalledTimes(2);
-		expect(driver.move).toHaveBeenCalledTimes(2);
+		expect(driver.move).toHaveBeenCalledTimes(callsBeforeInvoke);
 		expect(driver.end).toHaveBeenLastCalledWith(false);
 	});
 });
