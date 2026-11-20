@@ -71,6 +71,7 @@
 
 	let paragraphs = $derived(parseCommentText(item.searchSnippet || item.content));
 	let images = $derived((item.media ?? []).filter((media) => media.type === 'image' && !isAnimatedMedia(media)));
+	const thumbEls: Record<string, HTMLImageElement | undefined> = {};
 	let score = $derived(votesOf(item));
 	let onreact = $derived(item.sourceId === 'dtf' ? (id: number) => toggleCommentReaction(item, id, onpatch) : undefined);
 	const onopenchange = (open: boolean) => (pickerOpen = open);
@@ -202,14 +203,14 @@
 							class="comment-card__zoom"
 							aria-label="Открыть изображение"
 							onpointerenter={preloadLightbox}
-							onclick={(e) =>
+							onclick={() =>
 								openLightbox(
 									images.map((m) => m.data),
 									images.indexOf(media),
-									e.currentTarget.firstElementChild as HTMLImageElement
+									images.map((m) => thumbEls[m.data.uuid] ?? null)
 								)}
 						>
-							<img src={getLeonardoUrl(media.data.uuid, { width: 800 })} alt="" loading="lazy" />
+							<img bind:this={thumbEls[media.data.uuid]} src={getLeonardoUrl(media.data.uuid, { width: 800 })} alt="" loading="lazy" />
 						</button>
 					{:else}
 						<UnknownBlock type={media.type} postId={item.postId} commentId={item.id} sourceId={item.sourceId} />

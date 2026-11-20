@@ -40,6 +40,7 @@
 	let showAuthorBadge = $derived(clientBadge && (clientBadge.type === 'redtf' || settings.value.mobileBadgesPosition === 'author'));
 	let showDateBadge = $derived(clientBadge && clientBadge.type !== 'redtf' && settings.value.mobileBadgesPosition === 'date');
 	let images = $derived((comment.media ?? []).filter((media) => media.type === 'image' && !isAnimatedMedia(media)));
+	const thumbEls: Record<string, HTMLImageElement | undefined> = {};
 	let postPath = $derived(resolve(getPostPath(post) as any));
 	let commentPath = $derived(resolve(getPostPath(post, comment.id) as any));
 	let commentUrl = $derived(getPostShareUrl(post, `comment-${comment.sourceId}_${comment.id}`));
@@ -173,9 +174,14 @@
 						class="profile-comment__zoom"
 						aria-label="Открыть изображение"
 						onpointerenter={preloadLightbox}
-						onclick={(e) => openLightbox(images.map((m) => m.data), images.indexOf(media), e.currentTarget.firstElementChild as HTMLImageElement)}
+						onclick={() =>
+							openLightbox(
+								images.map((m) => m.data),
+								images.indexOf(media),
+								images.map((m) => thumbEls[m.data.uuid] ?? null)
+							)}
 					>
-						<img src={getLeonardoUrl(media.data.uuid, { width: 800 })} alt="" loading="lazy" />
+						<img bind:this={thumbEls[media.data.uuid]} src={getLeonardoUrl(media.data.uuid, { width: 800 })} alt="" loading="lazy" />
 					</button>
 				{:else}
 					<UnknownBlock type={media.type} postId={comment.postId} commentId={comment.id} sourceId={comment.sourceId} />

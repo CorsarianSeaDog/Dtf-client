@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { downloadImage, getLeonardoOriginalUrl, getLeonardoUrl } from '$lib/api/utils';
-	import { closeOverlay, preloadLightbox, takeLightboxOrigin } from '$lib/navigation';
+	import { closeOverlay, preloadLightbox, takeLightboxOrigins } from '$lib/navigation';
 	import { sanitizeHtml } from '$lib/sanitize';
 
 	/** Просмотр медиа на весь экран через PhotoSwipe */
@@ -13,7 +13,7 @@
 	const MAX_WIDTH = 2048;
 
 	onMount(() => {
-		let origin = takeLightboxOrigin();
+		let origins = takeLightboxOrigins();
 		let closed = false;
 		let pswp: import('photoswipe').default | undefined;
 		let downloadBtn: HTMLButtonElement | undefined;
@@ -43,12 +43,16 @@
 						if (video) return { type: 'video', width, height };
 						// Картинка приходит не шире MAX_WIDTH, поэтому и размер заявляем такой, иначе приближение будет мыльным
 						const scale = Math.min(1, MAX_WIDTH / width);
+						const thumb = origins?.[i];
 						return {
 							src: getLeonardoUrl(uuid, { width: MAX_WIDTH }),
 							width: Math.round(width * scale),
 							height: Math.round(height * scale),
-							// Только у открытого кадра: листали дальше — закрываемся плавным исчезновением
-							...(i === index && origin && { element: origin, msrc: origin.currentSrc })
+							...(thumb && {
+								element: thumb,
+								msrc: thumb.currentSrc,
+								...(getComputedStyle(thumb).objectFit === 'cover' && { thumbCropped: true })
+							})
 						};
 					})
 				});
@@ -149,7 +153,7 @@
 		// «Назад» в браузере: оверлея уже нет в истории, просто убираем просмотр
 		return () => {
 			closed = true;
-			origin = undefined;
+			origins = undefined;
 			pswp?.destroy();
 			pswp = undefined;
 		};

@@ -118,6 +118,7 @@
 	);
 	// Галерея просмотра — картинки комментария, видео и гифки в неё не входят
 	let images = $derived((activeMedia ?? []).filter((media) => media.type === 'image' && !isAnimatedMedia(media)));
+	const thumbEls: Record<string, HTMLImageElement | undefined> = {};
 
 	let score = $derived(votesOf(comment));
 	let clientBadge = $derived(getCommentBadge(comment, settings.value.clientBadges));
@@ -519,17 +520,17 @@
 											use:mediaHold={{ uuid: media.data.uuid, isGif: isGifMedia(media) }}
 										></video>
 									{:else}
-										<img src={getLeonardoUrl(media.data.uuid, { width: 800 })} alt="" loading="lazy" />
+										<img bind:this={thumbEls[media.data.uuid]} src={getLeonardoUrl(media.data.uuid, { width: 800 })} alt="" loading="lazy" />
 										<button
 											type="button"
 											class="media-placeholder__zoom"
 											aria-label="Открыть изображение"
 											onpointerenter={preloadLightbox}
-											onclick={(e) =>
+											onclick={() =>
 												openLightbox(
 													images.map((m) => m.data),
 													images.indexOf(media),
-													e.currentTarget.previousElementSibling as HTMLImageElement
+													images.map((m) => thumbEls[m.data.uuid] ?? null)
 												)}
 										></button>
 									{/if}

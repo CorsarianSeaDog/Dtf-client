@@ -291,8 +291,8 @@ export function overlayReuser() {
 	};
 }
 
-// Картинка, из которой раскрываем просмотр: в историю её не положить, поэтому передаём через модуль
-let lightboxOrigin: HTMLImageElement | undefined;
+// Картинки, из которых раскрываем просмотр: в историю их не положить, поэтому передаём через модуль
+let lightboxOrigins: (HTMLImageElement | undefined)[] | undefined;
 let lightboxOpening = false;
 let pswpPromise: Promise<[typeof import('photoswipe'), unknown]> | undefined;
 
@@ -302,17 +302,25 @@ export function preloadLightbox() {
 	return (pswpPromise ??= Promise.all([import('photoswipe'), import('photoswipe/style.css')]));
 }
 
-/** Открыть просмотр картинок; origin — миниатюра, из которой разворачиваем (и в которую сворачиваем) кадр с номером index */
-export function openLightbox(images: Extract<App.OverlayData, { type: 'lightbox' }>['data']['images'], index: number, origin?: HTMLImageElement) {
+/** Открыть просмотр картинок; origin — миниатюра (или список миниатюр галереи), из которой разворачиваем и в которую сворачиваем кадр */
+export function openLightbox(
+	images: Extract<App.OverlayData, { type: 'lightbox' }>['data']['images'],
+	index: number,
+	origin?: HTMLImageElement | (HTMLImageElement | null | undefined)[]
+) {
 	if (lightboxOpening || page.state.overlays?.some((o) => o.type === 'lightbox')) return;
 	lightboxOpening = true;
-	lightboxOrigin = origin;
+	lightboxOrigins = Array.isArray(origin)
+		? origin.map((el) => el ?? undefined)
+		: origin
+			? Object.assign([] as (HTMLImageElement | undefined)[], { [index]: origin })
+			: undefined;
 	return openOverlay({
 		type: 'lightbox',
 		data: { images: images.map(({ uuid, width, height, type, video, caption }) => ({ uuid, width, height, type, video, caption })), index }
 	})
 		.catch((e) => {
-			lightboxOrigin = undefined;
+			lightboxOrigins = undefined;
 			throw e;
 		})
 		.finally(() => {
@@ -320,11 +328,13 @@ export function openLightbox(images: Extract<App.OverlayData, { type: 'lightbox'
 		});
 }
 
-/** Миниатюра для анимации, которую запомнил openLightbox; после чтения забывается */
-export function takeLightboxOrigin() {
-	const origin = lightboxOrigin;
-	lightboxOrigin = undefined;
-	return origin?.isConnected ? origin : undefined;
+/** Миниатюры для анимации, которые запомнил openLightbox; после чтения забываются */
+export function takeLightboxOrigins(): (HTMLImageElement | undefined)[] | undefined {
+	const current = lightboxOrigins;
+	lightboxOrigins = undefined;
+	if (!current) return undefined;
+	const elements = current.map((el) => (el?.isConnected ? el : undefined));
+	return elements.some(Boolean) ? elements : undefined;
 }
 
 interface SubstateEntry {
@@ -388,7 +398,7 @@ export function pushSubstate(onBack: () => void) {
  */
 export function clearSubstates() {
 	substateStack.length = 0;
-	lightboxOrigin = undefined;
+	lightboxOrigins = undefined;
 }
 
 /**
@@ -428,7 +438,7 @@ export function resetSubstates() {
  * закрывает оверлей целиком за один переход, возвращаясь на экран под ним.
  */
 export function closeOverlay() {
-	lightboxOrigin = undefined;
+	lightboxOrigins = undefined;
 	if (typeof window === 'undefined') return;
 	const currentTop = getCurrentTopOverlay();
 	const overlayId = currentTop?.id ?? '';
