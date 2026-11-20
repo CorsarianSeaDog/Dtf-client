@@ -46,7 +46,7 @@ export const APP_ICONS: AppIconInfo[] = [
 	{
 		id: 'white',
 		title: 'Белая',
-		description: 'Белый фон с синим логотипом DTF',
+		description: 'Белый фон с синим логотипом RE',
 		bgColor: '#FFFFFF',
 		textColor: '#1693E5',
 		appSvg: 'icons/app-white.svg',
