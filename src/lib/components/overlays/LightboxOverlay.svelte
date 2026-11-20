@@ -1,12 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
 	import { downloadImage, getLeonardoOriginalUrl, getLeonardoUrl, hasNativeDownload } from '$lib/api/utils';
+	import { pushBackDriver } from '$lib/capacitor/back';
 	import { haptics } from '$lib/haptics';
 	import { reducedMotion } from '$lib/motion';
 	import { closeOverlay, preloadLightbox, takeLightboxOrigins } from '$lib/navigation';
 	import { sanitizeHtml } from '$lib/sanitize';
+	import { settings } from '$lib/storage/settings.svelte';
 	import {
 		computeFramedZoom,
+		createLightboxBackDriver,
 		parseTranslateX,
 		readSafeAreaInsets,
 		slideDepthStyle,
@@ -58,6 +62,12 @@
 		let safeArea = ZERO_INSETS;
 
 		const downloads = new Map<string, { state: DownloadState; timer?: ReturnType<typeof setTimeout> }>();
+
+		const back = createLightboxBackDriver(
+			() => (closed ? undefined : pswp),
+			() => Boolean(settings.value.predictiveBack) && page.state.overlays?.at(-1)?.type === 'lightbox'
+		);
+		const releaseBackDriver = pushBackDriver(back.driver);
 
 		const refreshSafeArea = () => {
 			safeArea = readSafeAreaInsets(barrierEl);
@@ -287,8 +297,14 @@
 					}
 				});
 
+				// Прерываем доезд отмены predictive back, если пользователь снова коснулся экрана или начал закрытие
+				pswp.on('pointerDown', back.finishFlight);
+				pswp.on('close', () => back.stop(true));
+
 				// Закрыли крестиком, Esc или свайпом: шаг истории назад
 				pswp.on('destroy', () => {
+					back.stop();
+					releaseBackDriver();
 					clearTimers();
 					if (closed) return;
 					closed = true;
@@ -309,6 +325,8 @@
 		// «Назад» в браузере: оверлея уже нет в истории, просто убираем просмотр
 		return () => {
 			closed = true;
+			back.stop();
+			releaseBackDriver();
 			clearTimers();
 			origins = undefined;
 			pswp?.destroy();

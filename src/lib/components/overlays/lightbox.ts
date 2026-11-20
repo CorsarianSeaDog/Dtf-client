@@ -1,3 +1,5 @@
+import type { BackDriver, BackSide } from '$lib/capacitor/back';
+import { glide, type Glide } from '$lib/swipe';
 import { MOBILE_BREAKPOINT } from '$lib/themes/types';
 
 export interface Size2D {
@@ -91,4 +93,168 @@ export function slideDepthStyle(offsetRatio: number): { scale: number; opacity: 
 		scale: 1 - t * 0.06,
 		opacity: 1 - t * 0.35
 	};
+}
+
+/** Визуальное состояние просмотрщика во время системного жеста Android Predictive Back */
+export function predictiveBackState(
+	distance: number,
+	side: BackSide,
+	viewportWidth: number
+): { scale: number; shiftX: number; bgOpacity: number } {
+	const width = Math.max(1, viewportWidth);
+	const clamped = Math.max(0, distance);
+	const progress = Math.min(1, clamped / Math.max(160, width * 0.5));
+	const eased = 1 - (1 - progress) * (1 - progress);
+	return {
+		scale: 1 - eased * 0.18,
+		shiftX: side * Math.min(width * 0.12, clamped * 0.22),
+		bgOpacity: 1 - eased * 0.72
+	};
+}
+
+/** Пересчитывает масштаб и позицию кадра вокруг центра окна со сдвигом от края жеста */
+export function predictiveBackZoomPan(
+	startZoom: number,
+	startPan: Size2D,
+	viewport: Size2D,
+	scale: number,
+	shiftX: number
+): { zoom: number; pan: Size2D } {
+	const cx = viewport.x / 2;
+	const cy = viewport.y / 2;
+	return {
+		zoom: startZoom * scale,
+		pan: {
+			x: cx + (startPan.x - cx) * scale + shiftX,
+			y: cy + (startPan.y - cy) * scale
+		}
+	};
+}
+
+export interface LightboxBackTarget {
+	readonly element?: HTMLElement | null;
+	readonly opener?: { isOpen?: boolean; isClosing?: boolean };
+	readonly isDestroying?: boolean;
+	readonly animations?: { stopAllPan: () => void };
+	readonly currSlide?: {
+		currZoomLevel: number;
+		pan: Size2D;
+		applyCurrentZoomPan: () => void;
+	};
+	readonly mainScroll: { isShifted: () => boolean };
+	readonly viewportSize: Size2D;
+	applyBgOpacity: (opacity: number) => void;
+	close: () => void;
+}
+
+/** Драйвер системного жеста Android Predictive Back для PhotoSwipe */
+export function createLightboxBackDriver(
+	getTarget: () => LightboxBackTarget | undefined,
+	isEnabled: () => boolean
+): { driver: BackDriver; stop: (keepPreview?: boolean) => void; finishFlight: () => void } {
+	let state:
+		| {
+				side: BackSide;
+				distance: number;
+				flight?: Glide;
+				startZoom: number;
+				startPan: Size2D;
+				startUiVisible: boolean;
+				viewport: Size2D;
+		  }
+		| undefined;
+
+	const apply = (d: number) => {
+		const target = getTarget();
+		if (!state || !target?.currSlide) return;
+		state.distance = d;
+		const { scale, shiftX, bgOpacity } = predictiveBackState(d, state.side, state.viewport.x);
+		const { zoom, pan } = predictiveBackZoomPan(state.startZoom, state.startPan, state.viewport, scale, shiftX);
+		target.currSlide.currZoomLevel = zoom;
+		target.currSlide.pan.x = pan.x;
+		target.currSlide.pan.y = pan.y;
+		target.currSlide.applyCurrentZoomPan();
+		target.applyBgOpacity(bgOpacity);
+		target.element?.classList.toggle('pswp--back-preview', d > 0);
+	};
+
+	const stop = (keepPreview = false) => {
+		if (state) {
+			state.flight?.stop();
+			state = undefined;
+		}
+		if (!keepPreview) getTarget()?.element?.classList.remove('pswp--back-preview');
+	};
+
+	const restoreUi = (wasVisible: boolean) => {
+		const active = getTarget();
+		active?.element?.classList.remove('pswp--back-preview');
+		if (wasVisible && active && !active.isDestroying) {
+			active.element?.classList.add('pswp--ui-visible');
+		}
+	};
+
+	const finishFlight = () => {
+		state?.flight?.finish();
+	};
+
+	const driver: BackDriver = {
+		start(side) {
+			const target = getTarget();
+			if (
+				!isEnabled() ||
+				!target ||
+				!target.opener?.isOpen ||
+				target.opener.isClosing ||
+				target.isDestroying ||
+				!target.currSlide ||
+				target.mainScroll.isShifted()
+			) {
+				return false;
+			}
+			if (state) {
+				if (state.flight) {
+					state.flight.finish();
+				} else {
+					const wasVisible = state.startUiVisible;
+					apply(0);
+					stop();
+					restoreUi(wasVisible);
+				}
+			}
+			target.animations?.stopAllPan();
+			const slide = target.currSlide;
+			state = {
+				side,
+				distance: 0,
+				startZoom: slide.currZoomLevel,
+				startPan: { x: slide.pan.x, y: slide.pan.y },
+				startUiVisible: Boolean(target.element?.classList.contains('pswp--ui-visible')),
+				viewport: { x: target.viewportSize.x || 1, y: target.viewportSize.y || 1 }
+			};
+			target.element?.classList.remove('pswp--ui-visible');
+			return true;
+		},
+		move(d) {
+			apply(Math.max(0, d));
+		},
+		end(commit) {
+			const target = getTarget();
+			if (!state || !target) return;
+			const current = state;
+			if (commit) {
+				// pswp--back-preview снимется уже в destroy без рывка скругления,
+				// а PhotoSwipe свернёт кадр прямо от текущей позиции в миниатюру
+				state = undefined;
+				target.close();
+				return;
+			}
+			current.flight = glide(current.distance, 0, 0, apply, () => {
+				if (state === current) state = undefined;
+				restoreUi(current.startUiVisible);
+			});
+		}
+	};
+
+	return { driver, stop, finishFlight };
 }

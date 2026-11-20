@@ -109,7 +109,7 @@
 		object-fit: contain;
 	}
 
-	:global(.pswp.pswp--redtf.pswp--zoomed-in .pswp__img) {
+	:global(.pswp.pswp--redtf.pswp--zoomed-in:not(.pswp--back-preview) .pswp__img) {
 		border-radius: 0;
 		box-shadow: none;
 	}
