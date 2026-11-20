@@ -2,8 +2,9 @@
 	import { resolve } from '$app/paths';
 	import { feed, openFeedTab, type FeedName } from '$lib/feed.svelte';
 	import { getProfilePath, getSidebarActive, openFeed, openPost, openProfile, openSettings, openSupport } from '$lib/navigation';
+	import { contextMenu } from '$lib/contextMenu.svelte';
 	import { pinnedSubsites } from '$lib/storage/pinnedSubsites.svelte';
-	import { startWriting } from './actions.svelte';
+	import { pinnedSubsiteMenu, startWriting } from './actions.svelte';
 	import { clickOnKey } from './a11y';
 	import { sidebar } from './sidebar.svelte';
 	import { Button } from './ui';
@@ -92,6 +93,7 @@
 							aria-current={active.profileId === String(subsite.id) ? 'page' : undefined}
 							href={resolve(getProfilePath(subsite.id) as any)}
 							onclick={(e) => openProfile(e, subsite.id)}
+							{@attach contextMenu(() => pinnedSubsiteMenu(subsite))}
 						>
 							<span class="icon subsite-avatar" aria-hidden="true">
 								{#if subsite.avatarUrl}

@@ -7,10 +7,10 @@ it('сохраняет стандартные пункты, исключает �
 	expect(pinSubsite(standard)).toBe(false);
 	expect(pinnedSubsites.value.items).toHaveLength(STANDARD_SUBSITES.length);
 
-	unpinSubsite(standard.id);
+	const index = unpinSubsite(standard.id);
 	expect(pinnedSubsites.value.items).not.toContain(standard);
-	expect(pinSubsite({ id: standard.id, name: 'Из результатов поиска' })).toBe(true);
-	expect(pinnedSubsites.value.items.at(-1)).toEqual(standard);
+	expect(pinSubsite({ id: standard.id, name: 'Из результатов поиска' }, index)).toBe(true);
+	expect(pinnedSubsites.value.items).toEqual(STANDARD_SUBSITES);
 
 	const firstCustomId = 1;
 	for (let id = firstCustomId; id <= PINNED_SUBSITES_LIMIT; id++) {

@@ -2,11 +2,14 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { resolve } from '$app/paths';
 import type { Post } from '$lib/api/types';
 import { api } from '$lib/api/index.svelte';
-import { getPostPath, getPostShareUrl, openOverlay } from '$lib/navigation';
+import { getPostPath, getPostShareUrl, getProfilePath, openOverlay } from '$lib/navigation';
+import { isNative } from '$lib/capacitor';
+import type { ContextMenuItem, ContextMenuPayload } from '$lib/contextMenu.svelte';
 import { currentUser } from '$lib/api/currentUser.svelte';
 import { authStorage } from '$lib/storage/auth.svelte';
 import { addIgnoredTag, filterSettings, hideUser, isUserHidden, normalizeTag, removeIgnoredTag, unhideUser } from '$lib/storage/filter.svelte';
 import { logHiddenPost, unlogHiddenPost } from '$lib/storage/hiddenPosts.svelte';
+import { pinSubsite, unpinSubsite, type PinnedSubsite } from '$lib/storage/pinnedSubsites.svelte';
 import { ruleOf } from '$lib/storage/reactions.svelte';
 import { applyReaction, nextReactionId, nextVoteReactionId } from '$lib/reactions';
 import { notify } from './ui/notify.svelte';
@@ -305,3 +308,60 @@ export const subscriptions = {
 		}
 	}
 };
+
+/** Контекстное меню закреплённого подсайта в боковой панели */
+export function pinnedSubsiteMenu(subsite: PinnedSubsite): ContextMenuPayload {
+	const href = resolve(getProfilePath(subsite.id) as any);
+	const fullUrl = typeof location !== 'undefined' ? new URL(href, location.href).href : href;
+
+	const items: ContextMenuItem[] = [];
+	if (!isNative()) {
+		items.push({
+			id: 'open-tab',
+			label: 'Открыть в новой вкладке',
+			icon: 'v_external',
+			href,
+			target: '_blank',
+			rel: 'noopener noreferrer'
+		});
+	}
+
+	items.push(
+		{
+			id: 'copy-link',
+			label: 'Копировать ссылку',
+			icon: 'v_link',
+			async action() {
+				try {
+					await navigator.clipboard.writeText(fullUrl);
+					notify.success('Ссылка скопирована');
+				} catch {
+					notify.error('Не удалось скопировать ссылку');
+				}
+			}
+		},
+		{
+			id: 'unpin',
+			label: 'Открепить',
+			icon: 'ui_pin',
+			danger: true,
+			separatorBefore: true,
+			action() {
+				const index = unpinSubsite(subsite.id);
+				if (index < 0) return;
+				notify.success('Откреплено от бокового меню', {
+					label: 'Отменить',
+					onclick: () => {
+						if (!pinSubsite(subsite, index)) notify.error('Не удалось вернуть подсайт в боковое меню');
+					}
+				});
+			}
+		}
+	);
+
+	return {
+		title: subsite.name,
+		label: `Действия с подсайтом ${subsite.name}`,
+		items
+	};
+}

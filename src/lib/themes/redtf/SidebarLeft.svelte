@@ -7,8 +7,9 @@
 	import { activeTheme } from '$lib/themes/index.svelte';
 	import { MOBILE_BREAKPOINT } from '$lib/themes/types';
 	import { getProfilePath, getSidebarActive, openFeed, openPost, openProfile, openSettings, openSupport } from '$lib/navigation';
+	import { contextMenu } from '$lib/contextMenu.svelte';
 	import { pinnedSubsites } from '$lib/storage/pinnedSubsites.svelte';
-	import { startWriting } from '../dtf2022/actions.svelte';
+	import { pinnedSubsiteMenu, startWriting } from '../dtf2022/actions.svelte';
 	import { clickOnKey } from '../dtf2022/a11y';
 	import { sidebar } from '../dtf2022/sidebar.svelte';
 	import { Button } from '../dtf2022/ui';
@@ -133,6 +134,7 @@
 								aria-current={active.profileId === String(subsite.id) ? 'page' : undefined}
 								href={resolve(getProfilePath(subsite.id) as any)}
 								onclick={(e) => openProfile(e, subsite.id)}
+								{@attach contextMenu(() => pinnedSubsiteMenu(subsite))}
 							>
 								<span class="icon subsite-avatar" aria-hidden="true">
 									{#if subsite.avatarUrl}
