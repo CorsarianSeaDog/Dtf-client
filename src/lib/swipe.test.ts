@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { glide, progressSwipe, rampUp, settle, spring, swipe } from './swipe';
+import { glide, progressSwipe, rampUp, settle, sheetSwipe, spring, swipe } from './swipe';
 import { drawerSwipe, provideDrawer } from './drawerSwipe';
 import { feedSwipe } from './feedSwipe';
 import { activeTheme } from './themes/index.svelte';
@@ -299,5 +299,82 @@ describe('settle', () => {
 
 	it('без сдвига остаётся на месте', () => {
 		expect(settle(0, 2, width)).toBe(0);
+	});
+});
+
+describe('sheetSwipe', () => {
+	function fakeStyle() {
+		const map = new Map<string, string>();
+		return {
+			setProperty: (k: string, v: string) => map.set(k, v),
+			removeProperty: (k: string) => map.delete(k),
+			getPropertyValue: (k: string) => map.get(k) ?? '',
+			set transform(v: string) { v ? map.set('transform', v) : map.delete('transform'); },
+			get transform() { return map.get('transform') ?? ''; },
+			set backgroundColor(v: string) { v ? map.set('background-color', v) : map.delete('background-color'); },
+			get backgroundColor() { return map.get('background-color') ?? ''; },
+			set willChange(v: string) { v ? map.set('will-change', v) : map.delete('will-change'); },
+			get willChange() { return map.get('will-change') ?? ''; }
+		};
+	}
+
+	function touch(type: string, y: number, timeStamp: number) {
+		const finger = { identifier: 1, clientX: 120, clientY: y };
+		const ev = Object.assign(new Event(type, { bubbles: true, cancelable: true }), {
+			touches: type === 'touchend' || type === 'touchcancel' ? [] : [finger],
+			changedTouches: [finger]
+		});
+		Object.defineProperty(ev, 'timeStamp', { value: timeStamp });
+		return ev;
+	}
+
+	it('закрывает шторку после свайпа вниз за порог и возвращает обратно при слабом сдвиге', () => {
+		vi.spyOn(activeTheme, 'gestures', 'get').mockReturnValue(true);
+		const overlay = Object.assign(new EventTarget(), { style: fakeStyle() });
+		const sheet = Object.assign(new EventTarget(), {
+			offsetHeight: 300,
+			parentElement: overlay,
+			style: fakeStyle()
+		});
+		const onclose = vi.fn();
+		const detach = sheetSwipe({ onclose })(sheet as unknown as HTMLElement);
+
+		// Слабый медленный сдвиг: порог SLOP запускает жест без скачка, дальше сдвиг на 40px и возврат в 0
+		sheet.dispatchEvent(touch('touchstart', 200, 100));
+		sheet.dispatchEvent(touch('touchmove', 215, 150));
+		sheet.dispatchEvent(touch('touchmove', 255, 400));
+		vi.advanceTimersByTime(16);
+		expect(sheet.style.transform).toBe('translate3d(0, 40px, 0)');
+		sheet.dispatchEvent(touch('touchend', 255, 600));
+		vi.runAllTimers();
+		expect(onclose).not.toHaveBeenCalled();
+		expect(sheet.style.transform).toBe('');
+
+		// Сдвиг больше порога: доезжает вниз и закрывает
+		sheet.dispatchEvent(touch('touchstart', 200, 700));
+		sheet.dispatchEvent(touch('touchmove', 215, 750));
+		sheet.dispatchEvent(touch('touchmove', 380, 900));
+		vi.advanceTimersByTime(16);
+		sheet.dispatchEvent(touch('touchend', 380, 950));
+		vi.runAllTimers();
+		expect(onclose).toHaveBeenCalledOnce();
+
+		if (typeof detach === 'function') detach();
+	});
+
+	it('не перехватывает жест, когда enabled возвращает false', () => {
+		vi.spyOn(activeTheme, 'gestures', 'get').mockReturnValue(true);
+		const sheet = Object.assign(new EventTarget(), { offsetHeight: 300, style: fakeStyle() });
+		const onclose = vi.fn();
+		const detach = sheetSwipe({ enabled: () => false, onclose })(sheet as unknown as HTMLElement);
+
+		sheet.dispatchEvent(touch('touchstart', 200, 100));
+		sheet.dispatchEvent(touch('touchmove', 380, 200));
+		sheet.dispatchEvent(touch('touchend', 380, 250));
+		vi.runAllTimers();
+		expect(onclose).not.toHaveBeenCalled();
+		expect(sheet.style.transform).toBe('');
+
+		if (typeof detach === 'function') detach();
 	});
 });

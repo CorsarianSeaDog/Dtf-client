@@ -127,7 +127,7 @@ export function pullRefresh(options: PullRefreshOptions): Attachment<HTMLElement
 				!p ||
 				!gesturesAllowed(true) ||
 				!options.enabled() ||
-				el?.closest('.mobile-bar') ||
+				el?.closest('.mobile-bar, [role="dialog"], dialog') ||
 				p.grab() === undefined
 			)
 				return;

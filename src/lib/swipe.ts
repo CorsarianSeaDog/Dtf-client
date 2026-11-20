@@ -3,6 +3,7 @@ import { reducedMotion } from './motion';
 import { createTension, haptics } from './haptics';
 import { activeTheme } from './themes/index.svelte';
 import { getCurrentDevice } from './themes/types';
+import { skipHide } from './components/overlays/modalMotion';
 
 /*
  * Горизонтальный жест пальцем: общая часть свайпа лент и свайпа «назад». Ведёт палец от касания до отпускания,
@@ -351,6 +352,301 @@ export function swipe(hooks: SwipeHooks): Attachment<HTMLElement> {
 			node.removeEventListener('pointercancel', onUp);
 			node.removeEventListener('lostpointercapture', onLost);
 			node.removeEventListener('click', stopClick, true);
+		};
+	};
+}
+
+export interface SheetSwipeOptions {
+	/** Активен ли режим нижней шторки (например, false на десктопе или пока окно заблокировано) */
+	enabled?: () => boolean;
+	/** Селектор зоны-ручки, откуда жест перехватывается сразу, даже если ниже есть прокрутка */
+	handleSelector?: string;
+	/** Закрытие шторки после доезда вниз */
+	onclose: () => void;
+}
+
+function findScrollableParent(target: EventTarget | null, stopAt: HTMLElement): HTMLElement | null {
+	let el = typeof Element !== 'undefined' && target instanceof Element
+		? target
+		: (target as Node | null)?.parentElement ?? null;
+	while (el) {
+		if (typeof HTMLElement !== 'undefined' && el instanceof HTMLElement && el.scrollHeight > el.clientHeight + 1) {
+			const oy = typeof getComputedStyle === 'function' ? getComputedStyle(el).overflowY : '';
+			if (oy === 'auto' || oy === 'scroll' || oy === 'overlay') return el;
+		}
+		if (el === stopAt) break;
+		el = el.parentElement;
+	}
+	return null;
+}
+
+/**
+ * Вертикальный свайп вниз для закрытия нижней шторки (Popup на мобиле, ContextMenu в режиме sheet).
+ * С ручки/шапки тянется сразу, с прокручиваемого содержимого — только когда оно прокручено до верха.
+ */
+export function sheetSwipe(options: SheetSwipeOptions): Attachment<HTMLElement> {
+	return (sheetEl) => {
+		let flight: Glide | undefined;
+		let closing = false;
+		let dragging = false;
+		let y = 0;
+		let pendingY = 0;
+		let startX = 0;
+		let startY = 0;
+		let startOffset = 0;
+		let touchId: number | null = null;
+		let touchTarget: EventTarget | null = null;
+		let mousePointerId: number | null = null;
+		let onHandle = false;
+		let scroller: HTMLElement | null = null;
+		let samples: { y: number; t: number }[] = [];
+		let frame = 0;
+		let overlayEl: HTMLElement | null = null;
+		let baseBg = '';
+
+		const isEnabled = () => gesturesAllowed() && (options.enabled?.() ?? true);
+
+		const stopClick = (e: Event) => {
+			e.preventDefault();
+			e.stopPropagation();
+		};
+
+		function applyY(nextY: number) {
+			y = Math.max(0, nextY);
+			if (y === 0) {
+				sheetEl.style.removeProperty('transform');
+				overlayEl?.style.removeProperty('background-color');
+				return;
+			}
+			sheetEl.style.transform = `translate3d(0, ${y}px, 0)`;
+			if (overlayEl && baseBg) {
+				const h = Math.max(1, sheetEl.offsetHeight || 1);
+				const keep = Math.max(0, Math.round((1 - y / h) * 100));
+				overlayEl.style.backgroundColor =
+					keep === 0 ? 'transparent' : `color-mix(in srgb, ${baseBg} ${keep}%, transparent)`;
+			}
+		}
+
+		function render() {
+			frame = 0;
+			applyY(pendingY);
+		}
+
+		function calcVelocity(now: number) {
+			const recent = samples.filter((s) => now - s.t < 100);
+			const first = recent[0];
+			const last = recent.at(-1);
+			return first && last && last.t > first.t ? (last.y - first.y) / (last.t - first.t) : 0;
+		}
+
+		function listenTouch(on: boolean) {
+			const method = on ? 'addEventListener' : 'removeEventListener';
+			touchTarget?.[method]('touchmove', onTouchMove as EventListener, { passive: false });
+			touchTarget?.[method]('touchend', onTouchEnd as EventListener);
+			touchTarget?.[method]('touchcancel', onTouchEnd as EventListener);
+			if (!on) touchTarget = null;
+		}
+
+		function resetDrag() {
+			cancelAnimationFrame(frame);
+			frame = 0;
+			touchId = null;
+			mousePointerId = null;
+			onHandle = false;
+			scroller = null;
+			samples = [];
+			listenTouch(false);
+		}
+
+		function prepareStart(target: EventTarget | null, clientX: number, clientY: number) {
+			if (flight?.active) {
+				flight.stop();
+				startOffset = y;
+			} else {
+				startOffset = 0;
+			}
+			overlayEl = sheetEl.parentElement;
+			if (y === 0 || !baseBg) {
+				baseBg = overlayEl && typeof getComputedStyle === 'function' ? getComputedStyle(overlayEl).backgroundColor : '';
+			}
+			startX = clientX;
+			startY = clientY;
+			pendingY = startOffset;
+			dragging = false;
+			samples = [];
+			void target;
+		}
+
+		function release(v: number | null) {
+			const wasDragging = dragging;
+			dragging = false;
+			resetDrag();
+			if (!wasDragging) {
+				if (y > 0) flight = glide(y, 0, 0, applyY, () => sheetEl.style.removeProperty('will-change'));
+				return;
+			}
+			sheetEl.addEventListener('click', stopClick, { capture: true, once: true });
+			setTimeout(() => sheetEl.removeEventListener('click', stopClick, true), 300);
+
+			const h = Math.max(1, sheetEl.offsetHeight || 1);
+			const threshold = Math.min(h * DISTANCE, 140);
+			const shouldClose = v !== null && (v > FLING || (v >= -FLING && y > threshold));
+
+			if (shouldClose) {
+				closing = true;
+				flight = glide(y, h, Math.max(0, v ?? 0), applyY, () => {
+					if (overlayEl) skipHide(overlayEl);
+					options.onclose();
+				});
+			} else {
+				flight = glide(y, 0, v ?? 0, applyY, () => {
+					sheetEl.style.removeProperty('will-change');
+				});
+			}
+		}
+
+		function abort() {
+			dragging = false;
+			resetDrag();
+			if (y > 0) {
+				flight = glide(y, 0, 0, applyY, () => sheetEl.style.removeProperty('will-change'));
+			}
+		}
+
+		function onTouchStart(e: TouchEvent) {
+			if (closing || e.touches.length > 1 || !isEnabled()) {
+				if (touchId !== null) abort();
+				return;
+			}
+			if (touchId !== null) abort();
+			const t = e.touches[0];
+			if (!t) return;
+			const targetEl =
+				typeof Element !== 'undefined' && e.target instanceof Element
+					? e.target
+					: (e.target as Node | null)?.parentElement ?? null;
+			onHandle = Boolean(options.handleSelector && targetEl?.closest?.(options.handleSelector));
+			if (!onHandle && targetEl?.closest?.('input, textarea, select, [contenteditable]')) return;
+			scroller = onHandle ? null : findScrollableParent(targetEl, sheetEl);
+			if (scroller && scroller.scrollTop > 1) return;
+
+			prepareStart(e.target, t.clientX, t.clientY);
+			touchId = t.identifier;
+			touchTarget = e.target ?? sheetEl;
+			listenTouch(true);
+		}
+
+		function onTouchMove(e: TouchEvent) {
+			if (touchId === null) return;
+			const t = [...e.touches].find((item) => item.identifier === touchId);
+			if (!t) return;
+			const dx = t.clientX - startX;
+			const dy = t.clientY - startY;
+
+			if (!dragging) {
+				if (!e.cancelable) return abort();
+				if (Math.abs(dx) < SLOP && Math.abs(dy) < SLOP) {
+					if (dy > 0 && (onHandle || !scroller || scroller.scrollTop <= 1)) e.preventDefault();
+					return;
+				}
+				if (Math.abs(dx) > Math.abs(dy) || (!onHandle && (dy <= 0 || (scroller && scroller.scrollTop > 1)))) {
+					return abort();
+				}
+				dragging = true;
+				startY = t.clientY - startOffset;
+				sheetEl.style.willChange = 'transform';
+			}
+
+			e.preventDefault();
+			pendingY = Math.max(0, t.clientY - startY);
+			samples.push({ y: t.clientY, t: e.timeStamp });
+			if (samples.length > 8) samples.shift();
+			frame ||= requestAnimationFrame(render);
+		}
+
+		function onTouchEnd(e: TouchEvent) {
+			if (touchId === null) return;
+			const t = [...e.changedTouches].find((item) => item.identifier === touchId);
+			if (!t) return;
+			if (frame) {
+				cancelAnimationFrame(frame);
+				render();
+			}
+			samples.push({ y: t.clientY, t: e.timeStamp });
+			release(e.type === 'touchend' ? calcVelocity(e.timeStamp) : null);
+		}
+
+		function onPointerDown(e: PointerEvent) {
+			if (e.pointerType === 'touch' || e.button !== 0 || closing || !options.handleSelector || !isEnabled()) return;
+			const targetEl =
+				typeof Element !== 'undefined' && e.target instanceof Element
+					? e.target
+					: (e.target as Node | null)?.parentElement ?? null;
+			if (!targetEl?.closest?.(options.handleSelector)) return;
+			if (targetEl.closest?.('button, a, input, textarea, select, [contenteditable]')) return;
+
+			onHandle = true;
+			scroller = null;
+			prepareStart(e.target, e.clientX, e.clientY);
+			mousePointerId = e.pointerId;
+		}
+
+		function onPointerMove(e: PointerEvent) {
+			if (mousePointerId === null || e.pointerId !== mousePointerId) return;
+			const dx = e.clientX - startX;
+			const dy = e.clientY - startY;
+			if (!dragging) {
+				if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+				if (Math.abs(dx) > Math.abs(dy)) return abort();
+				dragging = true;
+				startY = e.clientY - startOffset;
+				sheetEl.style.willChange = 'transform';
+				try {
+					sheetEl.setPointerCapture(e.pointerId);
+				} catch {
+					// Палец/курсор уже отпущен
+				}
+			}
+			pendingY = Math.max(0, e.clientY - startY);
+			samples.push({ y: e.clientY, t: e.timeStamp });
+			if (samples.length > 8) samples.shift();
+			frame ||= requestAnimationFrame(render);
+		}
+
+		function onPointerUp(e: PointerEvent) {
+			if (mousePointerId === null || e.pointerId !== mousePointerId) return;
+			if (frame) {
+				cancelAnimationFrame(frame);
+				render();
+			}
+			samples.push({ y: e.clientY, t: e.timeStamp });
+			release(e.type === 'pointerup' ? calcVelocity(e.timeStamp) : null);
+		}
+
+		function onLostCapture(e: PointerEvent) {
+			if (e.target === sheetEl && e.pointerId === mousePointerId && dragging) release(null);
+		}
+
+		sheetEl.addEventListener('touchstart', onTouchStart, { passive: true });
+		sheetEl.addEventListener('pointerdown', onPointerDown, { passive: true });
+		sheetEl.addEventListener('pointermove', onPointerMove, { passive: true });
+		sheetEl.addEventListener('pointerup', onPointerUp, { passive: true });
+		sheetEl.addEventListener('pointercancel', onPointerUp, { passive: true });
+		sheetEl.addEventListener('lostpointercapture', onLostCapture, { passive: true });
+
+		return () => {
+			flight?.stop();
+			resetDrag();
+			sheetEl.style.removeProperty('transform');
+			sheetEl.style.removeProperty('will-change');
+			overlayEl?.style.removeProperty('background-color');
+			sheetEl.removeEventListener('touchstart', onTouchStart);
+			sheetEl.removeEventListener('pointerdown', onPointerDown);
+			sheetEl.removeEventListener('pointermove', onPointerMove);
+			sheetEl.removeEventListener('pointerup', onPointerUp);
+			sheetEl.removeEventListener('pointercancel', onPointerUp);
+			sheetEl.removeEventListener('lostpointercapture', onLostCapture);
+			sheetEl.removeEventListener('click', stopClick, true);
 		};
 	};
 }

@@ -36,6 +36,10 @@ export interface ThemeMotion {
 	modalIn?: Anim;
 	/** Окно закрывается: проигрывается на подложке вместе с окном */
 	modalOut?: Anim;
+	/** Нижняя шторка на мобильном (меню удержания, мобильный попап) выезжает снизу */
+	sheetIn?: Anim;
+	/** Нижняя шторка на мобильном уезжает вниз */
+	sheetOut?: Anim;
 	/** Выпадающее меню или панель открываются из кнопки-триггера */
 	popoverIn?: Anim;
 	/** Выпадающее меню или панель закрываются */
@@ -86,6 +90,8 @@ export interface ThemeMotion {
 export type AnimKey =
 	| 'modalIn'
 	| 'modalOut'
+	| 'sheetIn'
+	| 'sheetOut'
 	| 'popoverIn'
 	| 'popoverOut'
 	| 'menuIn'
@@ -152,6 +158,16 @@ export const fluent: ThemeMotion = {
 			{ opacity: 1, transform: 'none', filter: 'blur(0px)' },
 			{ opacity: 0, transform: 'scale(1.025)', filter: 'blur(4px)' }
 		],
+		duration: 240,
+		easing: ease.smooth
+	},
+	sheetIn: {
+		keyframes: [{ transform: 'translateY(100%)' }, { transform: 'none' }],
+		duration: 320,
+		easing: 'cubic-bezier(0.32, 0.72, 0, 1)'
+	},
+	sheetOut: {
+		keyframes: [{ transform: 'none' }, { transform: 'translateY(100%)' }],
 		duration: 240,
 		easing: ease.smooth
 	},

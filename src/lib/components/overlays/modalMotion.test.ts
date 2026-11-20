@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { backdropHide, backdropShow, modalHide, modalShow } from './modalMotion';
+import { backdropHide, backdropShow, modalHide, modalShow, skipHide } from './modalMotion';
 import { fluent } from '$lib/motion';
 import { activeTheme } from '$lib/themes/index.svelte';
 
@@ -78,5 +78,37 @@ describe('modalMotion', () => {
 
 		expect(res.duration).toBe(0);
 		expect(animate).not.toHaveBeenCalled();
+	});
+
+	it('с data-sheet проигрывает sheetIn / sheetOut и пропускает уход после skipHide', () => {
+		const nodeAnimate = vi.fn();
+		const childAnimate = vi.fn();
+		const child = { animate: childAnimate, children: [] } as unknown as HTMLElement;
+		const node = {
+			animate: nodeAnimate,
+			children: [child],
+			style: {},
+			hasAttribute: (name: string) => name === 'data-sheet'
+		} as unknown as HTMLElement;
+
+		modalShow(node);
+		expect(childAnimate).toHaveBeenCalledWith(
+			fluent.sheetIn?.keyframes,
+			expect.objectContaining({ duration: fluent.sheetIn?.duration, easing: fluent.sheetIn?.easing })
+		);
+
+		const res = modalHide(node);
+		expect(res.duration).toBe(fluent.sheetOut?.duration);
+		expect(childAnimate).toHaveBeenCalledWith(
+			fluent.sheetOut?.keyframes,
+			expect.objectContaining({ duration: fluent.sheetOut?.duration, easing: fluent.sheetOut?.easing, fill: 'forwards' })
+		);
+
+		nodeAnimate.mockClear();
+		childAnimate.mockClear();
+		skipHide(node);
+		expect(modalHide(node).duration).toBe(0);
+		expect(nodeAnimate).not.toHaveBeenCalled();
+		expect(childAnimate).not.toHaveBeenCalled();
 	});
 });
