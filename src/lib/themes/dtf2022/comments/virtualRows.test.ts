@@ -28,20 +28,22 @@ describe('VirtualRows heights and scroll anchor', () => {
 	function setupVirtual({ scrollY = 200, listTop = -150, childTops = { '1': -20, '2': 40 } } = {}) {
 		const listeners = new Map<string, Set<EventListener>>();
 		const scrollBy = vi.fn();
-		vi.stubGlobal('addEventListener', (type: string, fn: EventListener) => {
+		const addEventListener = (type: string, fn: EventListener) => {
 			if (!listeners.has(type)) listeners.set(type, new Set());
 			listeners.get(type)!.add(fn);
-		});
-		vi.stubGlobal('removeEventListener', (type: string, fn: EventListener) => {
+		};
+		const removeEventListener = (type: string, fn: EventListener) => {
 			listeners.get(type)?.delete(fn);
-		});
+		};
+		vi.stubGlobal('addEventListener', addEventListener);
+		vi.stubGlobal('removeEventListener', removeEventListener);
 		vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
 			cb(0);
 			return 0;
 		});
 		vi.stubGlobal('cancelAnimationFrame', vi.fn());
 		vi.stubGlobal('innerHeight', 800);
-		const win = { scrollY, scrollBy };
+		const win = { scrollY, scrollBy, addEventListener, removeEventListener };
 		vi.stubGlobal('window', win);
 
 		let currentTop = { ...childTops };

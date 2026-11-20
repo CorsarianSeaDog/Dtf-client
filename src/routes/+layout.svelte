@@ -19,6 +19,7 @@
 	import ModalShell from '$lib/components/overlays/ModalShell.svelte';
 	import { dotsAtRest, hideSplash, holdSplash, introDone, showWelcomeBackdrop } from '$lib/splash';
 	import { pageReady } from '$lib/ready';
+	import { watchUserScroll } from '$lib/watchUserScroll';
 	import { setupCompleted } from '$lib/storage/setup.svelte';
 	import { page } from '$app/state';
 	import { onMount, tick, untrack } from 'svelte';
@@ -158,6 +159,7 @@
 	let scrollObserver: ResizeObserver | undefined;
 	let cancelPendingTimeout: ReturnType<typeof setTimeout> | undefined;
 	let pendingScrollRaf: number | undefined;
+	let stopPendingUserScroll: (() => void) | undefined;
 
 	function stopPendingScroll() {
 		pendingScroll = undefined;
@@ -171,21 +173,8 @@
 			clearTimeout(cancelPendingTimeout);
 			cancelPendingTimeout = undefined;
 		}
-		if (typeof window !== 'undefined') {
-			window.removeEventListener('wheel', onUserScroll);
-			window.removeEventListener('touchmove', onUserScroll);
-			window.removeEventListener('keydown', onKeyDown);
-		}
-	}
-
-	function onUserScroll() {
-		stopPendingScroll();
-	}
-
-	function onKeyDown(e: KeyboardEvent) {
-		if (['PageUp', 'PageDown', 'Space', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.code)) {
-			stopPendingScroll();
-		}
+		stopPendingUserScroll?.();
+		stopPendingUserScroll = undefined;
 	}
 
 	function startPendingScroll(layer: string, target: number) {
@@ -195,9 +184,7 @@
 		pendingScroll = { layer, target };
 
 		// Пользователь крутит колесо, свайпает или нажимает клавиши прокрутки — отменяем, чтобы не бороться с жестами
-		window.addEventListener('wheel', onUserScroll, { passive: true, once: true });
-		window.addEventListener('touchmove', onUserScroll, { passive: true, once: true });
-		window.addEventListener('keydown', onKeyDown, { passive: true, once: true });
+		stopPendingUserScroll = watchUserScroll(stopPendingScroll);
 
 		cancelPendingTimeout = setTimeout(stopPendingScroll, 10_000);
 
