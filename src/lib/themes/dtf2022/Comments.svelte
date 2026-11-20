@@ -11,6 +11,7 @@
 	import Popover from './ui/Popover.svelte';
 	import Preloader from './ui/Preloader.svelte';
 	import CommentEditor from './comments/CommentEditor.svelte';
+	import CommentFocusBanner from './comments/CommentFocusBanner.svelte';
 	import CommentItem from './comments/CommentItem.svelte';
 	import CommentRestriction from './comments/CommentRestriction.svelte';
 	import { commentKey, flattenComments, patchCommentRow } from './comments/flatten';
@@ -69,7 +70,7 @@
 	/** В DOM только строки около экрана (решение 0015); строка с открытым редактором остаётся */
 	const virtual = new VirtualRows(() => shown, () => replyTo);
 
-	bindCommentsView({
+	const focus = bindCommentsView({
 		logic,
 		virtual,
 		collapsed,
@@ -277,9 +278,11 @@
 			{/if}
 		</div>
 
+		<CommentFocusBanner {focus} />
+
 		{#if logic.comments.length === 0 && logic.loading}
 			<div class="comments-status"><Preloader /></div>
-		{:else if logic.comments.length === 0 && !logic.error}
+		{:else if logic.comments.length === 0 && !logic.error && focus.status !== 'waiting'}
 			<p class="comments-status">Комментариев пока нет</p>
 		{/if}
 
