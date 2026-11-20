@@ -158,6 +158,11 @@
 		if (rect.width === 0 && rect.height === 0) {
 			rect = range.getClientRects()[0] ?? inputEl.getBoundingClientRect();
 		}
+		const input = inputEl.getBoundingClientRect();
+		if (rect.bottom <= input.top || rect.top >= input.bottom) {
+			closeMentions();
+			return;
+		}
 		const dropdownWidth = Math.min(180, boxRect.width || 180);
 		const left = Math.max(0, Math.min(rect.left - boxRect.left, Math.max(0, boxRect.width - dropdownWidth)));
 		const spaceBelow = window.innerHeight - rect.bottom;
@@ -223,7 +228,7 @@
 		mentionQuery = match.query;
 		activeMentionRange = match.range;
 		updateDropdownPosition(match.range);
-		if (fetch) scheduleRemoteSearch(match.query);
+		if (fetch && mentionOpen) scheduleRemoteSearch(match.query);
 	}
 
 	function pickMention(user: MentionUser) {
@@ -494,6 +499,7 @@
 						onfocus={() => (focused = true)}
 						onblur={handleBlur}
 						oninput={handleInput}
+						onscroll={() => activeMentionRange && updateDropdownPosition(activeMentionRange)}
 						onkeydown={handleKeydown}
 						{@attach focusOnReply}
 						{@attach smartTypography}
@@ -708,12 +714,14 @@
 		background-color: var(--bg-tertiary);
 		transition: background-color 0.1s linear, border-color 0.1s linear, box-shadow 0.1s linear;
 		/* Видимая зона для keepInView: под шапкой и над нижней панелью */
-		scroll-margin: calc(var(--header-height, 60px) + 8px) 0 8px;
+		--editor-top: calc(var(--header-height, 60px) + 8px);
+		--editor-bottom: 8px;
+		scroll-margin: var(--editor-top) 0 var(--editor-bottom);
 	}
 
 	@media (max-width: 719px) {
 		.comment-editor {
-			scroll-margin-bottom: calc(var(--mobile-bar-height, 0px) + 8px);
+			--editor-bottom: calc(var(--mobile-bar-height, 0px) + 8px);
 		}
 	}
 
@@ -757,17 +765,18 @@
 	.comment-editor-box__input {
 		position: relative;
 		z-index: 5;
-		display: inline-block;
+		display: block;
 		width: 100%;
 		padding-bottom: 3px;
+		/* Оставляем место над клавиатурой для вложений и кнопки отправки. */
+		max-height: max(1lh, calc(
+			(var(--comment-viewport-height, 100dvh) - var(--editor-top) - var(--editor-bottom) - var(--comment-controls-height, 0px)) / 2
+		));
+		overflow-y: auto;
 		overflow-wrap: break-word;
 		/* Enter в plaintext-only даёт «\n» в textContent; без pre-wrap перенос не виден */
 		white-space: pre-wrap;
 		outline: 0;
-	}
-
-	.comment-editor-box__input:empty {
-		display: block;
 	}
 
 	/* Вставленное упоминание и выпадающий список тег-пикера — по стилям DTF 2022 (.inline-search-item / .inline-dropdown / .user-option) */

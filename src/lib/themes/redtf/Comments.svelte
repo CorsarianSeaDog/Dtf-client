@@ -288,7 +288,8 @@
 </script>
 
 {#snippet editor(continueBranch = false)}
-	<div class="comment-reply" transition:slide={{ duration: reducedMotion() ? 0 : 260, easing: cubicOut }}>
+	<!-- При автофокусе WebView должен видеть окончательную высоту строки ответа. -->
+	<div class="comment-reply" out:slide={{ duration: reducedMotion() ? 0 : 260, easing: cubicOut }}>
 		<CommentEditor bind:text={draft} bind:media bind:donation {paymentLink} {canDonate} replying editing={editMode} {sending} error={sendError} {continueBranch} {sourceId} {mentionCandidates} oncancel={cancel} onsubmit={submit} />
 	</div>
 {/snippet}
