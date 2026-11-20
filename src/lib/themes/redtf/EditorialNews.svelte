@@ -16,7 +16,7 @@
 	const rows = $derived(filterNewsItems(editorialNews.items, { revealed, isHidden: isPostHidden }));
 </script>
 
-{#if rows.length > 0}
+{#if rows.length > 0 || (editorialNews.items.length > 0 && editorialNews.hasMore)}
 	<section class="news-widget" class:news-widget--loading={editorialNews.loading} aria-label="Новости">
 		{#each rows as { item, key, match } (key)}
 			<div class={['news-item', { 'news-item--filtered': !!match }]} in:slide={{ duration: reducedMotion() ? 0 : 350, easing: cubicOut }}>
@@ -169,6 +169,10 @@
 		align-items: center;
 		height: 26px;
 		margin-top: 4px;
+	}
+
+	.news-widget__footer:first-child {
+		margin-top: 0;
 	}
 
 	.news-widget__load-more {
