@@ -5,7 +5,7 @@ import { currentUser } from '$lib/api/currentUser.svelte';
 import type { Post, Profile } from '$lib/api/types';
 
 // Оверлеев нет: «Назад» — ссылка на ленту
-vi.mock('$app/state', () => ({ page: { state: {}, route: { id: '/' } } }));
+vi.mock('$app/state', () => ({ page: { state: {}, route: { id: '/' }, url: new URL('http://localhost/') } }));
 vi.mock('$lib/api/currentUser.svelte', () => ({ currentUser: { value: undefined as { id: number } | undefined } }));
 
 const labels = (props: object) => [...render(ScreenBar, { props: props as any }).body.matchAll(/aria-label="([^"]+)"/g)].map((m) => m[1]);

@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { currentUser } from '$lib/api/currentUser.svelte';
+	import { feed } from '$lib/feed.svelte';
 	import { scrollBehavior } from '$lib/motion';
 	import { closeOverlay, openFeed } from '$lib/navigation';
 	import { authorMenuItems, runAuthorAction, shareLink, sharePost, startWriting, tagMenuItems, tagTitle, toggleIgnoredTag } from '../dtf2022/actions.svelte';
@@ -9,7 +10,7 @@
 	import { sidebar } from '../dtf2022/sidebar.svelte';
 	import Popover from '../dtf2022/ui/Popover.svelte';
 	import type { ThemeComponents } from '../contract';
-	import { watchBarScroll } from './barScroll';
+	import { topToggle, watchBarScroll } from './barScroll';
 	import { themeSettings } from './themeSettings.svelte';
 
 	let { screen, title, post, profile, tag }: ThemeComponents['ScreenBar'] = $props();
@@ -25,10 +26,21 @@
 	let postTitleShown = $state(false);
 	let shownTitle = $derived(screen === 'post' ? (postTitleShown ? post?.title : undefined) : (profile?.name ?? (tag ? `#${tagTitle(tag)}` : title)));
 
-	/** Нажатие на пустое место панели — в начало экрана; кнопки и меню остаются при своём */
+	/** Нажатие на пустое место панели — в начало экрана, повторное на том же экране — обратно; кнопки и меню остаются при своём */
+	let pageKey = $derived(
+		`${page.state.overlays?.findLast((o) => o.type !== 'lightbox')?.id ?? page.url?.pathname}:${page.url?.search}${page.url?.hash}:${screen === 'feed' ? `${feed.current}:${feed.sorting}:${feed.refreshCount}` : (post?.id ?? profile?.id ?? tag ?? '')}`
+	);
+	let lastPageKey: string | undefined;
+	$effect(() => {
+		if (pageKey === lastPageKey) return;
+		lastPageKey = pageKey;
+		topToggle.reset();
+	});
+
 	function toTop(event: MouseEvent) {
 		if ((event.target as HTMLElement).closest('button, a, input, [role]:not(.screen-bar)')) return;
-		scrollTo({ top: 0, behavior: scrollBehavior() });
+		const top = topToggle.tap(scrollY);
+		if (top !== undefined) scrollTo({ top, behavior: scrollBehavior() });
 	}
 
 	/** Экран знает, что у него есть панель: от этого зависит высота шапки внутри него (`--header-height`) */

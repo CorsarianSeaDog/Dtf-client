@@ -33,6 +33,68 @@ export function nextBarScroll(state: BarScroll, y: number, menuOpen = () => fals
 let watchers = 0;
 let stop: (() => void) | undefined;
 
+/**
+ * Прокрутка верхней панелью: с прокрученной страницы — в начало с запоминанием точки,
+ * с начала страницы — обратно на запомненную точку. Точка сбрасывается при возврате,
+ * смене экрана или когда пользователь перематывает вниз через неё.
+ */
+export function createTopToggle(onActive?: (active: boolean) => void) {
+	let saved = 0;
+	let armed = false;
+	const clear = () => {
+		if (saved === 0) return;
+		saved = 0;
+		armed = false;
+		onActive?.(false);
+	};
+	return {
+		/** Нажатие на панель при текущем `y`: куда прокрутить (`0`, сохранённая точка или `undefined`) */
+		tap(y: number): number | undefined {
+			if (saved > 0 && (!armed || y < saved)) {
+				const target = saved;
+				clear();
+				return target;
+			}
+			if (y > 1) {
+				const wasActive = saved > 0;
+				saved = y;
+				armed = false;
+				if (!wasActive) onActive?.(true);
+				return 0;
+			}
+		},
+		/** Прокрутка окна: сбрасывает точку, только если пользователь ушёл выше и затем пересёк её вниз */
+		scroll(y: number) {
+			if (saved === 0) return;
+			if (!armed) {
+				if (y < saved) armed = true;
+				else if (y > saved + THRESHOLD) clear();
+			} else if (y >= saved) {
+				clear();
+			}
+		},
+		reset: clear
+	};
+}
+
+let stopTopWatch: (() => void) | undefined;
+
+/** Общий для всех панелей переключатель верха; следит за прокруткой, только пока есть точка возврата */
+export const topToggle = createTopToggle((active) => {
+	if (typeof window === 'undefined') return;
+	if (!active) {
+		stopTopWatch?.();
+		return;
+	}
+	if (stopTopWatch) return;
+	const onScroll = () => topToggle.scroll(scrollY);
+	addEventListener('scroll', onScroll, { passive: true });
+	stopTopWatch = () => {
+		removeEventListener('scroll', onScroll);
+		stopTopWatch = undefined;
+	};
+});
+
 /** Включить слежение за прокруткой окна; слушатель один, сколько бы панелей ни просило. Возвращает выключатель */
 export function watchBarScroll(): () => void {
 	if (watchers++ === 0) {
