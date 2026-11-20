@@ -5,8 +5,9 @@ import { SplashScreen } from '@capacitor/splash-screen';
 import { Browser } from '@capacitor/browser';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { page } from '$app/state';
+import { contextMenuState } from '$lib/contextMenu.svelte';
 import { closeOverlay, openDtfLink, openDtfUrl, popSubstate } from '$lib/navigation';
-import { initNativeBack, setBackEnabled } from './back';
+import { getBackDriver, initNativeBack, setBackEnabled } from './back';
 import { otaUpdater, shellUpdater } from './updater.svelte';
 
 let initialized = false;
@@ -186,6 +187,11 @@ export function handleBackButton(canGoBack: boolean = false): void {
 		}
 	}
 
+	if (contextMenuState.current) {
+		contextMenuState.close();
+		return;
+	}
+
 	try {
 		if (popSubstate()) {
 			return;
@@ -222,7 +228,11 @@ export function syncBackHandler(predictive = predictiveBack): void {
 	}
 	const doc = document as Document & { webkitFullscreenElement?: Element | null };
 	void page.url;
-	const busy = Boolean(doc.fullscreenElement || doc.webkitFullscreenElement) || (page.state.overlays ?? []).length > 0 || (window.location.pathname !== '/' && window.location.pathname !== '');
+	const busy =
+		Boolean(doc.fullscreenElement || doc.webkitFullscreenElement) ||
+		Boolean(contextMenuState.current) ||
+		(page.state.overlays ?? []).length > 0 ||
+		(window.location.pathname !== '/' && window.location.pathname !== '');
 	setBackEnabled(busy);
 }
 
@@ -260,7 +270,10 @@ export function initCapacitor(): void {
 
 	// «Назад» ведёт плагин NativeBack (с ходом жеста), а `backButton` приходит только от старых оболочек без него:
 	// OTA обновляет JS, а оболочку нет
-	initNativeBack(() => handleBackButton(window.history.length > 1));
+	initNativeBack(
+		() => contextMenuState.current ? undefined : getBackDriver(),
+		() => handleBackButton(window.history.length > 1)
+	);
 	App.addListener('backButton', ({ canGoBack }) => {
 		handleBackButton(canGoBack);
 	});

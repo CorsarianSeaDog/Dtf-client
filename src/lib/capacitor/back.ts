@@ -112,13 +112,13 @@ export function backHandlers(
 /** Есть ли в оболочке плагин: OTA обновляет только JS, а старые оболочки получают «Назад» от @capacitor/app */
 const available = () => Capacitor.isPluginAvailable('NativeBack');
 
-export function initNativeBack(fallback: () => void) {
+export function initNativeBack(getDriver: () => BackDriver | undefined, fallback: () => void) {
 	if (!available()) return;
 	const raf = (cb: () => void) => {
 		const id = requestAnimationFrame(cb);
 		return () => cancelAnimationFrame(id);
 	};
-	const h = backHandlers(getBackDriver, fallback, () => window.devicePixelRatio || 1, raf);
+	const h = backHandlers(getDriver, fallback, () => window.devicePixelRatio || 1, raf);
 	NativeBack.addListener('backStarted', h.started);
 	NativeBack.addListener('backProgressed', h.progressed);
 	NativeBack.addListener('backCancelled', h.cancelled);

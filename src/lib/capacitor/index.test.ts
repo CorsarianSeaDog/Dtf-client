@@ -24,6 +24,7 @@ const appMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('./back', () => ({
+	getBackDriver: vi.fn(),
 	initNativeBack: vi.fn(),
 	setBackEnabled: appMocks.setBackEnabled
 }));
@@ -57,12 +58,15 @@ vi.mock('$lib/navigation', () => ({
 	popSubstate: mocks.popSubstate
 }));
 
+import { getBackDriver, initNativeBack } from './back';
+import { contextMenuState } from '$lib/contextMenu.svelte';
 import { isNative, openExternalUrl, updateStatusBar, hideSplashScreen, notifyAppReady, initCapacitor, handleAppUrl, handleNativeLinkClick, handleBackButton, syncBackHandler } from './index';
 
 describe('Capacitor bridge', () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
+		contextMenuState.close();
 		mocks.openDtfUrl.mockReset();
 		mocks.openDtfLink.mockReset();
 		mocks.closeOverlay.mockReset();
@@ -86,6 +90,22 @@ describe('Capacitor bridge', () => {
 		await expect(hideSplashScreen()).resolves.toBeUndefined();
 		await expect(notifyAppReady()).resolves.toBeUndefined();
 		expect(() => initCapacitor()).not.toThrow();
+	});
+
+	it('системный жест поверх меню закрывает меню и оставляет страницу на месте', () => {
+		appMocks.isNativePlatform.mockReturnValue(true);
+		vi.stubGlobal('window', { history: { length: 1 } });
+		vi.stubGlobal('document', { addEventListener: vi.fn(), documentElement: { dataset: {} } });
+		initCapacitor();
+		const [driver, invoke] = vi.mocked(initNativeBack).mock.lastCall!;
+		const pageDriver = { start: vi.fn(), move: vi.fn(), end: vi.fn() };
+		vi.mocked(getBackDriver).mockReturnValue(pageDriver);
+		contextMenuState.open({ x: 0, y: 0, mode: 'sheet', payload: { items: [{ id: 'open', label: 'Открыть' }] } });
+		expect(driver()).toBeUndefined();
+		invoke();
+		expect(contextMenuState.current).toBeNull();
+		expect(driver()).toBe(pageDriver);
+		expect(mocks.closeOverlay).not.toHaveBeenCalled();
 	});
 
 	it('openExternalUrl вызывает window.open при вызове в браузере', async () => {
@@ -327,6 +347,24 @@ describe('Capacitor bridge', () => {
 	});
 
 	describe('handleBackButton', () => {
+		it('закрывает открытое контекстное меню раньше popSubstate и closeOverlay', () => {
+			contextMenuState.open({
+				x: 0,
+				y: 0,
+				mode: 'sheet',
+				payload: { items: [{ id: 'save', label: 'Сохранить' }] }
+			});
+			mocks.popSubstate.mockReturnValue(true);
+			mockPageState.overlays = [{ id: 'post-1', type: 'post' }];
+
+			handleBackButton(true);
+
+			expect(contextMenuState.current).toBeNull();
+			expect(mocks.popSubstate).not.toHaveBeenCalled();
+			expect(mocks.closeOverlay).not.toHaveBeenCalled();
+			expect(appMocks.minimizeApp).not.toHaveBeenCalled();
+		});
+
 		it('выходит из полноэкранного режима вместо закрытия оверлея или сворачивания приложения', () => {
 			const exitFullscreen = vi.fn().mockResolvedValue(undefined);
 			vi.stubGlobal('document', {
@@ -431,6 +469,22 @@ describe('Capacitor bridge', () => {
 			vi.stubGlobal('document', {});
 			syncBackHandler(true);
 			expect(appMocks.setBackEnabled).toHaveBeenCalledWith(false);
+		});
+
+		it('включает перехват, если открыто контекстное меню на главной без оверлеев', () => {
+			appMocks.isNativePlatform.mockReturnValue(true);
+			mockPageState.overlays = [];
+			vi.stubGlobal('window', { location: { pathname: '/' } });
+			vi.stubGlobal('document', {});
+			contextMenuState.open({
+				x: 0,
+				y: 0,
+				mode: 'sheet',
+				payload: { items: [{ id: 'save', label: 'Сохранить' }] }
+			});
+
+			syncBackHandler(true);
+			expect(appMocks.setBackEnabled).toHaveBeenCalledWith(true);
 		});
 
 		it('включает перехват, если есть оверлеи', () => {

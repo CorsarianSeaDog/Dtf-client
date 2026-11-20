@@ -14,6 +14,7 @@
 	import EditorOverlay from '$lib/components/overlays/EditorOverlay.svelte';
 	import LightboxOverlay from '$lib/components/overlays/LightboxOverlay.svelte';
 	import SupportOverlay from '$lib/components/overlays/SupportOverlay.svelte';
+	import ContextMenu from '$lib/components/ContextMenu.svelte';
 	import MediaSheet from '$lib/components/MediaSheet.svelte';
 	import { overlayReuser, preloadLightbox } from '$lib/navigation';
 	import ModalShell from '$lib/components/overlays/ModalShell.svelte';
@@ -580,6 +581,7 @@
 	</div>
 {/if}
 <ThemeLoader componentName="ReloadPrompt" />
+<ContextMenu />
 <MediaSheet />
 <svg width="0" height="0" aria-hidden="true" style="position:absolute;overflow:hidden;pointer-events:none">{@html svgSpriteDefs}</svg>
 
