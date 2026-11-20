@@ -309,6 +309,8 @@ export const api = {
 	createDonation: dtfApiProvider.createDonation,
 	setCommentsSubscription: dtfApiProvider.setCommentsSubscription,
 	getFavoriteGifs: dtfApiProvider.getFavoriteGifs,
+	addFavoriteGif: dtfApiProvider.addFavoriteGif,
+	removeFavoriteGif: dtfApiProvider.removeFavoriteGif,
 	searchGifs: dtfApiProvider.searchGifs,
 	searchMentions: dtfApiProvider.searchMentions,
 	async setSubscription(subsiteId: number, subscribed: boolean) {

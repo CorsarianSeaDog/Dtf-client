@@ -523,6 +523,8 @@ export interface ApiProvider {
 	/** Включает или выключает уведомления о новых комментариях поста; отвечает новым состоянием */
 	setCommentsSubscription?(postId: number, subscribed: boolean): Promise<void>;
 	getFavoriteGifs?(): Promise<GifResult[]>;
+	addFavoriteGif?(media: { uuid: string; width?: number; height?: number; size?: number }): Promise<GifResult>;
+	removeFavoriteGif?(uuid: string): Promise<void>;
 	searchGifs?(query: string, cursor?: string): Promise<{ items: GifResult[]; cursor?: string }>;
 	searchMentions?(query?: string, options?: { signal?: AbortSignal }): Promise<MentionUser[]>;
 	getCommentControls?(commentId: number): Promise<CommentControls>;

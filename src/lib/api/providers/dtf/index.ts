@@ -528,9 +528,52 @@ export const dtfApiProvider = {
 		const response = await fetchWithAuth(`${apiV('2.9')}/favorite-gifs?page=0&limit=24`);
 		// У избранного вложение уже готово (поле andropov)
 		return ((await resultOf(response, 'Не удалось получить избранные гифки')).items || []).map((item: any) => ({
-			previewUrl: getLeonardoUrl(item.leonardoUuid, { width: 200 }),
+			previewUrl: getLeonardoUrl(item.leonardoUuid, { format: 'mp4' }),
 			media: item.andropov
 		}));
+	},
+
+	async addFavoriteGif(media: { uuid: string; width?: number; height?: number; size?: number }): Promise<GifResult> {
+		requireAuth();
+		const isTenor = !media.uuid.includes('-');
+		const body = new URLSearchParams({
+			type: isTenor ? 'tenor' : 'andropov',
+			id: media.uuid,
+			data: isTenor
+				? ''
+				: JSON.stringify({
+						type: 'image',
+						data: {
+							uuid: media.uuid,
+							width: media.width || 1,
+							height: media.height || 1,
+							size: media.size || 0,
+							type: 'gif'
+						}
+					})
+		});
+		const response = await fetchWithAuth(`${apiV('2.9')}/favorite-gifs`, { method: 'POST', body });
+		const item = await resultOf(response, 'Не удалось добавить гифку в избранное');
+		const uuid = item?.leonardoUuid || media.uuid;
+		return {
+			previewUrl: getLeonardoUrl(uuid, { format: 'mp4' }),
+			media: item?.andropov ?? {
+				type: 'image',
+				data: {
+					uuid,
+					width: item?.width ?? media.width ?? 0,
+					height: item?.height ?? media.height ?? 0,
+					size: media.size ?? 0,
+					type: 'gif'
+				}
+			}
+		};
+	},
+
+	async removeFavoriteGif(uuid: string): Promise<void> {
+		requireAuth();
+		const response = await fetchWithAuth(`${apiV('2.9')}/favorite-gifs/${encodeURIComponent(uuid)}`, { method: 'DELETE' });
+		await resultOf(response, 'Не удалось удалить гифку из избранного');
 	},
 
 	async searchGifs(query: string, cursor = ''): Promise<{ items: GifResult[]; cursor?: string }> {
