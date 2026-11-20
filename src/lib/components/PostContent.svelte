@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { api } from '$lib/api/index.svelte';
 	import type { Post } from '$lib/api/types';
 	import Reveal from './Reveal.svelte';
@@ -109,6 +110,15 @@
 				: ''
 	);
 	let lastCommentsTarget = '';
+	let focusedCommentTarget = '';
+
+	/** Пост виден сверху (и в оверлее, и на прямом маршруте /post/[id]) */
+	let isActive = $derived.by(() => {
+		if (depth > 0) return false;
+		const top = page.state.overlays?.findLast((o) => o.presentation === 'page');
+		if (!top) return true;
+		return top.type === 'post' && top.data.postId === postId && (top.data.sourceId ?? 'dtf') === sourceId;
+	});
 
 	$effect(() => {
 		const target = commentsTarget;
@@ -122,7 +132,8 @@
 		const box = commentsBox;
 		tick().then(() => {
 			requestAnimationFrame(() => {
-				if (commentsTarget !== target) return;
+				// Если Comments уже нашёл комментарий (например, из кэша) и запустил переход, не перебиваем его прокруткой к шапке
+				if (commentsTarget !== target || focusedCommentTarget === target) return;
 				box.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
 			});
 		});
@@ -216,6 +227,10 @@
 							commentEditor={loaded.commentEditor}
 							focusCommentId={commentId}
 							{focusNonce}
+							active={isActive}
+							onfocused={() => {
+								if (commentId !== undefined) focusedCommentTarget = commentsTarget;
+							}}
 							onCountChange={(delta) => {
 								if (post && post.id === postId && post.sourceId === sourceId) {
 									post = { ...post, commentsCount: Math.max(0, (post.commentsCount ?? 0) + delta) };
