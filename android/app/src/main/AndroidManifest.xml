@@ -15,11 +15,6 @@
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
             android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-
             <!-- Поддержка открытия ссылок dtf.ru (Android App Links / Deep Links) -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
@@ -52,6 +47,31 @@
                 <data android:scheme="http" android:host="www.redtf.org" />
             </intent-filter>
         </activity>
+
+		<activity-alias android:name="${applicationId}.launcher.default" android:targetActivity=".MainActivity"
+			android:exported="true" android:enabled="true" android:icon="@mipmap/ic_launcher"
+			android:roundIcon="@mipmap/ic_launcher_round">
+			<intent-filter>
+				<action android:name="android.intent.action.MAIN" />
+				<category android:name="android.intent.category.LAUNCHER" />
+			</intent-filter>
+		</activity-alias>
+		<activity-alias android:name="${applicationId}.launcher.bluer" android:targetActivity=".MainActivity"
+			android:exported="true" android:enabled="false" android:icon="@mipmap/ic_launcher_bluer"
+			android:roundIcon="@mipmap/ic_launcher_bluer">
+			<intent-filter>
+				<action android:name="android.intent.action.MAIN" />
+				<category android:name="android.intent.category.LAUNCHER" />
+			</intent-filter>
+		</activity-alias>
+		<activity-alias android:name="${applicationId}.launcher.white" android:targetActivity=".MainActivity"
+			android:exported="true" android:enabled="false" android:icon="@mipmap/ic_launcher_white"
+			android:roundIcon="@mipmap/ic_launcher_white">
+			<intent-filter>
+				<action android:name="android.intent.action.MAIN" />
+				<category android:name="android.intent.category.LAUNCHER" />
+			</intent-filter>
+		</activity-alias>
 
         <provider
             android:name="androidx.core.content.FileProvider"

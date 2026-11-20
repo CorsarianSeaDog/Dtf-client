@@ -74,6 +74,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NativeHapticsPlugin.class);
         registerPlugin(NativeBackPlugin.class);
         registerPlugin(NativeInstallerPlugin.class);
+		registerPlugin(AppIconPlugin.class);
         super.onCreate(savedInstanceState);
 
         try {

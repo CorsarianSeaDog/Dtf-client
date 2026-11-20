@@ -1,8 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { AppIconId } from './index';
 
-const { isNative } = vi.hoisted(() => ({ isNative: vi.fn(() => false) }));
+const { isNative, isPluginAvailable, change } = vi.hoisted(() => ({
+	isNative: vi.fn(() => false),
+	isPluginAvailable: vi.fn(() => true),
+	change: vi.fn().mockResolvedValue(undefined)
+}));
 vi.mock('$lib/capacitor', () => ({ isNative }));
+vi.mock('@capacitor/core', () => ({
+	Capacitor: { isPluginAvailable },
+	registerPlugin: (name: string) => name === 'AppIcon' ? { change } : {}
+}));
 
 interface MockElement {
 	rel: string;
@@ -51,6 +59,8 @@ describe('App Icons & PWA Manifest management', () => {
 	beforeEach(async () => {
 		vi.resetModules();
 		isNative.mockReturnValue(false);
+		isPluginAvailable.mockReturnValue(true);
+		change.mockClear();
 		elements = [];
 		vi.stubGlobal('document', createMockDocument());
 		icons = await import('./index');
@@ -122,12 +132,15 @@ describe('App Icons & PWA Manifest management', () => {
 		expect(decoded.background_color).toBe('#141414');
 	});
 
-	it('вызывает зарегистрированный Capacitor мост при смене иконки', async () => {
-		const bridge = vi.fn();
-		icons.registerCapacitorIconBridge(bridge);
-
-		await icons.notifyCapacitorIconChange('white');
-		expect(bridge).toHaveBeenCalledWith('white');
+	it('применяет встроенную иконку в APK и восстанавливает стандартную при сохранённой пользовательской', async () => {
+		isNative.mockReturnValue(true);
+		icons.applyAppIcon('white');
+		await icons.changeNativeAppIcon('white');
+		icons.applyAppIcon('custom', 'data:image/png;base64,AAAA');
+		icons.applyAppIcon('default');
+		isPluginAvailable.mockReturnValue(false);
+		icons.applyAppIcon('bluer');
+		expect(change.mock.calls).toEqual([[{ name: 'white' }], [{ name: 'default' }]]);
 	});
 
 	it('рисует красную точку с вырезом, отменяет устаревший рендер и сохраняет точку при смене иконки', () => {
@@ -165,11 +178,7 @@ describe('App Icons & PWA Manifest management', () => {
 			}
 		);
 
-		const bridge = vi.fn();
-		icons.registerCapacitorIconBridge(bridge);
-
 		icons.applyAppIcon('default');
-		expect(bridge).toHaveBeenCalledTimes(1);
 
 		// Отмена: unread -> 1, но до onload сбрасывается в 0
 		icons.setUnreadBadge(1);
@@ -192,7 +201,7 @@ describe('App Icons & PWA Manifest management', () => {
 		expect(drawCtx.fillStyle).toBe('#e62e3b');
 		expect(fav?.type).toBe('image/png');
 		expect(fav?.getAttribute('href')).toBe('data:image/png;base64,BADGED');
-		expect(bridge).toHaveBeenCalledTimes(1);
+		expect(change).not.toHaveBeenCalled();
 
 		// Смена иконки при активных непрочитанных сохраняет точку для новой иконки
 		icons.applyAppIcon('bluer');

@@ -1,4 +1,5 @@
 import { asset } from '$app/paths';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { isNative } from '$lib/capacitor';
 
 export type AppIconId = 'default' | 'bluer' | 'white' | 'custom';
@@ -74,54 +75,24 @@ export function isPwa(): boolean {
 	);
 }
 
-/**
- * Точка интеграции для Capacitor / нативных обёрток.
- * Когда в проект будет добавлен Capacitor, зарегистрируйте обработчик смены нативного значка:
- * registerCapacitorIconBridge(async (iconId) => { await AppIconPlugin.change({ name: iconId }); });
- */
-export type CapacitorIconBridge = (iconId: AppIconId) => Promise<boolean | void> | boolean | void;
+const AppIcon = registerPlugin<{
+	change(options: { name: Exclude<AppIconId, 'custom'> }): Promise<void>;
+}>('AppIcon');
 
-let customCapacitorBridge: CapacitorIconBridge | null = null;
+export const nativeAppIconAvailable = () => Capacitor.isPluginAvailable('AppIcon');
 
-export function registerCapacitorIconBridge(bridge: CapacitorIconBridge | null) {
-	customCapacitorBridge = bridge;
-}
+let lastNativeIconName: Exclude<AppIconId, 'custom'> | null = null;
 
-export async function notifyCapacitorIconChange(id: AppIconId): Promise<void> {
-	if (customCapacitorBridge) {
-		try {
-			await customCapacitorBridge(id);
-			return;
-		} catch (err) {
-			console.warn('[appIcon] Capacitor bridge error:', err);
-		}
-	}
-
-	// Автоопределение типичного плагина Capacitor, если он объявлен в глобальной области
-	if (typeof window !== 'undefined') {
-		const cap = (window as unknown as {
-			Capacitor?: {
-				Plugins?: {
-					AppIcon?: {
-						change?: (options: { name: string }) => Promise<unknown>;
-						set?: (options: { name: string }) => Promise<unknown>;
-					};
-				};
-			};
-		}).Capacitor;
-
-		const plugin = cap?.Plugins?.AppIcon;
-		if (plugin) {
-			try {
-				if (plugin.change) {
-					await plugin.change({ name: id });
-				} else if (plugin.set) {
-					await plugin.set({ name: id });
-				}
-			} catch (err) {
-				console.warn('[appIcon] Native Capacitor icon change failed:', err);
-			}
-		}
+export async function changeNativeAppIcon(id: AppIconId) {
+	const name = id === 'custom' ? 'default' : id;
+	if (lastNativeIconName === name) return;
+	const prev = lastNativeIconName;
+	lastNativeIconName = name;
+	try {
+		await AppIcon.change({ name });
+	} catch (err) {
+		if (lastNativeIconName === name) lastNativeIconName = prev;
+		throw err;
 	}
 }
 
@@ -351,6 +322,7 @@ export function applyAppIcon(iconId: AppIconId, customData?: string | null) {
 
 	syncFavicon();
 
-	// Уведомление Capacitor / нативного окружения
-	notifyCapacitorIconChange(iconId).catch(() => {});
+	if (isNative() && nativeAppIconAvailable()) {
+		void changeNativeAppIcon(iconId).catch((err) => console.warn('[appIcon]', err));
+	}
 }

@@ -1,13 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { asset } from '$app/paths';
-	import { APP_ICONS, isPwa, type AppIconId, processCustomIcon } from '$lib/icons';
+	import { APP_ICONS, changeNativeAppIcon, isPwa, nativeAppIconAvailable, type AppIconId, processCustomIcon } from '$lib/icons';
+	import { isNative } from '$lib/capacitor';
 	import { settings } from '$lib/storage/settings.svelte';
 	import { haptics } from '$lib/haptics';
 	import SettingsGroup from './SettingsGroup.svelte';
 	import Dialog from '$lib/components/Dialog.svelte';
 
-	let currentIcon = $derived(settings.value.appIcon ?? 'default');
+	const native = isNative();
+	const needsApkUpdate = native && !nativeAppIconAvailable();
+	let currentIcon = $derived(needsApkUpdate || (native && settings.value.appIcon === 'custom')
+		? 'default' : settings.value.appIcon ?? 'default');
 	let customIconData = $derived(settings.value.customIconData ?? null);
 
 	let inPwa = $state(false);
@@ -15,16 +19,31 @@
 	let pendingIconId = $state<AppIconId | null>(null);
 	let pendingCustomData = $state<string | null>(null);
 	let uploadError = $state<string | null>(null);
+	let changing = $state(false);
+	let nativeError = $state('');
 	let fileInput = $state<HTMLInputElement>();
 
 	onMount(() => {
-		inPwa = isPwa();
+		inPwa = !native && isPwa();
 	});
 
-	function handleSelect(id: AppIconId) {
+	async function handleSelect(id: AppIconId) {
 		if (id === currentIcon) return;
 		haptics.click();
 
+		if (native) {
+			nativeError = '';
+			changing = true;
+			try {
+				await changeNativeAppIcon(id);
+				applySelection(id);
+			} catch {
+				nativeError = 'Не удалось сменить иконку. Попробуйте ещё раз.';
+			} finally {
+				changing = false;
+			}
+			return;
+		}
 		if (inPwa) {
 			pendingIconId = id;
 			pendingCustomData = id === 'custom' ? customIconData : null;
@@ -87,7 +106,9 @@
 
 <SettingsGroup
 	title="Иконка приложения"
-	description="Значок обновляется во вкладке браузера (favicon), на домашнем экране (PWA) и в нативных сборках."
+	description={needsApkUpdate ? 'Для смены значка на рабочем столе обновите APK.'
+		: native ? 'Выберите значок для рабочего стола Android.'
+		: 'Значок для вкладки браузера и установленного веб-приложения.'}
 >
 	<div class="icons-list" role="radiogroup" aria-label="Выбор иконки приложения">
 		{#each APP_ICONS as icon (icon.id)}
@@ -98,15 +119,18 @@
 				class:icon-card--selected={isSelected}
 				role="radio"
 				aria-checked={isSelected}
+				disabled={needsApkUpdate || changing}
 				onclick={() => handleSelect(icon.id)}
 			>
 				<div class="icon-card__preview-wrap">
 					<div class="icon-card__app-preview" style:background={icon.bgColor}>
 						<img src={asset(icon.appSvg)} alt="" class="icon-card__img" />
 					</div>
-					<div class="icon-card__fav-badge" style:background={icon.bgColor} title="Favicon для вкладки">
-						<img src={asset(icon.favSvg)} alt="" class="icon-card__fav-img" />
-					</div>
+					{#if !native}
+						<div class="icon-card__fav-badge" style:background={icon.bgColor} title="Favicon для вкладки">
+							<img src={asset(icon.favSvg)} alt="" class="icon-card__fav-img" />
+						</div>
+					{/if}
 				</div>
 
 				<div class="icon-card__info">
@@ -127,7 +151,7 @@
 			</button>
 		{/each}
 
-		{#if customIconData}
+		{#if !native && customIconData}
 			{@const isSelected = currentIcon === 'custom'}
 			<div class="icon-card icon-card--custom" class:icon-card--selected={isSelected}>
 				<button
@@ -183,30 +207,35 @@
 		{/if}
 	</div>
 
-	<div class="upload-section">
-		<input
-			bind:this={fileInput}
-			type="file"
-			accept="image/png,image/svg+xml,image/jpeg,image/webp"
-			class="hidden-file-input"
-			onchange={onFileSelected}
-		/>
-		<button
-			type="button"
-			class="upload-btn"
-			onclick={() => fileInput?.click()}
-		>
-			<svg class="upload-btn__icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-				<path d="M8 3v10M3 8h10" />
-			</svg>
-			<span class="upload-btn__text">
-				{customIconData ? 'Загрузить другое изображение...' : 'Загрузить свою иконку (SVG, PNG, WebP)...'}
-			</span>
-		</button>
-		{#if uploadError}
-			<div class="upload-error">{uploadError}</div>
-		{/if}
-	</div>
+	{#if nativeError}
+		<div class="upload-error" role="alert">{nativeError}</div>
+	{/if}
+	{#if !native}
+		<div class="upload-section">
+			<input
+				bind:this={fileInput}
+				type="file"
+				accept="image/png,image/svg+xml,image/jpeg,image/webp"
+				class="hidden-file-input"
+				onchange={onFileSelected}
+			/>
+			<button
+				type="button"
+				class="upload-btn"
+				onclick={() => fileInput?.click()}
+			>
+				<svg class="upload-btn__icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<path d="M8 3v10M3 8h10" />
+				</svg>
+				<span class="upload-btn__text">
+					{customIconData ? 'Загрузить другое изображение...' : 'Загрузить свою иконку (SVG, PNG, WebP)...'}
+				</span>
+			</button>
+			{#if uploadError}
+				<div class="upload-error">{uploadError}</div>
+			{/if}
+		</div>
+	{/if}
 </SettingsGroup>
 
 {#if inPwa}
